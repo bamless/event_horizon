@@ -1,6 +1,6 @@
 import event_horizon.registry for Registry
 
-// private -- registry holding all active event loops
+// private - registry holding all active event loops
 static var eventLoops = Registry()
 
 /// @return {event_horizon.loop.EventLoop} The `EventLoop` associated with `loopId`

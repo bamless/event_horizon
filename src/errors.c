@@ -15,7 +15,7 @@ void EventHorizonException_raise(JStarVM* vm, const char* err) {
     jsrRaiseException(vm, -1);
 }
 
-void LoopExecutionException_raise(JStarVM* vm, int exceptionsSlot) { 
+void LoopExecutionException_raise(JStarVM* vm, int exceptionsSlot) {
     if(!jsrGetGlobal(vm, "event_horizon.errors", "LoopExecutionException")) return;
     if(exceptionsSlot < 0) exceptionsSlot -= 1;
     jsrPushValue(vm, exceptionsSlot);

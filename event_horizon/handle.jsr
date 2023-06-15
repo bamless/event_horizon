@@ -1,5 +1,5 @@
 import event_horizon.utils.abc for abstract
-import event_horizon for Registry
+import event_horizon.registry for Registry
 
 class Handle
     @abstract(Handle)

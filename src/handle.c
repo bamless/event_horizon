@@ -8,7 +8,7 @@
 // class Handle
 static void freeHandle(void* data) {
     uv_handle_t* handle = data;
-    HandleMetadata* metadata = uv_handle_get_data(handle);
+    HandleMetadata* metadata = handle->data;
     free(metadata);
 }
 
@@ -83,7 +83,7 @@ bool Handle_close(JStarVM* vm) {
     if(!jsrIsNull(vm, 1)) {
         int callbackId = Handle_registerCallback(vm, 1, 0);
         if(callbackId == -1) return false;
-        HandleMetadata* metadata = uv_handle_get_data(handle);
+        HandleMetadata* metadata = handle->data;
         metadata->callbacks[CLOSE_CB] = callbackId;
     }
 
@@ -114,7 +114,7 @@ bool Handle_getEventLoop(JStarVM* vm, int handleSlot) {
 
 uv_handle_t* Handle_getHandle(JStarVM* vm, int handleSlot) {
     if(!jsrGetField(vm, handleSlot, M_HANDLE_HANDLE)) return NULL;
-    if(!jsrCheckUserdata(vm, -1, "Handle."M_HANDLE_HANDLE)) return NULL;
+    if(!jsrCheckUserdata(vm, -1, "Handle." M_HANDLE_HANDLE)) return NULL;
     uv_handle_t* handle = jsrGetUserdata(vm, -1);
     jsrPop(vm);
     return handle;
@@ -140,7 +140,7 @@ bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handle
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return false;
     jsrPushNumber(vm, callbackId);
     if(jsrCallMethod(vm, "get", 1) != JSR_SUCCESS) return false;
-    
+
     if(unregister && !Handle_unregisterCallback(vm, callbackId, handleSlot)) {
         jsrPop(vm);
         return false;
@@ -156,3 +156,4 @@ bool Handle_unregisterCallback(JStarVM* vm, int callbackId, int handleSlot) {
     jsrPop(vm);
     return true;
 }
+// end

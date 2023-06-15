@@ -6,6 +6,6 @@
 // class TCP
 bool TCP_connect(JStarVM* vm);
 bool TCP_bind(JStarVM* vm);
-//end
+// end
 
 #endif

@@ -29,7 +29,7 @@ bool Stream_write(JStarVM* vm) {
 
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
-    
+
     const char* data = jsrGetString(vm, 1);
     size_t dataLen = jsrGetStringSz(vm, 1);
 
@@ -44,7 +44,7 @@ bool Stream_write(JStarVM* vm) {
     int callbackId = -1;
     if(!jsrIsNull(vm, 2)) {
         callbackId = Handle_registerCallback(vm, 2, 0);
-        if(callbackId == -1) { 
+        if(callbackId == -1) {
             free(req);
             return false;
         }
@@ -64,7 +64,6 @@ bool Stream_write(JStarVM* vm) {
 
     jsrPushNull(vm);
     return true;
-
 }
 
 bool Stream_tryWrite(JStarVM* vm) {
@@ -73,10 +72,7 @@ bool Stream_tryWrite(JStarVM* vm) {
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
 
-    uv_buf_t buf = (uv_buf_t) {
-        .base = (char*)jsrGetString(vm, 1),
-        .len = jsrGetStringSz(vm, 1)
-    };
+    uv_buf_t buf = (uv_buf_t){.base = (char*)jsrGetString(vm, 1), .len = jsrGetStringSz(vm, 1)};
 
     int res = uv_try_write(stream, &buf, 1);
     if(res == UV_EAGAIN) {
@@ -147,16 +143,16 @@ bool Stream_shutdown(JStarVM* vm) {
     if(!stream) return false;
 
     uv_shutdown_t* req = malloc(sizeof(*req));
-    
+
     int callbackId = -1;
     if(!jsrIsNull(vm, 1)) {
         callbackId = Handle_registerCallback(vm, 1, 0);
-        if(callbackId == -1) { 
+        if(callbackId == -1) {
             free(req);
             return false;
         }
     }
-    
+
     setRequestCallback((uv_req_t*)req, callbackId);
 
     int res = uv_shutdown(req, stream, &shutdownCallback);
@@ -194,7 +190,7 @@ bool Stream_getWriteQueueSize(JStarVM* vm) {
     return true;
 }
 
-static void onConnectionCallback(uv_stream_t *stream, int status) {
+static void onConnectionCallback(uv_stream_t* stream, int status) {
     HandleMetadata* metadata = stream->data;
     statusCallback((uv_handle_t*)stream, metadata->callbacks[CONNECT_CB], false, status);
 }
@@ -229,9 +225,9 @@ bool Stream_rawAccept(JStarVM* vm) {
 
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
-    
+
     uv_stream_t* client = jsrGetUserdata(vm, 1);
-    
+
     int res = uv_accept(stream, client);
     if(res < 0) {
         StatusException_raise(vm, res);

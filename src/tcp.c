@@ -22,7 +22,7 @@ bool TCP_connect(JStarVM* vm) {
         JSR_CHECK(Function, 3, "callback");
     }
 
-    sockaddr_union sa; 
+    sockaddr_union sa;
     int res = initSockaddr(jsrGetString(vm, 1), jsrGetNumber(vm, 2), &sa);
     if(res < 0) {
         StatusException_raise(vm, res);
@@ -37,7 +37,7 @@ bool TCP_connect(JStarVM* vm) {
     int callbackId = -1;
     if(!jsrIsNull(vm, 3)) {
         callbackId = Handle_registerCallback(vm, 3, 0);
-        if(callbackId == -1) { 
+        if(callbackId == -1) {
             free(req);
             return false;
         }
@@ -46,7 +46,7 @@ bool TCP_connect(JStarVM* vm) {
     setRequestCallback((uv_req_t*)req, callbackId);
 
     res = uv_tcp_connect(req, tcp, &sa.sa, &connectCallback);
-    if (res < 0) {
+    if(res < 0) {
         free(req);
         if(!Handle_unregisterCallback(vm, callbackId, 0)) return false;
         StatusException_raise(vm, res);

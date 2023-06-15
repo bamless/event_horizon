@@ -69,8 +69,7 @@ bool EventLoop_walk(JStarVM* vm) {
     if(!loop) return false;
 
     jsrPushValue(vm, 1);
-    if(!jsrSetField(vm, 0, M_LOOP_WALK_CALLBACK))
-    jsrPop(vm);
+    if(!jsrSetField(vm, 0, M_LOOP_WALK_CALLBACK)) jsrPop(vm);
 
     uv_walk(loop, &walkCallback, loop);
 
@@ -80,7 +79,7 @@ bool EventLoop_walk(JStarVM* vm) {
 
 static void closeLibuvLoop(void* data) {
     uv_loop_t* loop = data;
-    LoopMetadata* metadata = uv_loop_get_data(loop);
+    LoopMetadata* metadata = loop->data;
     free(metadata);
     int res = uv_loop_close(loop);
     if(res == UV_EBUSY) {
@@ -143,7 +142,7 @@ bool EventLoop_getHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
     if(!jsrGetField(vm, eventLoopSlot, M_LOOP_HANDLES)) return false;
     jsrPushNumber(vm, handleId);
     if(jsrCallMethod(vm, "get", 1) != JSR_SUCCESS) return false;
-    return true; 
+    return true;
 }
 
 bool EventLoop_unregisterHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
@@ -152,7 +151,7 @@ bool EventLoop_unregisterHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
     jsrPushNumber(vm, handleId);
     if(jsrCallMethod(vm, "unref", 1) != JSR_SUCCESS) return false;
     jsrPop(vm);
-    return true; 
+    return true;
 }
 
 void EventLoop_addException(JStarVM* vm, int exceptionSlot) {

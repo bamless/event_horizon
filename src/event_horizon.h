@@ -13,7 +13,7 @@ typedef enum CallbackType {
     CLOSE_CB,
     READ_CB,
     CONNECT_CB,
-    NUM_CB
+    NUM_CB,
 } CallbackType;
 
 typedef struct HandleMetadata {

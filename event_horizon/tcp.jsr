@@ -1,5 +1,4 @@
 import event_horizon as evh
-import event_horizon.event_loop for EventLoop
 import event_horizon.handle for HandleType 
 import event_horizon.stream for Stream
 

@@ -42,14 +42,13 @@ static bool tryUnregisterHandle(JStarVM* vm, int handleId, int loopSlot) {
 }
 
 void closeCallback(uv_handle_t* handle) {
-    HandleMetadata* handleMetadata = uv_handle_get_data(handle);
-    LoopMetadata* loopMetadata = uv_loop_get_data(handle->loop);
+    HandleMetadata* handleMetadata = handle->data;
+    LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
         return;
     }
-
     int loopSlot = jsrTop(vm) - 1;
     int handleSlot = jsrTop(vm);
 
@@ -72,13 +71,12 @@ void closeCallback(uv_handle_t* handle) {
 
 void statusCallback(uv_handle_t* handle, int callbackId, bool unregister, int status) {
     HandleMetadata* handleMetadata = handle->data;
-    LoopMetadata* loopMetadata = uv_loop_get_data(handle->loop);
+    LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
         return;
     }
-
     int handleSlot = jsrTop(vm);
 
     if(callbackId != -1) {
@@ -93,7 +91,7 @@ void statusCallback(uv_handle_t* handle, int callbackId, bool unregister, int st
 }
 
 void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
-    LoopMetadata* metadata = uv_loop_get_data(handle->loop);
+    LoopMetadata* metadata = handle->loop->data;
     JStarVM* vm = metadata->vm;
 
     JStarBuffer alloc;
@@ -104,8 +102,8 @@ void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
 }
 
 void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
-    LoopMetadata* loopMetadata = uv_loop_get_data(stream->loop);
-    HandleMetadata* handleMetadata = uv_handle_get_data((uv_handle_t*)stream);
+    LoopMetadata* loopMetadata = stream->loop->data;
+    HandleMetadata* handleMetadata = stream->data;
     JStarVM* vm = loopMetadata->vm;
 
     JStarBuffer data = (JStarBuffer){
@@ -118,7 +116,6 @@ void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
         return;
     }
-
     int handleSlot = jsrTop(vm);
 
     if(!Handle_getCallback(vm, handleMetadata->callbacks[READ_CB], false, handleSlot)) {
@@ -157,7 +154,6 @@ void walkCallback(uv_handle_t* handle, void* arg) {
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
         return;
     }
-
     int loopSlot = jsrTop(vm) - 1;
     int handleSlot = jsrTop(vm);
 

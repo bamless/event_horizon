@@ -9,6 +9,7 @@
 inline void setRequestCallback(uv_req_t* req, int callbackId);
 inline int getRequestCallback(uv_req_t* req);
 
+// clang-format off
 static JStarNativeReg registry[] = {
     JSR_REGFUNC(strerror, errors_strerror)
 

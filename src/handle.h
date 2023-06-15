@@ -24,5 +24,4 @@ bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handle
 bool Handle_unregisterCallback(JStarVM* vm, int callbackId, int handleSlot);
 // end
 
-
 #endif
