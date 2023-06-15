@@ -1,0 +1,151 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run, skip
+
+import io
+
+import server_utils for spawnTCPServer
+
+import event_horizon as evh
+import event_horizon.errors for strerror, LoopExecutionException
+import event_horizon.tcp for TCP
+
+@test
+fun connect()
+    with spawnTCPServer(8080) server
+        var tcp = TCP()
+
+        var connected = false
+
+        tcp.connect("127.0.0.1", 8080, fun(status)
+            assert(#tcp._callbacks == 0)
+            assert(status is Number)
+            connected = true
+            tcp.close()
+        end)
+
+        assert(#tcp._callbacks == 1)
+
+        assert(!connected, '`connect` callback called before next loop tick')
+        evh.loop().run()
+        assert(connected, '`connect` not called')
+    end
+end
+
+@test
+fun connectFail()
+    var tcp = TCP()
+
+    var called = false
+
+    tcp.connect("127.0.0.1", 8080, fun(status)
+        called = true
+        assert(strerror(status) == 'connection refused')
+        tcp.close()
+    end)
+
+    assert(!called, '`connect` callback called before next loop tick')
+    evh.loop().run()
+    assert(called, '`connect` not called')
+end
+
+@test
+fun connectThrows()
+    var tcp = TCP()
+
+    tcp.connect("0.0.0.0", 80, fun(status)
+        assert(status is Number)
+        tcp.close()
+        print(doesNotExist)
+    end)
+
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
+    end
+
+    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+end
+
+@test
+fun connectMultipleThrows()
+    var tcp1 = TCP()
+    tcp1.connect("0.0.0.0", 80, fun(status)
+        tcp1.close()
+        print(doesNotExist)
+    end)
+
+    var tcp2 = TCP()
+    tcp2.connect("0.0.0.0", 80, fun(status)
+        tcp2.close()
+        raise TypeException()
+    end)
+    
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        var exceptions = e.exceptions()
+        assert(#exceptions == 2, "Too many exceptions: {0}" % #exceptions)
+        assert(exceptions.find(|e| => e is NameException), "Expected to find a `NameException`")
+        assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
+    end
+
+    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+end
+
+@test
+fun bind()
+    var s = TCP()
+    s.bind('0.0.0.0', 8080)
+    s.close()
+    evh.loop().run()
+end
+
+@test
+fun accept()
+    var s = TCP()
+    var c = TCP()
+
+    s.bind('0.0.0.0', 8080)
+    s.listen(fun(client, status)
+        if status < 0
+            s.close()
+            io.stderr.writeln("client error: {0}" % strerror(status))
+        end
+
+        client.write("Hello, World!", fun(status)
+            if status < 0
+                io.stderr.writeln("client error: {0}" % strerror(status))
+            end
+        end)
+        
+        client.close()
+        s.close()
+    end)
+
+    c.connect('0.0.0.0', 8080, fun(status)
+        if status < 0
+            c.close()
+            io.stderr.writeln("client error: {0}" % strerror(status))
+        end
+
+        c.readStart(fun(data, status)
+            c.close()
+            if status < 0
+                io.stderr.writeln("client error: {0}" % strerror(status))
+            end
+            assert(data == "Hello, World!")
+        end)
+    end)
+
+    evh.loop().run()
+end
+
+if __name__ == '__main__'
+    run()
+end

@@ -1,0 +1,28 @@
+#ifndef HANDLE_H
+#define HANDLE_H
+
+#include <jstar/jstar.h>
+
+#include "uv.h"
+
+// class Handle
+#define M_HANDLE_LOOP      "_loop"
+#define M_HANDLE_HANDLE    "_handle"
+#define M_HANDLE_CALLBACKS "_callbacks"
+
+// Native methods
+bool Handle_init(JStarVM* vm);
+bool Handle_close(JStarVM* vm);
+bool Handle_isActive(JStarVM* vm);
+bool Handle_isClosing(JStarVM* vm);
+
+// Uiility methods to be called from natives
+bool Handle_getEventLoop(JStarVM* vm, int handleSlot);
+uv_handle_t* Handle_getHandle(JStarVM* vm, int handleSlot);
+int Handle_registerCallback(JStarVM* vm, int callbackSlot, int handleSlot);
+bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handleSlot);
+bool Handle_unregisterCallback(JStarVM* vm, int callbackId, int handleSlot);
+// end
+
+
+#endif

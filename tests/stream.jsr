@@ -1,0 +1,467 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run, skip
+
+import server_utils for spawnTCPServer
+
+import event_horizon as evh
+import event_horizon.errors for strerror, StatusException, LoopExecutionException
+import event_horizon.tcp for TCP
+
+@test
+fun shutdown()
+    var server = spawnTCPServer(8080)
+    var tcp = TCP() 
+    var shut = false
+    
+    tcp.connect("0.0.0.0", 8080, fun(status)
+        tcp.shutdown(fun(status)
+            assert(#tcp._callbacks == 0)
+            assert(status >= 0)
+            shut = true
+            tcp.close()
+        end)
+
+        assert(#tcp._callbacks == 1)
+    end)
+
+    assert(!shut, '`shutdown` called before next loop tick')
+    evh.loop().run()
+    assert(shut, '`shutdown` not called')
+
+    server.close()
+end
+
+@test
+fun shutdownFail()
+    var tcp = TCP() 
+    
+    tcp.connect("0.0.0.0", 80, fun(status)
+        tcp.shutdown(fun(status)
+            assert(strerror(status) == 'socket is not connected')
+            tcp.close()
+        end)
+    end)
+
+    evh.loop().run()
+end
+
+@test
+fun shutdownThrows()
+    var tcp = TCP() 
+    
+    tcp.connect("0.0.0.0", 80, fun(status)
+        tcp.shutdown(fun(status)
+            tcp.close()
+            print(doesNotExist)
+        end)
+    end)
+    
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
+    end
+
+    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+end
+
+@test
+fun shutdownMultipleThrows()
+    var tcp1 = TCP()
+    tcp1.connect("0.0.0.0", 80, fun(status)
+        tcp1.shutdown(fun(status)
+            tcp1.close()
+            print(doesNotExist)
+        end)
+    end)
+
+    var tcp2 = TCP()
+    tcp2.connect("0.0.0.0", 80, fun(status)
+        tcp2.shutdown(fun(status)
+            tcp2.close()
+            raise TypeException()
+        end)
+    end)
+    
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        var exceptions = e.exceptions()
+        assert(#exceptions == 2, "Too many exceptions: {0}" % #exceptions)
+        assert(exceptions.find(|e| => e is NameException), "Expected to find a `NameException`")
+        assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
+    end
+
+    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+end
+
+@test
+fun write()
+    var server = spawnTCPServer(8080)
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.write(data, fun(status)
+            assert(#s._callbacks == 0)
+            s.close()
+            if status < 0
+                raise StatusException(status)
+            end
+        end)
+
+        assert(#s._callbacks == 1)
+    end)
+
+    evh.loop().run()
+
+    assert(#s._callbacks == 0)
+
+    var res = server.readAll()
+    assert(res == data, "'{0}' != '{1}'" % (res, data))
+
+    server.close()
+end
+
+@test
+fun twoWrite()
+    var server = spawnTCPServer(8080)
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.write(data, fun(status)
+            if status < 0
+                raise StatusException(status)
+            end
+        end)
+
+        s.write(data, fun(status)
+            if status < 0
+                raise StatusException(status)
+            end
+        end)
+
+        assert(#s._callbacks == 2)
+    end)
+
+    evh.loop().run()
+
+    assert(#s._callbacks == 0)
+
+    s.close()
+    evh.loop().run()
+
+    var res = server.readAll()
+    assert(res == data * 2, "'{0}' != '{1}'" % (res, data))
+
+    server.close()
+end
+
+@test
+fun writeFail()
+    var server = spawnTCPServer(8080)
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        s.close()
+        if status < 0
+            raise StatusException(status)
+        end
+        s.write(data)
+    end)
+
+    var didThrow = false
+
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is StatusException and e.cause().err() == "bad file descriptor", "Wrong exception type: {0}" % type(e.cause()).getName())
+    end
+
+
+    assert(didThrow)
+
+    var res = server.readAll()
+    assert(res == '', "Non empty server result: {0}" % res)
+
+    server.close()
+end
+
+@test
+fun writeThrows()
+    var server = spawnTCPServer(8080)
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.write(data, fun(status)
+            s.close()
+            raise Exception()
+        end)
+    end)
+
+    var didThrow = false
+
+    try
+        evh.loop().run()
+    except Exception e
+        didThrow = true
+    end
+
+    assert(didThrow)
+
+    var res = server.readAll()
+    assert(res == data, "'{0}' != '{1}'" % (res, data))
+
+    server.close()
+end
+
+@test
+fun tryWrite()
+    var server = spawnTCPServer(8080)
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        var sent = s.tryWrite(data)
+        assert(sent <= #data, "Sent more bytes than data")
+
+        s.close()
+    end)
+
+    evh.loop().run()
+
+    var res = server.readAll()
+    assert(data.startsWith(res), "{0} does not start with {1}" % (data, res))
+
+    server.close()
+end
+
+@test
+fun tryWriteFail()
+    var s = TCP()
+    var data = "Hello, World!"
+    
+    var didThrow = false
+    try
+        var sent = s.tryWrite(data)
+    except StatusException e
+        didThrow = true
+        assert(e.err() == 'bad file descriptor')
+    ensure
+        s.close()
+    end
+
+    assert(didThrow, "tryWrite did not throw")
+
+    evh.loop().run()
+end
+
+@test
+fun read()
+    var server = spawnTCPServer(8080, "w")
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.readStart(fun(read, status)
+            assert(#s._callbacks == 1)
+
+            if status < 0
+                raise StatusException(status)
+            end
+
+            s.close()
+            server.close()
+            
+            assert(read == data, '{0} != {1}' % (read, data)) 
+        end)
+
+        server.write(data)
+        server.flush()
+    end)
+
+    evh.loop().run()
+end
+
+@test
+fun readFail()
+    var server = spawnTCPServer(8080, "w")
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        s.close()
+        server.close()
+
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.readStart(fun(read, status)
+            if status < 0
+                raise StatusException(status)
+            end
+
+            s.close()
+            server.close()
+            
+            assert(read == data, '{0} != {1}' % (read, data)) 
+        end)
+    end)
+
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause().err() == 'invalid argument')
+    end
+
+    assert(didThrow, '`evh.loop().run() did not throw')
+end
+
+@test
+fun readThrows()
+    var server = spawnTCPServer(8080, "w")
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.readStart(fun(read, status)
+            s.close()
+            server.close()
+            print(doesNotExist)
+        end)
+
+        server.write("foo")
+        server.flush()
+    end)
+
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is NameException)
+    end
+
+    assert(didThrow, '`evh.loop().run() did not throw')
+end
+
+@test
+fun listen()
+    var s = TCP()
+    var c = TCP()
+
+    s.bind('0.0.0.0', 8080)
+
+    var listenCalled = false
+    s.listen(fun(client, status)
+        listenCalled = true
+
+        if status < 0
+            s.close()
+            io.stderr.writeln("client error: {0}" % strerror(status))
+        end
+
+        client.close()
+        s.close()
+    end)
+
+    c.connect('0.0.0.0', 8080, fun(status)
+        c.close()
+    end)
+
+    evh.loop().run()
+end
+
+@test
+fun isReadableWritable()
+    var server = spawnTCPServer(8080)
+    var s = TCP()
+
+    assert(!s.isReadable() and !s.isWritable(), "Socket not conneted, should not be readable or writable")
+
+    s.connect('0.0.0.0', 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        assert(s.isReadable() and s.isWritable(), "Connected socket should be readable and writable")
+
+        s.shutdown(fun(status)
+            if status < 0
+                s.close()
+                raise StatusException(status)
+            end
+
+            assert(s.isReadable() and !s.isWritable(), "Shut socket should only be readable")
+            s.close()
+        end)
+    end)
+
+    evh.loop().run()
+    server.close()
+end
+
+@test
+fun getWriteQueueSize()
+    var s = TCP()
+    var sz = s.getWriteQueueSize()
+    assert(sz is Number and sz >= 0)
+    s.close()
+    evh.loop().run()
+end
+
+if __name__ == '__main__'
+    run()
+end

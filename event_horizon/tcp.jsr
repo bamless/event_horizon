@@ -1,0 +1,19 @@
+import event_horizon as evh
+import event_horizon.event_loop for EventLoop
+import event_horizon.handle for HandleType 
+import event_horizon.stream for Stream
+
+class TCP is Stream
+    construct(loop=null)
+        super(loop or evh.loop(), HandleType.TCP)
+    end
+
+    fun accept()
+        var client = TCP(this._loop)
+        this._rawAccept(client.handle())
+        return client
+    end
+
+    native connect(addr, port, callback=null)
+    native bind(addr, port)
+end

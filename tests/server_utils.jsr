@@ -1,0 +1,35 @@
+import io
+import sys
+
+import event_horizon.errors for strerror
+import event_horizon.tcp for TCP
+
+fun sleepAndServerAvailable()
+    var _, res
+    _, res = sys.exec('which nc')
+    if res != 0
+        raise Exception('`nc` command not available on system. Cannot run test')
+    end
+    _, res = sys.exec('which sleep')
+    if res != 0
+        raise Exception('`sleep` command not available on system. Cannot run test')
+    end
+end
+
+fun sleep(sec)
+    sys.exec('sleep {0}' % sec)
+end
+
+fun spawnTCPServer(port, mode="r")
+    sleepAndServerAvailable()
+    var server = io.popen("nc -l -p {0}" % port, mode) 
+    sleep(0.01)
+    return server
+end
+
+fun spawnTCPClient(port, mode="r")
+    sleepAndServerAvailable()
+    var client = io.popen("nc 127.0.0.1 {0}" % port, mode) 
+    sleep(0.005)
+    return client
+end

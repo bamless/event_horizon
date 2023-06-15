@@ -1,0 +1,50 @@
+import event_horizon.utils.abc for abstract
+import event_horizon for Registry
+
+class Handle
+    @abstract(Handle)
+    construct(loop, handleType)
+        this._loop = loop
+        this._handleType = handleType
+        this._callbacks = Registry()
+        this._init(loop, handleType)
+    end
+
+    fun handleType()
+        return this._handleType
+    end
+
+    fun handle()
+        return this._handle
+    end
+
+    fun loop()
+        return this._loop
+    end
+
+    native close(callback=null)
+    native isActive()
+    native isClosing()
+    native _init(loop, handleType)
+end
+
+var HandleType = Enum(
+    'UNKNOWN_HANDLE',
+    'ASYNC',
+    'CHECK',
+    'FS_EVENT',
+    'FS_POLL',
+    'HANDLE',
+    'IDLE',
+    'NAMED_PIPE',
+    'POLL',
+    'PREPARE',
+    'PROCESS',
+    'STREAM',
+    'TCP',
+    'TIMER',
+    'TTY',
+    'UDP',
+    'SIGNAL',
+    'FILE',
+)

@@ -1,0 +1,44 @@
+#!/usr/bin/env jstar
+
+import io
+
+import event_horizon as evh
+import event_horizon.errors for strerror, EventHorizonException
+import event_horizon.tcp for TCP
+
+// Echo server
+var server = TCP()
+
+try
+    server.bind('0.0.0.0', 8080)
+    server.listen(fun(client, status)
+        if status < 0
+            io.stderr.println("client error: {0}" % strerror(status))
+            return
+        end
+
+        client.readStart(fun(data, status)
+            if status < 0
+                io.stderr.println("client error: {0}" % strerror(status))
+                client.close()
+            end
+            
+            if !data
+                client.close()
+                return
+            end
+
+            client.write(data, fun(status)
+                if status < 0
+                    io.stderr.println("client error: {0}" % strerror(status))
+                    client.close()
+                end
+            end)
+        end)
+    end)
+except EventHorizonException e
+    io.stderr.writeln("Error while starting server: {0}" % e.err())
+    server.close()
+end
+
+evh.loop().run()

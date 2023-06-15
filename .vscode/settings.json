@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "stdbool.h": "c",
+        "jstar.h": "c",
+        "jstarconf.h": "c"
+    },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+}

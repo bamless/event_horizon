@@ -1,0 +1,11 @@
+import event_horizon.errors as _
+import event_horizon.event_loop for EventLoop
+import event_horizon.registry for Registry
+
+// private -- the global event loop
+static var loop = EventLoop()
+
+/// @return {event_loop.EventLoop} The global event loop
+fun loop()
+    return loop
+end

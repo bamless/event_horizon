@@ -1,0 +1,36 @@
+import event_horizon.utils.abc for abstract, abstractMethod
+import event_horizon.handle for Handle
+
+class Stream is Handle
+    @abstract(Stream)
+    construct(loop, streamType)
+        super(loop, streamType)
+    end
+    
+    fun listen(callback, backlog=0)
+        var stream = this
+        this._rawListen(fun(status)
+            if status < 0
+                callback(null, status)
+                return
+            end
+            var c = stream.accept()
+            callback(c, status)
+        end, backlog)
+    end
+
+    @abstractMethod
+    fun accept() end
+
+    native write(data, callback=null)
+    native tryWrite(data)
+    native readStart(callback)
+    native readStop()
+    native shutdown(callback=null)
+    native isReadable()
+    native isWritable()
+    native getWriteQueueSize()
+
+    native _rawListen(callback, backlog)
+    native _rawAccept(client)
+end

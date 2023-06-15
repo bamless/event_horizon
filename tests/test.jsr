@@ -1,0 +1,32 @@
+import io
+
+static var tests = []
+
+fun test(fn)
+    tests.add(fn)
+    return fn
+end
+
+fun skip(fn)
+    tests.remove(fn)
+    return null
+end
+
+fun run()
+    for var fn in tests
+        if !fn
+            continue
+        end
+
+        try
+            fn()
+            print("Test function {0}() passed" % fn.getName())
+        except Exception e
+            if !(e is ProgramInterrupt)
+                io.stderr.writeln("Test function {0}() failed with: {1}({2})" % (fn.getName(), type(e).getName(), e.err())) 
+                io.stderr.writeln(e.getStacktrace())
+                io.stderr.write('\n')
+            end
+        end
+    end
+end

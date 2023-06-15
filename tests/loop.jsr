@@ -1,0 +1,85 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run
+
+import event_horizon as evh
+import event_horizon.event_loop
+import event_horizon.tcp for TCP
+
+@test
+fun create()
+    var loop = event_horizon.event_loop.EventLoop() 
+    assert(loop._id != -1)
+
+    var fromId = event_horizon.event_loop.getEventLoop(loop._id) 
+    assert(fromId == loop)
+end
+
+@test
+fun run()
+    var loop = event_horizon.event_loop.EventLoop()
+    loop.run()
+end
+
+@test
+fun globalLoopRun()
+    evh.loop().run()
+end
+
+@test
+fun stop()
+    var loop = event_horizon.event_loop.EventLoop()
+    var tcp = TCP(loop)
+    tcp.close(fun()
+        loop.stop()
+    end)
+    loop.run()
+end
+
+@test
+fun notAlive()
+    assert(!evh.loop().alive(), "Loop should not be alive")
+end
+
+@test
+fun alive()
+    var tcp = TCP()
+    
+    tcp.connect('0.0.0.0', 8080, fun(status)
+        tcp.close(fun()
+            assert(!evh.loop().alive(), "Loop should not be alive")
+        end) 
+        assert(evh.loop().alive(), "Loop should be alive")
+    end)
+
+    evh.loop().run()
+
+    assert(!evh.loop().alive(), "Loop should not be alive")
+end
+
+@test
+fun walk()
+    var tcp1 = TCP()
+    var tcp2 = TCP()
+
+    var count = 0
+    evh.loop().walk(fun(handle)
+        count += 1 
+        handle.close()
+    end)
+
+    assert(count == 2, "Worng number of handles in `EventLoop.walk()`: {0}" % count)
+
+    evh.loop().run()
+
+    count = 0
+    evh.loop().walk(fun(handle)
+        count += 1 
+    end)
+ 
+    assert(count == 0, "Second walk should not find any handle")
+end
+
+if __name__ == '__main__'
+    run()
+end

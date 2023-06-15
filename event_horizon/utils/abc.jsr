@@ -1,0 +1,16 @@
+fun abstract(cls)
+    return fun(ctor)
+        return fun(...args)
+            if type(this) == cls
+               raise NotImplementedException("{0} is an abstract base class" % cls.getName())
+            end
+            return ctor.bind(this)(...args)
+        end
+    end
+end
+
+fun abstractMethod(fn)
+    return fun(...args)
+        raise NotImplementedException()
+    end
+end

@@ -1,0 +1,215 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run, skip
+
+import event_horizon as evh
+import event_horizon.errors for EventHorizonException, LoopExecutionException
+import event_horizon.event_loop for EventLoop
+import event_horizon.tcp for TCP
+
+fun numHandles(loop=null)
+    loop = loop or evh.loop()
+    return #loop._handles
+end
+
+@test
+fun close()
+    var closed = false
+
+    var tcp = TCP()
+    assert(numHandles(), "Handle was not registered in the registry")
+
+    tcp.close(fun()
+        closed = true
+        assert(#tcp._callbacks == 0, "close callback not unregistred")
+    end)
+    
+    assert(!closed, "`close` called before next loop tick")
+    evh.loop().run()
+    assert(closed, "`close` callback not called")
+
+    assert(numHandles(), "Handle was not unregistred from the registry")
+end
+
+@test
+fun alreadyClosing()
+    var closed = false
+
+    var tcp = TCP()
+    assert(numHandles(), "Handle was not registered in the registry")
+
+    tcp.close(fun()
+        closed = true
+        tcp.close()    
+    end)
+
+
+    assert(!closed, "`close` called before next loop tick")
+
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is EventHorizonException)
+        assert(e.cause().err() == "Handle is already closed")
+    end
+    
+    assert(didThrow, "second `close` did not throw")
+    assert(closed, "`close` callback not called")
+    assert(numHandles(), "Handle was not unregistred from the registry")
+end
+
+@test
+fun closeFail()
+    var tcp = TCP()
+    assert(numHandles(), "Handle was not registered in the registry")
+
+    tcp.close()
+    
+    var didThrow = false
+    try
+        tcp.close()
+    except EventHorizonException e
+        didThrow = true
+    end
+
+    evh.loop().run()
+
+    assert(didThrow, "Close should throw on subsequent calls")
+    assert(numHandles(), "Handle was not unregistred from the registry")
+end
+
+@test
+fun closeThrows()
+    var tcp = TCP()
+
+    assert(numHandles(), "Handle was not registered in the registry")
+
+    tcp.close(|| => print(doesNotExist))
+    
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
+    end
+
+    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(numHandles(), "Handle was not unregistred from the registry")
+end
+
+@test
+fun closeMultipleThrows()
+    var tcp1 = TCP()
+
+    assert(numHandles(), "Handle was not registered in the registry")
+
+    tcp1.close(fun() print(doesNotExist) end)
+
+    var tcp2 = TCP()
+    tcp2.close(fun() raise TypeException() end)
+    
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        var exceptions = e.exceptions()
+        assert(#exceptions == 2, "Too many exceptions: {0}" % #exceptions)
+        assert(exceptions.find(|e| => e is NameException), "Expected to find a `NameException`")
+        assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
+    end
+
+    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(numHandles(), "Handle was not unregistred from the registry")
+end
+
+@test
+fun doubleClose()
+    var tcp = TCP()
+    assert(numHandles(), "Handle was not registered in the registry")
+    
+    var closed = false
+    tcp.connect('0.0.0.0', 8080, fun(status)
+        tcp.close(|| => closed = true)
+        var didThrow = false
+        try
+            tcp.close(|| => closed = true)
+        except EventHorizonException e
+            didThrow = true
+        end
+        assert(didThrow, "second close didn't throw")
+    end)
+    
+    assert(!closed, "`close` called before next loop tick")
+    evh.loop().run()
+    assert(closed, "`close` callback not called")
+    assert(numHandles(), "Handle was not unregistred from the registry")
+end
+
+@test
+fun twoClose()
+    var tcp1 = TCP()
+    assert(numHandles(), "Handle was not registered in the registry")
+    
+    var closed1 = false
+    tcp1.connect('0.0.0.0', 8080, fun(status)
+        tcp1.close(|| => closed1 = true)
+    end)
+
+    var tcp2 = TCP()
+    assert(numHandles(), "Handle was not registered in the registry")
+
+    var closed2 = false
+    tcp2.connect('0.0.0.0', 8080, fun(status)
+        tcp2.close(|| => closed2 = true)
+    end)
+    
+    assert(!closed1 and !closed2, "`close` called before next loop tick")
+    evh.loop().run()
+    assert(closed1 and closed2, "`close` callback not called")
+    assert(numHandles(), "Handle was not unregistred from the registry")
+end
+
+@test
+fun customLoop()
+    var closed = false
+
+    var loop = EventLoop() 
+    var tcp = TCP(loop)
+
+    tcp.close(|| => closed = true)
+
+    assert(!closed, "`close` called before next loop tick")
+    loop.run()
+    assert(closed, "`close` callback not called")
+    assert(numHandles(loop), "Handle was not unregistred from the registry")
+end
+
+@test
+fun isActive()
+    // TODO: should probabily be tested with a non-I/O handle
+    var tcp = TCP()
+    assert(!tcp.isActive())
+    tcp.close()
+    evh.loop().run()
+end
+
+@test
+fun isClosing()
+    var tcp = TCP()
+    
+    tcp.connect('0.0.0.0', 8080, fun(status)
+        assert(!tcp.isClosing(), "isClosing() returned true")
+        tcp.close()
+        assert(tcp.isClosing(), "isClosing() returned false")
+    end)
+    
+    evh.loop().run()
+end
+
+if __name__ == '__main__'
+    run()
+end

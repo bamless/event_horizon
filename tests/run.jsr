@@ -1,0 +1,12 @@
+#!/usr/bin/env jstar
+
+import test
+
+if __name__ == '__main__'
+    import loop
+    import handle
+    import stream
+    import tcp
+
+    test.run()
+end

@@ -1,0 +1,57 @@
+import event_horizon.registry for Registry
+
+// private -- registry holding all active event loops
+static var eventLoops = Registry()
+
+/// @return {event_horizon.loop.EventLoop} The `EventLoop` associated with `loopId`
+fun getEventLoop(loopId)
+    return eventLoops.get(loopId)
+end
+
+/// Mode used to run the loop with EventLoop.run()
+var RunMode = Enum{
+    .DEFAULT : 0,
+    .ONCE    : 1,
+    .NOWAIT  : 2
+}
+
+/// EventLoop encapsulates a libuv event loop
+class EventLoop
+    construct()
+        this._id = eventLoops.ref(this)
+        this._handles = Registry()
+        this._init()
+    end
+
+    fun id()
+        return this._id
+    end
+
+    native run(mode=0)
+    native stop()
+    native alive()
+    native walk(callback)
+    native _init()
+end
+
+// private -- exceptions raised during event loop exceution
+static var exceptions = []
+
+// private -- adds an exception to the list of exceptions raised during event loop execution
+// these will be raised when the loop finishes executing (i.e. right after EventLoop.run())
+fun _addException(exc)
+    if exc is Exception
+        exceptions.add(exc)
+    end
+end
+
+// private -- clears the list of exceptions raised during event loop execution
+fun _clearExceptions()
+    exceptions.clear()
+end
+
+// private -- returns a copy the list of exceptions raised during event loop execution
+fun _getExceptions()
+    var copy = List(exceptions)
+    return copy
+end
