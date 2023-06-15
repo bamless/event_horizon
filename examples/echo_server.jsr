@@ -13,13 +13,13 @@ try
     server.bind('0.0.0.0', 8080)
     server.listen(fun(client, status)
         if status < 0
-            io.stderr.println("client error: {0}" % strerror(status))
+            io.stderr.writeln("client error: {0}" % strerror(status))
             return
         end
 
         client.readStart(fun(data, status)
             if status < 0
-                io.stderr.println("client error: {0}" % strerror(status))
+                io.stderr.writeln("client error: {0}" % strerror(status))
                 client.close()
             end
             
@@ -30,7 +30,7 @@ try
 
             client.write(data, fun(status)
                 if status < 0
-                    io.stderr.println("client error: {0}" % strerror(status))
+                    io.stderr.writeln("client error: {0}" % strerror(status))
                     client.close()
                 end
             end)
