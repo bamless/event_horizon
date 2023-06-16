@@ -33,3 +33,10 @@ fun spawnTCPClient(port, mode="r")
     sleep(0.005)
     return client
 end
+
+fun spawnUDPServer(port, mode="r")
+    sleepAndServerAvailable()
+    var server = io.popen("nc -lu -p {0}" % port, mode) 
+    sleep(0.01)
+    return server
+end

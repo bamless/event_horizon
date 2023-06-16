@@ -30,6 +30,14 @@ bool Stream_write(JStarVM* vm) {
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
 
+    int callbackId = -1;
+    if(!jsrIsNull(vm, 2)) {
+        callbackId = Handle_registerCallback(vm, 2, 0);
+        if(callbackId == -1) {
+            return false;
+        }
+    }
+
     const char* data = jsrGetString(vm, 1);
     size_t dataLen = jsrGetStringSz(vm, 1);
 
@@ -40,16 +48,6 @@ bool Stream_write(JStarVM* vm) {
     memcpy(req->data, data, dataLen);
     req->buf.base = req->data;
     req->buf.len = dataLen;
-
-    int callbackId = -1;
-    if(!jsrIsNull(vm, 2)) {
-        callbackId = Handle_registerCallback(vm, 2, 0);
-        if(callbackId == -1) {
-            free(req);
-            return false;
-        }
-    }
-
     setRequestCallback((uv_req_t*)req, callbackId);
 
     int res = uv_write(&req->req, stream, &req->buf, 1, &writeCallback);

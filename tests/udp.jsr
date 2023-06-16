@@ -4,6 +4,8 @@ import test for test, run, skip
 
 import io
 
+import server_utils for spawnUDPServer
+
 import event_horizon as evh
 import event_horizon.errors for strerror, LoopExecutionException, StatusException
 import event_horizon.udp for UDP
@@ -41,6 +43,13 @@ fun connect()
     udp.connect(null)
     udp.close()
     evh.loop().run()
+end
+
+@test
+fun send()
+    // var server = spawnUDPServer(8080)
+    // var udp = UDP()
+    assert(false, "TODO")
 end
 
 if __name__ == '__main__'
