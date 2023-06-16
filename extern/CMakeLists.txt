@@ -24,6 +24,6 @@ if(NOT LIBUV_FOUND OR EVH_VENDOR_LIBUV)
 else()
     # use libuv from system
     add_library(libuv SHARED IMPORTED GLOBAL)
-    set_target_properties(libuv PROPERTIES IMPORTED_LOCATION ${LIBUV_LIBRARIES})
-    target_include_directories(libuv INTERFACE ${LIBUV_INCLUDE_DIR})
+    set_target_properties(libuv PROPERTIES IMPORTED_LOCATION "${LIBUV_LIBRARIES}")
+    target_include_directories(libuv INTERFACE "${LIBUV_INCLUDE_DIR}")
 endif()
