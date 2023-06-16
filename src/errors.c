@@ -2,12 +2,6 @@
 
 #include "uv.h"
 
-bool errors_strerror(JStarVM* vm) {
-    JSR_CHECK(Number, 1, "status");
-    jsrPushString(vm, uv_strerror(jsrGetNumber(vm, 1)));
-    return true;
-}
-
 void EventHorizonException_raise(JStarVM* vm, const char* err) {
     if(!jsrGetGlobal(vm, "event_horizon.errors", "EventHorizonException")) return;
     jsrPushString(vm, err);
@@ -28,4 +22,10 @@ void StatusException_raise(JStarVM* vm, int status) {
     jsrPushNumber(vm, status);
     if(jsrCall(vm, 1) != JSR_SUCCESS) return;
     jsrRaiseException(vm, -1);
+}
+
+bool errors_strerror(JStarVM* vm) {
+    JSR_CHECK(Number, 1, "status");
+    jsrPushString(vm, uv_strerror(jsrGetNumber(vm, 1)));
+    return true;
 }

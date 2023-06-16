@@ -29,6 +29,10 @@ class Handle
     native close(callback=null)
     native isActive()
     native isClosing()
+    native sendBufferSize()
+    native setSendBufferSize(size)
+    native recvBufferSize()
+    native setRecvBufferSize(size)
     native _init(loop, handleType)
 end
 

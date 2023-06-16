@@ -23,6 +23,10 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Handle, isActive, Handle_isActive)
     JSR_REGMETH(Handle, isClosing, Handle_isClosing)
     JSR_REGMETH(Handle, _init, Handle_init)
+    JSR_REGMETH(Handle, sendBufferSize, Handle_sendBufferSize)
+    JSR_REGMETH(Handle, setSendBufferSize, Handle_setSendBufferSize)
+    JSR_REGMETH(Handle, recvBufferSize, Handle_recvBufferSize)
+    JSR_REGMETH(Handle, setRecvBufferSize, Handle_setRecvBufferSize)
 
     JSR_REGMETH(Stream, write, Stream_write)
     JSR_REGMETH(Stream, tryWrite, Stream_tryWrite)

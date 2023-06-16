@@ -15,6 +15,10 @@ bool Handle_init(JStarVM* vm);
 bool Handle_close(JStarVM* vm);
 bool Handle_isActive(JStarVM* vm);
 bool Handle_isClosing(JStarVM* vm);
+bool Handle_sendBufferSize(JStarVM* vm);
+bool Handle_setSendBufferSize(JStarVM* vm);
+bool Handle_recvBufferSize(JStarVM* vm);
+bool Handle_setRecvBufferSize(JStarVM* vm);
 
 // Uiility methods to be called from natives
 bool Handle_getEventLoop(JStarVM* vm, int handleSlot);

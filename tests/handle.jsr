@@ -2,6 +2,8 @@
 importPaths.insert(0, '../')
 import test for test, run, skip
 
+import server_utils for spawnTCPServer
+
 import event_horizon as evh
 import event_horizon.errors for EventHorizonException, LoopExecutionException
 import event_horizon.event_loop for EventLoop
@@ -208,6 +210,36 @@ fun isClosing()
     end)
     
     evh.loop().run()
+end
+
+@test
+fun size()
+    var server = spawnTCPServer(8080)
+    var s = TCP()
+
+    s.connect('127.0.0.1', 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        var snd = s.sendBufferSize()
+        assert(snd is Number and snd > 0, "Wrong send buffer size: {0}" % snd)
+        var rcv = s.recvBufferSize()
+        assert(rcv is Number and rcv > 0, "Wrong recv buffer size: {0}" % rcv)
+
+        s.setSendBufferSize(5000)
+        assert(s.sendBufferSize() == 10000, "Wrong send buffer size")
+
+        s.setRecvBufferSize(5000)
+        assert(s.recvBufferSize() == 10000, "Wrong recv buffer size")
+
+        s.close()
+    end)
+
+    evh.loop().run()
+
+    server.close()
 end
 
 if __name__ == '__main__'

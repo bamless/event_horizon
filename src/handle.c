@@ -107,6 +107,78 @@ bool Handle_isClosing(JStarVM* vm) {
     return true;
 }
 
+bool Handle_sendBufferSize(JStarVM* vm) {
+    uv_handle_t* handle = Handle_getHandle(vm, 0);
+    if(!handle) return false;
+
+    int size = 0;
+    int res = uv_send_buffer_size(handle, &size);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNumber(vm, size);
+    return true;
+}
+
+bool Handle_setSendBufferSize(JStarVM* vm) {
+    JSR_CHECK(Int, 1, "size");
+
+    uv_handle_t* handle = Handle_getHandle(vm, 0);
+    if(!handle) return false;
+
+    int size = jsrGetNumber(vm, 1);
+    if(size <= 0) {
+        JSR_RAISE(vm, "InvalidArgException", "size must be > 0");
+    }
+
+    int res = uv_send_buffer_size(handle, &size);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNumber(vm, size);
+    return true;
+}
+
+bool Handle_recvBufferSize(JStarVM* vm) {
+    uv_handle_t* handle = Handle_getHandle(vm, 0);
+    if(!handle) return false;
+
+    int size = 0;
+    int res = uv_recv_buffer_size(handle, &size);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNumber(vm, size);
+    return true;
+}
+
+bool Handle_setRecvBufferSize(JStarVM* vm) {
+    JSR_CHECK(Int, 1, "size");
+
+    uv_handle_t* handle = Handle_getHandle(vm, 0);
+    if(!handle) return false;
+
+    int size = jsrGetNumber(vm, 1);
+    if(size <= 0) {
+        JSR_RAISE(vm, "InvalidArgException", "size must be > 0");
+    }
+
+    int res = uv_recv_buffer_size(handle, &size);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNumber(vm, size);
+    return true;
+}
+
 bool Handle_getEventLoop(JStarVM* vm, int handleSlot) {
     if(!jsrGetField(vm, handleSlot, M_HANDLE_LOOP)) return false;
     return true;

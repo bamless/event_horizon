@@ -1,5 +1,3 @@
-native strerror(status)
-
 class EventHorizonException is Exception end
 
 class LoopExecutionException is EventHorizonException
@@ -15,11 +13,11 @@ class LoopExecutionException is EventHorizonException
         
         var numExceptions = #this._exceptions
         if numExceptions > 1
-            print("\n")
+            print("n")
             for var i, exc in this._exceptions.enumerate()
                 exc.printStacktrace()
                 if i != numExceptions - 1
-                    print("\n")
+                    print("n")
                 end
             end
         end
@@ -30,11 +28,11 @@ class LoopExecutionException is EventHorizonException
 
         var numExceptions = #this._exceptions
         if numExceptions > 0
-            chunks.add("\n\n")
+            chunks.add("nn")
             for var i, exc in this._exceptions.enumerate()
                 chunks.add(exc.getStacktrace())
                 if i != numExceptions - 1
-                    chunks.add("\n\n")
+                    chunks.add("nn")
                 end
             end
         end
@@ -56,3 +54,91 @@ class StatusException is EventHorizonException
         return this._status
     end
 end
+
+native strerror(status)
+
+var Errno = Enum(
+  'E2BIG',
+  'EACCES',
+  'EADDRINUSE',
+  'EADDRNOTAVAIL',
+  'EAFNOSUPPORT',
+  'EAGAIN',
+  'EAI_ADDRFAMILY',
+  'EAI_AGAIN',
+  'EAI_BADFLAGS',
+  'EAI_BADHINTS',
+  'EAI_CANCELED',
+  'EAI_FAIL',
+  'EAI_FAMILY',
+  'EAI_MEMORY',
+  'EAI_NODATA',
+  'EAI_NONAME',
+  'EAI_OVERFLOW',
+  'EAI_PROTOCOL',
+  'EAI_SERVICE',
+  'EAI_SOCKTYPE',
+  'EALREADY',
+  'EBADF',
+  'EBUSY',
+  'ECANCELED',
+  'ECHARSET',
+  'ECONNABORTED',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EDESTADDRREQ',
+  'EEXIST',
+  'EFAULT',
+  'EFBIG',
+  'EHOSTUNREACH',
+  'EINTR',
+  'EINVAL',
+  'EIO',
+  'EISCONN',
+  'EISDIR',
+  'ELOOP',
+  'EMFILE',
+  'EMSGSIZE',
+  'ENAMETOOLONG',
+  'ENETDOWN',
+  'ENETUNREACH',
+  'ENFILE',
+  'ENOBUFS',
+  'ENODEV',
+  'ENOENT',
+  'ENOMEM',
+  'ENONET',
+  'ENOPROTOOPT',
+  'ENOSPC',
+  'ENOSYS',
+  'ENOTCONN',
+  'ENOTDIR',
+  'ENOTEMPTY',
+  'ENOTSOCK',
+  'ENOTSUP',
+  'EOVERFLOW',
+  'EPERM',
+  'EPIPE',
+  'EPROTO',
+  'EPROTONOSUPPORT',
+  'EPROTOTYPE',
+  'ERANGE',
+  'EROFS',
+  'ESHUTDOWN',
+  'ESPIPE',
+  'ESRCH',
+  'ETIMEDOUT',
+  'ETXTBSY',
+  'EXDEV',
+  'UNKNOWN',
+  'EOF',
+  'ENXIO',
+  'EMLINK',
+  'EHOSTDOWN',
+  'EREMOTEIO',
+  'ENOTTY',
+  'EFTYPE',
+  'EILSEQ',
+  'ESOCKTNOSUPPORT',
+  'ENODATA',
+)
