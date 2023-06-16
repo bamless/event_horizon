@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
-option(EVH_VENDOR_LIBUV "Build libuv from source and statically link it" OFF)
+option(EVH_VENDOR_LIBUV "Build libuv from source and statically link to it" OFF)
 
 # Set output directories
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
