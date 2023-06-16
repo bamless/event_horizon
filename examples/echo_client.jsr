@@ -6,7 +6,6 @@ import event_horizon as evh
 import event_horizon.errors for strerror, EventHorizonException, StatusException
 import event_horizon.tcp for TCP
 
-
 fun sendLine(client)
     var line = io.stdin.readLine()
 

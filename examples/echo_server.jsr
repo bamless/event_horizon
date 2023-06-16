@@ -6,7 +6,6 @@ import event_horizon as evh
 import event_horizon.errors for strerror, EventHorizonException
 import event_horizon.tcp for TCP
 
-// Echo server
 var server = TCP()
 
 try
