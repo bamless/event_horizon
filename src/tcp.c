@@ -1,12 +1,13 @@
 #include "tcp.h"
 
+#include <uv.h>
+
 #include "callbacks.h"
 #include "errors.h"
 #include "event_horizon.h"
 #include "event_loop.h"
 #include "handle.h"
 #include "sock_utils.h"
-#include "uv.h"
 
 // class TCP
 static void connectCallback(uv_connect_t* req, int status) {

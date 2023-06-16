@@ -1,6 +1,6 @@
 #include "errors.h"
 
-#include "uv.h"
+#include <uv.h>
 
 void EventHorizonException_raise(JStarVM* vm, const char* err) {
     if(!jsrGetGlobal(vm, "event_horizon.errors", "EventHorizonException")) return;

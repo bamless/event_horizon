@@ -3,9 +3,9 @@
 
 #include <jstar/jstar.h>
 #include <stdbool.h>
+#include <uv.h>
 
 #include "event_horizon.h"
-#include "uv.h"
 
 bool getEventLoopFromId(JStarVM* vm, int loopId);
 

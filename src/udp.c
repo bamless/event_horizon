@@ -1,13 +1,13 @@
 #include "udp.h"
 
 #include <string.h>
+#include <uv.h>
 
 #include "callbacks.h"
 #include "event_horizon.h"
 #include "errors.h"
 #include "handle.h"
 #include "sock_utils.h"
-#include "uv.h"
 
 // class UDP
 bool UDP_bind(JStarVM* vm) {

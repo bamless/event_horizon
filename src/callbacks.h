@@ -2,8 +2,7 @@
 #define CALLBACKS_H
 
 #include <jstar/jstar.h>
-
-#include "uv.h"
+#include <uv.h>
 
 void closeCallback(uv_handle_t* handle);
 void statusCallback(uv_handle_t* handle, int callbackId, bool unregister, int status);

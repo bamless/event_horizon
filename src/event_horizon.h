@@ -2,8 +2,7 @@
 #define EVENT_HORIZON_H
 
 #include <jstar/jstar.h>
-
-#include "uv.h"
+#include <uv.h>
 
 typedef struct LoopMetadata {
     JStarVM* vm;

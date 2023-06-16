@@ -5,6 +5,8 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
+option(EVH_VENDOR_LIBUV "Build libuv from source and statically link it" OFF)
+
 # Set output directories
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -32,9 +34,12 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif()
 endif()
 
-# Find required libraries
+# Find libraries on system
 find_package(JStar 1 REQUIRED)
+include(${CMAKE_SOURCE_DIR}/cmake/Findlibuv.cmake)
+
+# include external dependencies
+add_subdirectory(extern)
 
 # Include the source
 add_subdirectory(src)
-add_subdirectory(extern)

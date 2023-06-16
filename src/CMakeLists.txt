@@ -22,7 +22,7 @@ add_library(event_horizon SHARED
 set_target_properties(event_horizon PROPERTIES C_VISIBILITY_PRESET hidden)
 set_target_properties(event_horizon PROPERTIES OUTPUT_NAME "__package__")
 
-target_link_libraries(event_horizon PUBLIC jstar::jstar uv_a)
+target_link_libraries(event_horizon PUBLIC jstar::jstar libuv)
 target_compile_definitions(event_horizon PRIVATE jstar_EXPORTS)
 target_compile_options(event_horizon
     PRIVATE

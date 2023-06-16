@@ -2,8 +2,7 @@
 #define HANDLE_H
 
 #include <jstar/jstar.h>
-
-#include "uv.h"
+#include <uv.h>
 
 // class Handle
 #define M_HANDLE_LOOP      "_loop"
