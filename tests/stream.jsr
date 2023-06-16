@@ -324,6 +324,47 @@ fun read()
 end
 
 @test
+fun read()
+    var server = spawnTCPServer(8080, "w")
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.readStart(fun(read, status)
+            var didThrow = false
+
+            try
+                s.readStart(fun(read, status) end)
+            except StatusException e
+                didThrow = true
+                assert(e.err() == 'connection already in progress')
+            end
+
+
+            if status < 0
+                raise StatusException(status)
+            end
+
+            s.close()
+            server.close()
+
+            assert(didThrow, "second readStart did not throw")
+        end)
+
+        server.write(data)
+        server.flush()
+    end)
+
+    evh.loop().run()
+end
+
+@test
 fun readFail()
     var server = spawnTCPServer(8080, "w")
 
