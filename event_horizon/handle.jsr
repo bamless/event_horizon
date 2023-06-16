@@ -14,6 +14,10 @@ class Handle
         return this._handleType
     end
 
+    fun handleTypeName()
+        return HandleType.name(this._handleType)
+    end
+
     fun handle()
         return this._handle
     end
