@@ -16,6 +16,33 @@ fun bind()
     evh.loop().run()
 end
 
+@test
+fun bindFail()
+    var udp = UDP()
+    udp.bind('0.0.0.0', 8080)
+
+    var didThrow = true
+    try
+        udp.bind('0.0.0.0', 8080)
+    except StatusException e
+        didThrow = true
+    end
+
+    assert(didThrow, "second bind did not throw")
+
+    udp.close()
+    evh.loop().run()
+end
+
+@test
+fun connect()
+    var udp = UDP()
+    udp.connect('127.0.0.1', 8080)
+    udp.connect(null)
+    udp.close()
+    evh.loop().run()
+end
+
 if __name__ == '__main__'
     run()
 end

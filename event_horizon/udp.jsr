@@ -7,4 +7,5 @@ class UDP is Handle
     end
 
     native bind(addr, port)
+    native connect(addr, port=null)
 end
