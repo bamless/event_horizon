@@ -2,8 +2,7 @@ import event_horizon.utils.abc for abstract, abstractMethod
 import event_horizon.handle for Handle
 
 class Stream is Handle
-    @abstract(Stream)
-    construct(loop, streamType)
+    @abstract(Stream) construct(loop, streamType)
         super(loop, streamType)
     end
     
@@ -19,8 +18,7 @@ class Stream is Handle
         end, backlog)
     end
 
-    @abstractMethod
-    fun accept() end
+    @abstractMethod fun accept() end
 
     native write(data, callback=null)
     native tryWrite(data)

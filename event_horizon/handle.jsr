@@ -2,8 +2,7 @@ import event_horizon.utils.abc for abstract
 import event_horizon.registry for Registry
 
 class Handle
-    @abstract(Handle)
-    construct(loop, handleType)
+    @abstract(Handle) construct(loop, handleType)
         this._loop = loop
         this._handleType = handleType
         this._callbacks = Registry()
