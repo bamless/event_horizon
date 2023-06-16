@@ -5,6 +5,7 @@
 #include "handle.h"
 #include "stream.h"
 #include "tcp.h"
+#include "udp.h"
 
 inline void setRequestCallback(uv_req_t* req, int callbackId);
 inline int getRequestCallback(uv_req_t* req);
@@ -43,6 +44,8 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(TCP, bind, TCP_bind)
     JSR_REGMETH(TCP, sockName, TCP_sockName)
     JSR_REGMETH(TCP, peerName, TCP_peerName)
+
+    JSR_REGMETH(UDP, bind, UDP_bind)
 
     JSR_REGEND
 };

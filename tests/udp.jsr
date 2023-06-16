@@ -1,0 +1,21 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run, skip
+
+import io
+
+import event_horizon as evh
+import event_horizon.errors for strerror, LoopExecutionException, StatusException
+import event_horizon.udp for UDP
+
+@test
+fun bind()
+    var udp = UDP()    
+    udp.bind('0.0.0.0', 8080)
+    udp.close()
+    evh.loop().run()
+end
+
+if __name__ == '__main__'
+    run()
+end

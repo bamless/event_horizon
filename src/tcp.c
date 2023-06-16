@@ -77,6 +77,7 @@ bool TCP_bind(JStarVM* vm) {
         return false;
     }
 
+    jsrPushNull(vm);
     return true;
 }
 

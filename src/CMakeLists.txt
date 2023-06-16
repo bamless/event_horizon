@@ -13,6 +13,8 @@ add_library(event_horizon SHARED
     stream.c
     tcp.c
     tcp.h
+    udp.h
+    udp.c
     sock_utils.h
     sock_utils.c
 )

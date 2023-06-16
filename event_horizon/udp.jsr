@@ -1,0 +1,10 @@
+import event_horizon as evh
+import event_horizon.handle for Handle, HandleType
+
+class UDP is Handle
+    construct(loop=null)
+        super(loop or evh.loop(), HandleType.UDP)
+    end
+
+    native bind(addr, port)
+end
