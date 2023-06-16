@@ -41,6 +41,8 @@ static JStarNativeReg registry[] = {
 
     JSR_REGMETH(TCP, connect, TCP_connect)
     JSR_REGMETH(TCP, bind, TCP_bind)
+    JSR_REGMETH(TCP, sockName, TCP_sockName)
+    JSR_REGMETH(TCP, peerName, TCP_peerName)
 
     JSR_REGEND
 };

@@ -7,7 +7,7 @@ import io
 import server_utils for spawnTCPServer
 
 import event_horizon as evh
-import event_horizon.errors for strerror, LoopExecutionException
+import event_horizon.errors for strerror, LoopExecutionException, StatusException
 import event_horizon.tcp for TCP
 
 @test
@@ -143,6 +143,73 @@ fun accept()
         end)
     end)
 
+    evh.loop().run()
+end
+
+@test
+fun sockName()
+    var s = TCP()
+    s.bind("0.0.0.0", 8080);
+
+    var addr = s.sockName()
+    assert(addr == "0.0.0.0")
+
+    s.close()
+    evh.loop().run()
+end
+
+@test
+fun sockNameFail()
+    var s = TCP()
+    
+    var didThrow = false
+    try
+        var addr = s.sockName()
+    except StatusException e
+        didThrow = true
+        assert(e.err() == "bad file descriptor")
+    end
+
+    assert(didThrow, "sockName did not throw")
+
+    s.close()
+    evh.loop().run()
+end
+
+@test
+fun peerName()
+    var server = spawnTCPServer(8080)
+    var s = TCP()
+
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        assert(s.peerName() == '127.0.0.1')
+        s.close()
+    end)
+
+    evh.loop().run()
+    server.close()
+end
+
+@test
+fun peerNameFail()
+    var s = TCP()
+
+    var didThrow = false
+    try
+        s.peerName()
+    except StatusException e
+        didThrow = true
+        assert(e.err() == "bad file descriptor")
+    end
+
+    assert(didThrow, "peerName did not throw")
+
+    s.close()
     evh.loop().run()
 end
 
