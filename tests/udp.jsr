@@ -43,33 +43,9 @@ fun connect()
     evh.loop().run()
 end
 
-@skip
 @test
 fun send()
-    var data = "Hello, World!"
-    var s = UDP()
-    var c = UDP()
-
-    c.send(data, "127.0.0.1", 8080, fun(status)
-        assert(#c._callbacks == 0)
-        c.close()
-        if status < 0
-            raise StatusException(status)
-        end
-    end)
-    
-    evh.loop().run()
-
-    assert(#c._callbacks == 0)
-
-    var res = server.read(13)
-    assert(res == data, "'{0}' != '{1}'" % (res, data))
-
-    // TODO: HACK!!! rework this test
-    import sys
-    sys.exec("kill $(pgrep nc)")
-
-    server.close()
+    assert(false, "TODO")
 end
 
 @test
