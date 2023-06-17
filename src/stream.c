@@ -27,6 +27,10 @@ bool Stream_write(JStarVM* vm) {
         JSR_CHECK(Function, 2, "callback");
     }
 
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
+
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
 
@@ -88,6 +92,10 @@ bool Stream_tryWrite(JStarVM* vm) {
 bool Stream_readStart(JStarVM* vm) {
     JSR_CHECK(Function, 1, "callback");
 
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
+
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
     HandleMetadata* metadata = stream->data;
@@ -135,6 +143,10 @@ static void shutdownCallback(uv_shutdown_t* req, int status) {
 bool Stream_shutdown(JStarVM* vm) {
     if(!jsrIsNull(vm, 1)) {
         JSR_CHECK(Function, 1, "callback");
+    }
+
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
     }
 
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
@@ -196,6 +208,10 @@ static void onConnectionCallback(uv_stream_t* stream, int status) {
 bool Stream_rawListen(JStarVM* vm) {
     JSR_CHECK(Function, 1, "callback");
     JSR_CHECK(Int, 2, "backlog");
+
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
 
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;

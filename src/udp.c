@@ -93,6 +93,10 @@ bool UDP_send(JStarVM* vm) {
         JSR_CHECK(Function, 4, "callback");
     }
 
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
+    
     uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
     if(!udp) return false;
 

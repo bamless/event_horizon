@@ -7,7 +7,7 @@ import io
 import server_utils for spawnUDPServer
 
 import event_horizon as evh
-import event_horizon.errors for strerror, LoopExecutionException, StatusException
+import event_horizon.errors for strerror, EventHorizonException, LoopExecutionException, StatusException
 import event_horizon.udp for UDP
 
 @test
@@ -47,9 +47,54 @@ end
 
 @test
 fun send()
-    // var server = spawnUDPServer(8080)
-    // var udp = UDP()
-    assert(false, "TODO")
+    var data = "Hello, World!"
+    var server = spawnUDPServer(8080)
+    var udp = UDP()
+
+    udp.send(data, "127.0.0.1", 8080, fun(status)
+        assert(#udp._callbacks == 0)
+        udp.close()
+        if status < 0
+            raise StatusException(status)
+        end
+    end)
+
+    evh.loop().run()
+
+    assert(#udp._callbacks == 0)
+
+    var res = server.read(13)
+    assert(res == data, "'{0}' != '{1}'" % (res, data))
+
+    // TODO: HACK!!! rework this test
+    import sys
+    sys.exec("kill $(pgrep nc)")
+
+    server.close()
+end
+
+@test
+fun sendFail()
+    var data = "Hello, World!"
+    var udp = UDP()
+
+    udp.send(data, "127.0.0.1", 8080, fun(status)
+        udp.close()
+        if status < 0
+            raise StatusException(status)
+        end
+        udp.send(data, "127.0.0.1", 8080)
+    end)
+    
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is EventHorizonException and e.cause().err() == "Handle is already closed")
+    end
+
+    assert(didThrow, "Call to send after close did not throw")
 end
 
 if __name__ == '__main__'

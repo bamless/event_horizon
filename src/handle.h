@@ -25,6 +25,7 @@ uv_handle_t* Handle_getHandle(JStarVM* vm, int handleSlot);
 int Handle_registerCallback(JStarVM* vm, int callbackSlot, int handleSlot);
 bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handleSlot);
 bool Handle_unregisterCallback(JStarVM* vm, int callbackId, int handleSlot);
+bool Handle_checkClosing(JStarVM* vm, int handleSlot);
 // end
 
 #endif

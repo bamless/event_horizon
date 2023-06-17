@@ -23,6 +23,10 @@ bool TCP_connect(JStarVM* vm) {
         JSR_CHECK(Function, 3, "callback");
     }
 
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
+
     sockaddr_union sa;
     int res = initSockaddr(jsrGetString(vm, 1), jsrGetNumber(vm, 2), &sa);
     if(res < 0) {

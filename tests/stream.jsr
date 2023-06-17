@@ -5,7 +5,7 @@ import test for test, run, skip
 import server_utils for spawnTCPServer
 
 import event_horizon as evh
-import event_horizon.errors for strerror, StatusException, LoopExecutionException
+import event_horizon.errors for strerror, EventHorizonException, StatusException, LoopExecutionException
 import event_horizon.tcp for TCP
 
 @test
@@ -196,7 +196,7 @@ fun writeFail()
         evh.loop().run()
     except LoopExecutionException e
         didThrow = true
-        assert(e.cause() is StatusException and e.cause().err() == "bad file descriptor", "Wrong exception type: {0}" % type(e.cause()).getName())
+        assert(e.cause() is EventHorizonException and e.cause().err() == "Handle is already closed", "Wrong exception type: {0}" % type(e.cause()).getName())
     end
 
 
@@ -397,7 +397,7 @@ fun readFail()
         evh.loop().run()
     except LoopExecutionException e
         didThrow = true
-        assert(e.cause().err() == 'invalid argument')
+        assert(e.cause() is EventHorizonException and e.cause().err() == 'Handle is already closed')
     end
 
     assert(didThrow, '`evh.loop().run() did not throw')

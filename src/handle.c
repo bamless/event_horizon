@@ -69,15 +69,7 @@ bool Handle_close(JStarVM* vm) {
         JSR_CHECK(Function, 1, "callback");
     }
 
-    jsrPushValue(vm, 0);
-    if(jsrCallMethod(vm, "isClosing", 0) != JSR_SUCCESS) return false;
-    JSR_CHECK(Boolean, -1, "Handle.isClosing()");
-
-    bool isClosing = jsrGetBoolean(vm, -1);
-    jsrPop(vm);
-
-    if(isClosing) {
-        EventHorizonException_raise(vm, "Handle is already closed");
+    if(!Handle_checkClosing(vm, 0)) {
         return false;
     }
 
@@ -230,6 +222,22 @@ bool Handle_unregisterCallback(JStarVM* vm, int callbackId, int handleSlot) {
     jsrPushNumber(vm, callbackId);
     if(jsrCallMethod(vm, "unref", 1) != JSR_SUCCESS) return false;
     jsrPop(vm);
+    return true;
+}
+
+bool Handle_checkClosing(JStarVM* vm, int handleSlot) {
+    jsrPushValue(vm, handleSlot);
+    if(jsrCallMethod(vm, "isClosing", 0) != JSR_SUCCESS) return false;
+    JSR_CHECK(Boolean, -1, "Handle.isClosing()");
+
+    bool isClosing = jsrGetBoolean(vm, -1);
+    jsrPop(vm);
+
+    if(isClosing) {
+        EventHorizonException_raise(vm, "Handle is already closed");
+        return false;
+    }
+
     return true;
 }
 // end
