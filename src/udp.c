@@ -4,8 +4,8 @@
 #include <uv.h>
 
 #include "callbacks.h"
-#include "event_horizon.h"
 #include "errors.h"
+#include "event_horizon.h"
 #include "handle.h"
 #include "sock_utils.h"
 
@@ -96,13 +96,13 @@ bool UDP_send(JStarVM* vm) {
     if(!Handle_checkClosing(vm, 0)) {
         return false;
     }
-    
+
     uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
     if(!udp) return false;
 
     struct sockaddr* sa = NULL;
 
-    sockaddr_union sun;  
+    sockaddr_union sun;
     if(!jsrIsNull(vm, 2)) {
         int res = initSockaddr(jsrGetString(vm, 2), jsrGetNumber(vm, 3), &sun);
         if(res < 0) {
@@ -148,11 +148,11 @@ bool UDP_send(JStarVM* vm) {
 
 bool UDP_recvStart(JStarVM* vm) {
     JSR_CHECK(Function, 1, "callback");
-    
+
     if(!Handle_checkClosing(vm, 0)) {
         return false;
     }
-    
+
     uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
     if(!udp) return false;
 

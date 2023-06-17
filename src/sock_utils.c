@@ -38,4 +38,3 @@ bool pushAddr(JStarVM* vm, const struct sockaddr* address) {
         JSR_RAISE(vm, "TypeException", "Invalid protocol family: %d", address->sa_family);
     }
 }
-
