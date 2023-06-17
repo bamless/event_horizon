@@ -404,6 +404,49 @@ fun readFail()
 end
 
 @test
+fun readStop()
+    var server = spawnTCPServer(8080, "w")
+
+    var s = TCP()
+    var data = "Hello, World!"
+
+    var numCalled = 0
+    s.connect("127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            raise StatusException(status)
+        end
+
+        s.readStart(fun(read, status)
+            assert(numCalled < 1)
+            numCalled += 1
+
+            if status < 0
+                raise StatusException(status)
+            end
+
+            s.readStop()        
+            assert(read == data, '{0} != {1}' % (read, data)) 
+        end)
+    end)
+
+    server.write("Hello, World!")
+    server.flush()
+    evh.loop().run()
+
+    assert(!s.isClosing())
+
+    server.write("Hello, World!")
+    server.flush()
+    evh.loop().run()
+
+    s.close()
+    evh.loop().run()
+
+    server.close()
+end
+
+@test
 fun readThrows()
     var server = spawnTCPServer(8080, "w")
 

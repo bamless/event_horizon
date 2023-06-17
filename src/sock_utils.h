@@ -1,6 +1,7 @@
 #ifndef SOCK_UTILS_H
 #define SOCK_UTILS_H
 
+#include <jstar/jstar.h>
 #include <uv.h>
 
 typedef union sockaddr_union {
@@ -10,5 +11,6 @@ typedef union sockaddr_union {
 } sockaddr_union;
 
 int initSockaddr(const char* address, int port, sockaddr_union* addr);
+bool pushAddr(JStarVM* vm, const struct sockaddr* address);
 
 #endif  // SOCK_UTILS_H

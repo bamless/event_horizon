@@ -12,6 +12,7 @@ typedef struct LoopMetadata {
 typedef enum CallbackType {
     CLOSE_CB,
     READ_CB,
+    RECV_CB,
     CONNECT_CB,
     NUM_CB,
 } CallbackType;

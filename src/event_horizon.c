@@ -48,6 +48,8 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(UDP, bind, UDP_bind)
     JSR_REGMETH(UDP, connect, UDP_connect)
     JSR_REGMETH(UDP, send, UDP_send)
+    JSR_REGMETH(UDP, recvStart, UDP_recvStart)
+    JSR_REGMETH(UDP, recvStop, UDP_recvStop)
 
     JSR_REGEND
 };

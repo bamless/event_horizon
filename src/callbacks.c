@@ -2,6 +2,7 @@
 
 #include "event_loop.h"
 #include "handle.h"
+#include "sock_utils.h"
 
 static bool tryGetEventLoop(JStarVM* vm, int loopId) {
     if(!getEventLoopFromId(vm, loopId)) {
@@ -139,6 +140,55 @@ void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
     }
 
     if(jsrCall(vm, 2) != JSR_SUCCESS) {
+        EventLoop_addException(vm, -1);
+    }
+
+    jsrPopN(vm, 3);
+}
+
+void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* sa,
+                  unsigned int flags) {
+    (void)flags;
+
+    LoopMetadata* loopMetadata = udp->loop->data;
+    HandleMetadata* handleMetadata = udp->data;
+    JStarVM* vm = loopMetadata->vm;
+
+    JStarBuffer data = (JStarBuffer){
+        .vm = vm,
+        .size = nread < 0 ? 0 : nread,
+        .capacity = buf->len,
+        .data = buf->base,
+    };
+
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
+        return;
+    }
+    int handleSlot = jsrTop(vm);
+
+    if(!Handle_getCallback(vm, handleMetadata->callbacks[RECV_CB], false, handleSlot)) {
+        jsrBufferFree(&data);
+        EventLoop_addException(vm, -1);
+        jsrPopN(vm, 3);
+        return;
+    }
+
+    if(nread >= 0) {
+        jsrBufferPush(&data);
+    } else {
+        jsrBufferFree(&data);
+        jsrPushNull(vm);
+    }
+
+    jsrPushNumber(vm, nread > 0 ? 0 : nread);
+
+    if(sa != NULL) {
+        pushAddr(vm, sa);
+    } else {
+        jsrPushNull(vm);
+    }
+
+    if(jsrCall(vm, 3) != JSR_SUCCESS) {
         EventLoop_addException(vm, -1);
     }
 

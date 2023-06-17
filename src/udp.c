@@ -145,4 +145,53 @@ bool UDP_send(JStarVM* vm) {
     jsrPushNull(vm);
     return true;
 }
+
+bool UDP_recvStart(JStarVM* vm) {
+    JSR_CHECK(Function, 1, "callback");
+    
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
+    
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    int callbackId = Handle_registerCallback(vm, 4, 0);
+    if(callbackId == -1) {
+        return false;
+    }
+
+    int res = uv_udp_recv_start(udp, &allocCallback, &recvCallback);
+    if(res < 0) {
+        if(!Handle_unregisterCallback(vm, callbackId, 0)) {
+            return false;
+        }
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+bool UDP_recvStop(JStarVM* vm) {
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    HandleMetadata* metadata = udp->data;
+    int callbackId = metadata->callbacks[READ_CB];
+
+    if(callbackId != -1 && !Handle_unregisterCallback(vm, callbackId, 0)) {
+        return false;
+    }
+
+    int res = uv_udp_recv_stop(udp);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
 // end

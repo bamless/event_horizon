@@ -86,38 +86,10 @@ bool TCP_bind(JStarVM* vm) {
     return true;
 }
 
-static bool pushAddrAndPort(JStarVM* vm, const struct sockaddr_storage* storage) {
-    if(storage->ss_family == AF_INET) {
-        char str[INET_ADDRSTRLEN];
-        const struct sockaddr_in* sa = (const struct sockaddr_in*)storage;
-        int res = uv_inet_ntop(AF_INET, &sa->sin_addr, str, INET_ADDRSTRLEN);
-        if(res < 0) {
-            StatusException_raise(vm, res);
-            return false;
-        }
-
-        jsrPushString(vm, str);
-        return true;
-    } else if(storage->ss_family == AF_INET6) {
-        char str[INET6_ADDRSTRLEN];
-        const struct sockaddr_in6* sa = (const struct sockaddr_in6*)storage;
-        int res = uv_inet_ntop(AF_INET6, &sa->sin6_addr, str, INET6_ADDRSTRLEN);
-        if(res < 0) {
-            StatusException_raise(vm, res);
-            return false;
-        }
-
-        jsrPushString(vm, str);
-        return true;
-    } else {
-        JSR_RAISE(vm, "TypeException", "Invalid protocol family: %d", storage->ss_family);
-    }
-}
-
 bool TCP_sockName(JStarVM* vm) {
     uv_tcp_t* tcp = (uv_tcp_t*)Handle_getHandle(vm, 0);
     if(!tcp) return false;
-    
+
     int len = sizeof(struct sockaddr_storage);
     struct sockaddr_storage storage;
     int res = uv_tcp_getsockname(tcp, (struct sockaddr*)&storage, &len);
@@ -126,7 +98,7 @@ bool TCP_sockName(JStarVM* vm) {
         return false;
     }
 
-    if(!pushAddrAndPort(vm, &storage)) {
+    if(!pushAddr(vm, (struct sockaddr*)&storage)) {
         return false;
     }
 
@@ -136,7 +108,7 @@ bool TCP_sockName(JStarVM* vm) {
 bool TCP_peerName(JStarVM* vm) {
     uv_tcp_t* tcp = (uv_tcp_t*)Handle_getHandle(vm, 0);
     if(!tcp) return false;
-    
+
     int len = sizeof(struct sockaddr_storage);
     struct sockaddr_storage storage;
     int res = uv_tcp_getpeername(tcp, (struct sockaddr*)&storage, &len);
@@ -145,7 +117,7 @@ bool TCP_peerName(JStarVM* vm) {
         return false;
     }
 
-    if(!pushAddrAndPort(vm, &storage)) {
+    if(!pushAddr(vm, (struct sockaddr*)&storage)) {
         return false;
     }
 
