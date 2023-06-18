@@ -418,7 +418,6 @@ fun readStop()
         end
 
         s.readStart(fun(read, status)
-            assert(numCalled < 1)
             numCalled += 1
 
             if status < 0
@@ -444,6 +443,8 @@ fun readStop()
     evh.loop().run()
 
     server.close()
+
+    assert(numCalled == 1, "read called more than one time")
 end
 
 @test

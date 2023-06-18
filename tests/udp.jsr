@@ -44,8 +44,38 @@ fun connect()
 end
 
 @test
-fun send()
-    assert(false, "TODO")
+fun sendRecv()
+    var send = "Hello, World"
+    var s = UDP()
+    var c = UDP()
+
+    s.bind("0.0.0.0", 8080)
+
+    c.send(send, "127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            c.close()
+            raise StatusException(status)
+        end
+    end)
+
+    var recvCalled = false
+    s.recvStart(fun(data, addr, status)
+        recvCalled = true
+
+        s.close()
+        c.close()
+
+        if status < 0
+            raise StatusException(status)
+        end
+
+        assert(data == send, "{0} != {1}" % (data, send))
+    end)
+
+    evh.loop().run()
+
+    assert(recvCalled, "recv not called")
 end
 
 @test
@@ -73,23 +103,75 @@ fun sendFail()
 end
 
 @test
-fun recvStart()
-    assert(false, "TODO")
-end
-
-@test
 fun recvStartFail()
-    assert(false, "TODO")
+    var c = UDP()
+    var udp = UDP()
+
+    udp.bind("0.0.0.0", 8080)
+
+    c.send("foo", "127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            c.close()
+            raise StatusException(status)
+        end
+    end)
+
+    udp.recvStart(fun(data, addr, status)
+        udp.close()
+        c.close()
+        udp.recvStart(fun(data, addr, status) end)
+    end)
+
+    var didThrow = false
+    try
+        evh.loop().run()
+    except LoopExecutionException e
+        didThrow = true
+        assert(e.cause() is EventHorizonException)
+        assert(e.cause().err() == 'Handle is already closed')
+    end
+
+    assert(didThrow, "second recvStart did not throw")
 end
 
 @test
 fun recvStop()
-    assert(false, "TODO")
-end
+    var c = UDP()
+    var udp = UDP()
 
-@test
-fun recvStopFail()
-    assert(false, "TODO")
+    udp.bind("0.0.0.0", 8080)
+
+    c.send("foo", "127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            c.close()
+            raise StatusException(status)
+        end
+    end)
+
+    c.send("bar", "127.0.0.1", 8080, fun(status)
+        if status < 0
+            s.close()
+            c.close()
+            raise StatusException(status)
+        end
+    end)
+    
+    var recv = 0
+    udp.recvStart(fun(data, addr, status)
+        recv += 1
+        assert(data == "foo")
+        udp.recvStop()
+    end)
+
+    evh.loop().run()
+
+    c.close()
+    udp.close()
+    evh.loop().run()
+
+    assert(recv == 1, "recv called more than one time")
 end
 
 if __name__ == '__main__'

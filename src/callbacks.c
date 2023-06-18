@@ -180,18 +180,18 @@ void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struc
         jsrPushNull(vm);
     }
 
-    jsrPushNumber(vm, nread > 0 ? 0 : nread);
-
     if(sa != NULL) {
         pushAddr(vm, sa);
     } else {
         jsrPushNull(vm);
     }
 
+    jsrPushNumber(vm, nread > 0 ? 0 : nread);
+
     if(jsrCall(vm, 3) != JSR_SUCCESS) {
         EventLoop_addException(vm, -1);
     }
-
+    
     jsrPopN(vm, 3);
 }
 
