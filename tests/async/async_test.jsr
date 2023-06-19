@@ -67,7 +67,6 @@ end
 fun client2()
     var sock = TCP()
     connect(sock, '127.0.0.1', 8080).then(fun(val)
-        print(zz)
         return read(sock)
     end).then(fun(val)
         print(val)
