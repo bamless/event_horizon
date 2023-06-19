@@ -1,0 +1,33 @@
+import event_horizon as evh
+import promise for Promise, resolved, rejected
+
+static fun step(generator, val=null)
+    var res
+    try
+        res = generator(val)
+    except Exception e
+        return rejected(e)
+    end
+    if generator.isDone()
+        return resolved(res)
+    end
+    return resolved(res).
+        then(fun(val)
+            step(generator, val)
+        end,
+        fun(exc)
+            generator.throw(exc)
+        end)
+end
+
+fun async(fn)
+    return fun(...args)
+        var generator = fn(...args)
+
+        if !(generator is Generator)
+            return rejected(TypeException("Not a generator"))
+        end
+
+        return step(generator)
+    end
+end
