@@ -47,12 +47,12 @@ end
 fun server(connectCallback)
     var server = TCP()
     server.bind('0.0.0.0', 8080)
-    server.listen(async(fun(client, status)
+    server.listen(fun(client, status)
         if status < 0
             raise StatusException(status)
         end
-        yield connectCallback(client)
-    end))
+        connectCallback(client)
+    end)
 end
 
 @async

@@ -52,7 +52,6 @@ class Promise
         else
             this._handlers.add((promise, onFulfilled, onRejected))
         end
-        return promise
     end
 
     fun catch(onRejected)

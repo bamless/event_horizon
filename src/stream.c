@@ -17,8 +17,9 @@ typedef struct {
 
 void writeCallback(uv_write_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
-    statusCallback((uv_handle_t*)req->handle, callbackId, true, status);
+    uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
+    statusCallback(handle, callbackId, true, status);
 }
 
 bool Stream_write(JStarVM* vm) {
@@ -121,13 +122,6 @@ bool Stream_readStop(JStarVM* vm) {
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
 
-    HandleMetadata* metadata = stream->data;
-    int callbackId = metadata->callbacks[READ_CB];
-
-    if(callbackId != -1 && !Handle_unregisterCallback(vm, callbackId, 0)) {
-        return false;
-    }
-
     uv_read_stop(stream);
 
     jsrPushNull(vm);
@@ -136,8 +130,9 @@ bool Stream_readStop(JStarVM* vm) {
 
 static void shutdownCallback(uv_shutdown_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
-    statusCallback((uv_handle_t*)req->handle, callbackId, true, status);
+    uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
+    statusCallback(handle, callbackId, true, status);
 }
 
 bool Stream_shutdown(JStarVM* vm) {

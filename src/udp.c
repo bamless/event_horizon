@@ -77,8 +77,9 @@ typedef struct {
 
 void sendCallback(uv_udp_send_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
-    statusCallback((uv_handle_t*)req->handle, callbackId, true, status);
+    uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
+    statusCallback(handle, callbackId, true, status);
 }
 
 bool UDP_send(JStarVM* vm) {

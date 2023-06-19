@@ -63,16 +63,11 @@ fun client()
     with TCP() sock
         yield connect(sock, '127.0.0.1', 8080)
 
-        var line
-        while (line = io.stdin.readLine()) != null
-            yield write(sock, line.strip())
-            var echoed = yield read(sock)
-
-            if !echoed
-                break
-            end
-
-            print(echoed)
+        var count = 0
+        while true
+            yield write(sock, "hello " + ##count)
+            print(yield read(sock))
+            count += 1
         end
     end
 end
