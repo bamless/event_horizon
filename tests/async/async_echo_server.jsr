@@ -7,6 +7,8 @@ import event_horizon as evh
 import event_horizon.errors for StatusException
 import event_horizon.tcp for TCP
 
+// ---- Promisified `TCP` methods ----
+
 fun read(sock)
     return Promise(fun(resolve, reject)
         sock.readStart(fun(data, status)
@@ -32,18 +34,6 @@ fun write(sock, data)
     end)
 end
 
-fun connect(sock, addr, port)
-    return Promise(fun(resolve, reject)
-        sock.connect(addr, port, fun(status)
-            if status < 0
-                reject(StatusException(status))
-            else
-                resolve()
-            end
-        end)
-    end)
-end
-
 fun close(sock)
     return Promise(fun(resolve, _)
         sock.close(fun()
@@ -52,31 +42,7 @@ fun close(sock)
     end)
 end
 
-@async
-fun client()
-    var sock = TCP()
-    try
-        yield connect(sock, '127.0.0.1', 8080)
-        var data = yield read(sock)
-        print(data)
-    ensure
-        close(sock)
-    end
-end
-
-fun client2()
-    var sock = TCP()
-    connect(sock, '127.0.0.1', 8080).then(fun(val)
-        print(zz)
-        return read(sock)
-    end).then(fun(val)
-        print(val)
-        close(sock)
-    end).catch(fun(exc)
-        exc.printStacktrace()
-        close(sock)
-    end)
-end
+// ---- Echo server ----
 
 fun server(connectCallback)
     var server = TCP()
@@ -91,11 +57,11 @@ end
 
 @async
 fun handleClient(client)
-    yield write(client, "Hello, Async!")
-    yield close(client)
+    var data
+    while (data = yield read(client))
+        yield write(client, data)
+    end
 end
 
 server(handleClient)
-client()
-
 evh.loop().run()

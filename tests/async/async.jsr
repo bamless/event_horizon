@@ -1,23 +1,18 @@
-import event_horizon as evh
 import promise for Promise, resolved, rejected
 
-static fun step(generator, val=null)
+static fun step(generator, val, exc=null)
     var res
     try
-        res = generator(val)
+        res = generator(val) if !exc else generator.throw(exc)
     except Exception e
         return rejected(e)
     end
+
     if generator.isDone()
         return resolved(res)
     end
-    return resolved(res).
-        then(fun(val)
-            step(generator, val)
-        end,
-        fun(exc)
-            generator.throw(exc)
-        end)
+
+    return resolved(res).then(|val| => step(generator, val), |exc| => step(generator, null, exc))
 end
 
 fun async(fn)
@@ -25,9 +20,9 @@ fun async(fn)
         var generator = fn(...args)
 
         if !(generator is Generator)
-            return rejected(TypeException("Not a generator"))
+            return resolved(generator)
         end
 
-        return step(generator)
+        return step(generator, null).catch(|exc| => exc.printStacktrace())
     end
 end

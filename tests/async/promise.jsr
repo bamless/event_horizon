@@ -37,7 +37,7 @@ class Promise
 
         this._state = State.REJECTED
         this._value = exception
-        
+       
         for var subPromise, _, onRejected in this._handlers
             this._invoke(subPromise, onRejected)
         end

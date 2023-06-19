@@ -1,11 +1,15 @@
 #!/usr/bin/env jstar
 
+import io
+
 import promise for Promise
 import async for async
 
 import event_horizon as evh
 import event_horizon.errors for StatusException
 import event_horizon.tcp for TCP
+
+// ---- Promisified `TCP` methods ----
 
 fun read(sock)
     return Promise(fun(resolve, reject)
@@ -52,50 +56,26 @@ fun close(sock)
     end)
 end
 
+// ---- Echo Client ----
+
 @async
 fun client()
-    var sock = TCP()
-    try
+    with TCP() sock
         yield connect(sock, '127.0.0.1', 8080)
-        var data = yield read(sock)
-        print(data)
-    ensure
-        close(sock)
+
+        var line
+        while (line = io.stdin.readLine()) != null
+            yield write(sock, line.strip())
+            var echoed = yield read(sock)
+
+            if !echoed
+                break
+            end
+
+            print(echoed)
+        end
     end
 end
 
-fun client2()
-    var sock = TCP()
-    connect(sock, '127.0.0.1', 8080).then(fun(val)
-        print(zz)
-        return read(sock)
-    end).then(fun(val)
-        print(val)
-        close(sock)
-    end).catch(fun(exc)
-        exc.printStacktrace()
-        close(sock)
-    end)
-end
-
-fun server(connectCallback)
-    var server = TCP()
-    server.bind('0.0.0.0', 8080)
-    server.listen(async(fun(client, status)
-        if status < 0
-            raise StatusException(status)
-        end
-        yield connectCallback(client)
-    end))
-end
-
-@async
-fun handleClient(client)
-    yield write(client, "Hello, Async!")
-    yield close(client)
-end
-
-server(handleClient)
 client()
-
 evh.loop().run()
