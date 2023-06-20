@@ -5,7 +5,6 @@ static fun step(gen, arg, exc, resolve, reject)
     try
         value = gen(arg) if !exc else gen.throw(exc)
     except Exception e
-        print(e)
         reject(e)
         return
     end
