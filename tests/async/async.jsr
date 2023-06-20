@@ -23,7 +23,7 @@ fun async(fn)
                     end)
                 end
             end
-            return step(null, null)
+            step(null, null)
         end)
     end
 end

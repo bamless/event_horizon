@@ -195,6 +195,28 @@ void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struc
     jsrPopN(vm, 3);
 }
 
+void idleCallback(uv_idle_t* idle) {
+    HandleMetadata* handleMetadata = idle->data;
+    LoopMetadata* loopMetadata = idle->loop->data;
+    JStarVM* vm = loopMetadata->vm;
+
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
+        return;
+    }
+    int handleSlot = jsrTop(vm);
+
+    int closeCallback = handleMetadata->callbacks[IDLE_CB];
+    if(closeCallback != -1) {
+        if(!Handle_getCallback(vm, closeCallback, true, handleSlot) ||
+           (jsrCall(vm, 0) != JSR_SUCCESS)) {
+            EventLoop_addException(vm, -1);
+        }
+        jsrPop(vm);
+    }
+
+    jsrPopN(vm, 2);
+}
+
 void walkCallback(uv_handle_t* handle, void* arg) {
     uv_loop_t* loop = arg;
     HandleMetadata* handleMetadata = handle->data;

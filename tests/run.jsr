@@ -5,6 +5,7 @@ import test
 if __name__ == '__main__'
     import loop
     import handle
+    import idle
     import stream
     import tcp
     import udp

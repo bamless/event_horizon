@@ -9,6 +9,8 @@ add_library(event_horizon SHARED
     event_loop.c
     handle.h
     handle.c
+    idle.h
+    idle.c
     stream.h
     stream.c
     tcp.c

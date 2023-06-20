@@ -22,6 +22,10 @@ static uv_handle_t* pushLibUVHandle(JStarVM* vm, uv_loop_t* loop, uv_handle_type
         jsrPushUserdata(vm, sizeof(uv_udp_t), &freeHandle);
         uv_udp_init(loop, jsrGetUserdata(vm, -1));
         break;
+    case UV_IDLE:
+        jsrPushUserdata(vm, sizeof(uv_idle_t), &freeHandle);
+        uv_idle_init(loop, jsrGetUserdata(vm, -1));
+        break;
     default:
         jsrRaise(vm, "InvalidArgException", "unkown handle type: %d", type);
         return NULL;

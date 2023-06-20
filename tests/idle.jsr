@@ -1,0 +1,38 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run, skip
+
+import event_horizon as evh
+import event_horizon.errors for strerror, EventHorizonException, LoopExecutionException, StatusException
+import event_horizon.idle for Idle
+
+@test
+fun idle()
+    var called = 0
+    var idle1 = Idle()
+    idle1.start(fun()
+        idle1.stop()
+        called += 1
+    end)
+
+    assert(called == 0)
+
+    evh.loop().run()
+    
+    assert(called == 1)
+
+    var idle2 = Idle()
+    idle2.start(fun()
+        idle2.stop()
+        called += 1
+    end)
+
+    evh.loop().run()
+    
+    assert(called == 2)
+
+    idle1.close()
+    idle2.close()
+
+    evh.loop().run()
+end

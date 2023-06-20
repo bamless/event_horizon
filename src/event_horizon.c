@@ -3,6 +3,7 @@
 #include "errors.h"
 #include "event_loop.h"
 #include "handle.h"
+#include "idle.h"
 #include "stream.h"
 #include "tcp.h"
 #include "udp.h"
@@ -50,6 +51,9 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(UDP, send, UDP_send)
     JSR_REGMETH(UDP, recvStart, UDP_recvStart)
     JSR_REGMETH(UDP, recvStop, UDP_recvStop)
+
+    JSR_REGMETH(Idle, start, Idle_start)
+    JSR_REGMETH(Idle, stop, Idle_stop)
 
     JSR_REGEND
 };
