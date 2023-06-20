@@ -1,10 +1,11 @@
 #!/usr/bin/env jstar
+import io
 
 import promise for Promise
 import async for async
 
 import event_horizon as evh
-import event_horizon.errors for StatusException
+import event_horizon.errors for strerror
 import event_horizon.tcp for TCP
 
 // ---- Promisified `TCP` methods ----
@@ -49,17 +50,24 @@ fun server(connectCallback)
     server.bind('0.0.0.0', 8080)
     server.listen(fun(client, status)
         if status < 0
-            raise StatusException(status)
+            io.stderr.println(strerror(status))
+        else
+            connectCallback(client)
         end
-        connectCallback(client)
     end)
 end
 
 @async
 fun handleClient(client)
-    var data
-    while (data = yield read(client))
-        yield write(client, data)
+    try
+        var data
+        while (data = yield read(client))
+            yield write(client, data)
+        end
+    except Exception e
+        e.printStacktrace()
+    ensure
+        yield close(client)
     end
 end
 

@@ -59,18 +59,26 @@ end
 // ---- Echo Client ----
 
 @async
-fun client()
+fun readLoop()
     with TCP() sock
         yield connect(sock, '127.0.0.1', 8080)
 
-        var count = 0
-        while true
-            yield write(sock, "hello " + ##count)
+        var line
+        while (line = io.stdin.readLine())
+            yield write(sock, line.strip())
             print(yield read(sock))
-            count += 1
         end
     end
 end
 
-client()
+@async
+fun main()
+    try
+        yield readLoop()
+    except Exception e
+        e.printStacktrace()
+    end
+end
+
+main()
 evh.loop().run()

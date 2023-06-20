@@ -122,6 +122,12 @@ bool Stream_readStop(JStarVM* vm) {
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
 
+    HandleMetadata* metadata = stream->data;
+    int callbackId = metadata->callbacks[READ_CB];
+    if(callbackId != -1 && !Handle_unregisterCallback(vm, callbackId, 0)) {
+        return false;
+    }
+
     uv_read_stop(stream);
 
     jsrPushNull(vm);

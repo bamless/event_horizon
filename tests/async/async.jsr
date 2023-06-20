@@ -1,29 +1,36 @@
-import promise for Promise, resolved, rejected
+import promise for Promise, asResolved
+
+static fun step(gen, arg, exc, resolve, reject)
+    var value
+    try
+        value = gen(arg) if !exc else gen.throw(exc)
+    except Exception e
+        print(e)
+        reject(e)
+        return
+    end
+
+    if gen.isDone()
+        resolve(value)
+    else
+        return asResolved(value).then(fun(value)
+            step(gen, value, null, resolve, reject)
+        end, fun(exc)
+            step(gen, null, exc, resolve, reject)
+        end)
+    end
+end
 
 fun async(fn)
     return fun(...args)
         var gen = fn(...args)
-        return Promise(fun(resolve, reject)
-            fun step(arg, exc)
-                var value
-                try
-                    value = gen(arg) if !exc else gen.throw(exc)
-                except Exception e
-                    reject(e)
-                    return
-                end
 
-                if gen.isDone()
-                    resolve(value)
-                else
-                    return resolved(value).then(fun(value)
-                        step(value, null)
-                    end, fun(exc)
-                        step(null, exc)
-                    end)
-                end
-            end
-            step(null, null)
+        if !(gen is Generator)
+            return asResolved(gen)
+        end
+
+        return Promise(fun(resolve, reject)
+            step(gen, null, null, resolve, reject)
         end)
     end
 end

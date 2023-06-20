@@ -9,7 +9,6 @@ class Promise
         this._state = State.PENDING
         this._value = null
         this._handlers = []
-
         if func
             func(this.fulfill, this.reject)
         end
@@ -26,6 +25,8 @@ class Promise
         for var subPromise, onFulfilled, _ in this._handlers
             this._invoke(subPromise, onFulfilled)
         end
+
+        this._handlers = null
     end
 
     fun reject(exception)
@@ -41,6 +42,8 @@ class Promise
         for var subPromise, _, onRejected in this._handlers
             this._invoke(subPromise, onRejected)
         end
+
+        this._handlers = null
     end
 
     fun then(onFulfilled=null, onRejected=null)
@@ -79,7 +82,7 @@ class Promise
     end
 end
 
-fun resolved(val)
+fun asResolved(val)
     if val is Promise
         return val
     end
@@ -88,7 +91,7 @@ fun resolved(val)
     return p
 end
 
-fun rejected(exc)
+fun asRejected(exc)
     if exc is Promise
         return exc
     end

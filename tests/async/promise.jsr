@@ -67,7 +67,7 @@ class Promise
                         return reject(e)
                     end
                 else
-                    return reject(result)
+                    return reject(exc)
                 end
             end)
         end)
@@ -112,7 +112,7 @@ class Promise
     end
 end
 
-fun resolved(val)
+fun asResolved(val)
     if val is Promise
         return val
     end
@@ -121,7 +121,7 @@ fun resolved(val)
     end)
 end
 
-fun rejected(val)
+fun asRejected(val)
     if val is Promise
         return val
     end
