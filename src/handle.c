@@ -227,7 +227,7 @@ bool Handle_unregisterCallback(JStarVM* vm, CallbackType type, int handleSlot) {
     HandleMetadata* metadata = handle->data;
     int callbackId = metadata->callbacks[type];
     if(callbackId == -1) return true;
-    return Handle_unregisterCallback(vm, callbackId, handleSlot);
+    return Handle_unregisterCallbackById(vm, callbackId, handleSlot);
 }
 
 bool Handle_unregisterCallbackById(JStarVM* vm, int callbackId, int handleSlot) {

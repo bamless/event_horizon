@@ -12,14 +12,15 @@ import event_horizon.tcp for TCP
 // ---- Echo Client ----
 
 @async
-fun sendLoop()
+fun stressLoop()
     with TCP() sock
         yield connect(sock, '127.0.0.1', 8080)
 
-        var line
-        while (line = io.stdin.readLine())
-            yield write(sock, line.strip())
+        var count = 0
+        while true
+            yield write(sock, "hello " + ##count)
             print(yield read(sock))
+            count += 1
         end
     end
 end
@@ -27,7 +28,7 @@ end
 @async
 fun main()
     try
-        yield sendLoop()
+        yield stressLoop()
     except Exception e
         e.printStacktrace()
     end

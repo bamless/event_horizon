@@ -1,56 +1,13 @@
 #!/usr/bin/env jstar
+import io
 
 import promise for Promise
 import async for async
+import async_tcp for read, write, connect, close
 
 import event_horizon as evh
-import event_horizon.errors for StatusException
+import event_horizon.errors for strerror, StatusException
 import event_horizon.tcp for TCP
-
-fun read(sock)
-    return Promise(fun(resolve, reject)
-        sock.readStart(fun(data, status)
-            sock.readStop()
-            if status < 0
-                reject(StatusException(status))
-            else
-                resolve(data)
-            end
-        end)
-    end)
-end
-
-fun write(sock, data)
-    return Promise(fun(resolve, reject)
-        sock.write(data, fun(status)
-            if status < 0
-                reject(StatusException(status))
-            else
-                resolve()
-            end
-        end)
-    end)
-end
-
-fun connect(sock, addr, port)
-    return Promise(fun(resolve, reject)
-        sock.connect(addr, port, fun(status)
-            if status < 0
-                reject(StatusException(status))
-            else
-                resolve()
-            end
-        end)
-    end)
-end
-
-fun close(sock)
-    return Promise(fun(resolve, _)
-        sock.close(fun()
-            resolve()
-        end)
-    end)
-end
 
 @async
 fun client()
@@ -59,12 +16,14 @@ fun client()
         yield connect(sock, '127.0.0.1', 8080)
         var data = yield read(sock)
         print(data)
+    except Exception e
+        e.printStacktrace()
     ensure
         close(sock)
     end
 end
 
-fun client2()
+fun promiseClient()
     var sock = TCP()
     connect(sock, '127.0.0.1', 8080).then(fun(val)
         return read(sock)
@@ -80,18 +39,25 @@ end
 fun server(connectCallback)
     var server = TCP()
     server.bind('0.0.0.0', 8080)
-    server.listen(async(fun(client, status)
+    server.listen(fun(client, status)
         if status < 0
-            raise StatusException(status)
+            io.stderr.println(strerror(status))
+        else
+            connectCallback(client, server)
         end
-        yield connectCallback(client)
-    end))
+    end)
 end
 
 @async
-fun handleClient(client)
-    yield write(client, "Hello, Async!")
-    yield close(client)
+fun handleClient(client, server)
+    try
+        yield write(client, "Hello, Async!")
+    except Exception e
+        e.printStacktrace()
+    ensure
+        yield close(client)
+        yield close(server)
+    end
 end
 
 server(handleClient)
