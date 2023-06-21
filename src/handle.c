@@ -213,7 +213,7 @@ bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handle
     jsrPushNumber(vm, callbackId);
     if(jsrCallMethod(vm, "get", 1) != JSR_SUCCESS) return false;
 
-    if(unregister && !Handle_unregisterCallback(vm, callbackId, handleSlot)) {
+    if(unregister && !Handle_unregisterCallbackById(vm, callbackId, handleSlot)) {
         jsrPop(vm);
         return false;
     }
@@ -221,7 +221,17 @@ bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handle
     return true;
 }
 
-bool Handle_unregisterCallback(JStarVM* vm, int callbackId, int handleSlot) {
+bool Handle_unregisterCallback(JStarVM* vm, CallbackType type, int handleSlot) {
+    uv_handle_t* handle = Handle_getHandle(vm, handleSlot);
+    if(!handle) return false;
+    HandleMetadata* metadata = handle->data;
+    int callbackId = metadata->callbacks[type];
+    if(callbackId == -1) return true;
+    return Handle_unregisterCallback(vm, callbackId, handleSlot);
+}
+
+bool Handle_unregisterCallbackById(JStarVM* vm, int callbackId, int handleSlot) {
+    if(callbackId == -1) return true;
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return false;
     jsrPushNumber(vm, callbackId);
     if(jsrCallMethod(vm, "unref", 1) != JSR_SUCCESS) return false;

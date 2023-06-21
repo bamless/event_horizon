@@ -54,7 +54,7 @@ bool TCP_connect(JStarVM* vm) {
     res = uv_tcp_connect(req, tcp, &sa.sa, &connectCallback);
     if(res < 0) {
         free(req);
-        if(!Handle_unregisterCallback(vm, callbackId, 0)) return false;
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }

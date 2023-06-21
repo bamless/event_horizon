@@ -20,7 +20,7 @@ bool Idle_start(JStarVM* vm) {
 
     int res = uv_idle_start(idle, &idleCallback);
     if(res < 0) {
-        if(!Handle_unregisterCallback(vm, callbackId, 0)) {
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
             return false;
         }
         StatusException_raise(vm, res);
@@ -34,6 +34,11 @@ bool Idle_start(JStarVM* vm) {
 bool Idle_stop(JStarVM* vm) {
     uv_idle_t* idle = (uv_idle_t*)Handle_getHandle(vm, 0);
     if(!idle) return false;
+
+    if(!Handle_unregisterCallback(vm, IDLE_CB, 0)) {
+        return false;
+    }
+
     uv_idle_stop(idle);
     jsrPushNull(vm);
     return true;

@@ -58,7 +58,7 @@ bool Stream_write(JStarVM* vm) {
     int res = uv_write(&req->req, stream, &req->buf, 1, &writeCallback);
     if(res < 0) {
         free(req);
-        if(callbackId != -1 && !Handle_unregisterCallback(vm, callbackId, 0)) {
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
             return false;
         }
         StatusException_raise(vm, res);
@@ -107,7 +107,7 @@ bool Stream_readStart(JStarVM* vm) {
 
     int res = uv_read_start(stream, allocCallback, readCallback);
     if(res < 0) {
-        if(res != UV_EINVAL && !Handle_unregisterCallback(vm, callbackId, 0)) {
+        if(res != UV_EINVAL && !Handle_unregisterCallbackById(vm, callbackId, 0)) {
             return false;
         }
         StatusException_raise(vm, res);
@@ -122,14 +122,11 @@ bool Stream_readStop(JStarVM* vm) {
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
 
-    HandleMetadata* metadata = stream->data;
-    int callbackId = metadata->callbacks[READ_CB];
-    if(callbackId != -1 && !Handle_unregisterCallback(vm, callbackId, 0)) {
+    if(!Handle_unregisterCallback(vm, READ_CB, 0)) {
         return false;
     }
 
     uv_read_stop(stream);
-
     jsrPushNull(vm);
     return true;
 }
@@ -169,7 +166,7 @@ bool Stream_shutdown(JStarVM* vm) {
     int res = uv_shutdown(req, stream, &shutdownCallback);
     if(res < 0) {
         free(req);
-        if(!Handle_unregisterCallback(vm, callbackId, 0)) {
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
             return false;
         }
         StatusException_raise(vm, res);
@@ -224,7 +221,7 @@ bool Stream_rawListen(JStarVM* vm) {
 
     int res = uv_listen(stream, jsrGetNumber(vm, 2), &onConnectionCallback);
     if(res < 0) {
-        if(!Handle_unregisterCallback(vm, callbackId, 0)) {
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
             return false;
         }
         StatusException_raise(vm, res);

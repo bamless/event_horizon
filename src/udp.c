@@ -136,7 +136,7 @@ bool UDP_send(JStarVM* vm) {
     int res = uv_udp_send(&req->req, udp, &req->buf, 1, sa, &sendCallback);
     if(res < 0) {
         free(req);
-        if(callbackId != -1 && !Handle_unregisterCallback(vm, callbackId, 0)) {
+        if(callbackId != -1 && !Handle_unregisterCallbackById(vm, callbackId, 0)) {
             return false;
         }
         StatusException_raise(vm, res);
@@ -166,7 +166,7 @@ bool UDP_recvStart(JStarVM* vm) {
 
     int res = uv_udp_recv_start(udp, &allocCallback, &recvCallback);
     if(res < 0) {
-        if(!Handle_unregisterCallback(vm, callbackId, 0)) {
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
             return false;
         }
         StatusException_raise(vm, res);
@@ -181,10 +181,7 @@ bool UDP_recvStop(JStarVM* vm) {
     uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
     if(!udp) return false;
 
-    HandleMetadata* metadata = udp->data;
-    int callbackId = metadata->callbacks[RECV_CB];
-
-    if(callbackId != -1 && !Handle_unregisterCallback(vm, callbackId, 0)) {
+    if(!Handle_unregisterCallback(vm, RECV_CB, 0)) {
         return false;
     }
 
