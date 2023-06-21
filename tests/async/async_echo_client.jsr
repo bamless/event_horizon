@@ -13,14 +13,23 @@ import event_horizon.tcp for TCP
 
 @async
 fun sendLoop()
-    with TCP() sock
+    var sock = TCP()
+    try
         yield connect(sock, '127.0.0.1', 8080)
 
         var line
-        while (line = io.stdin.readLine())
+        while line = io.stdin.readLine()
             yield write(sock, line.strip())
-            print(yield read(sock))
+            var data = yield read(sock)
+
+            if !data
+                break
+            end
+
+            print(data)
         end
+    ensure
+        yield close(sock)
     end
 end
 
