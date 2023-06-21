@@ -1,0 +1,37 @@
+import event_horizon.errors for StatusException
+import event_horizon.udp for UDP
+
+import promise for Promise
+
+fun send(sock, data, addr=null, port=null)
+    return Promise(fun(resolve, reject)
+        sock.send(data, addr, port, fun(status)
+            if status < 0
+                reject(StatusException(status))
+            else
+                resolve()
+            end
+        end)
+    end)
+end
+
+fun recv(sock)
+    return Promise(fun(resolve, reject)
+        sock.recvStart(fun(data, addr, port, status)
+            sock.recvStop()
+            if status < 0
+                reject(StatusException(status))
+            else
+                resolve((data, addr, port))
+            end
+        end)
+    end)
+end
+
+fun close(sock)
+    return Promise(fun(resolve, reject)
+        sock.close(fun()
+            resolve()
+        end)
+    end)
+end

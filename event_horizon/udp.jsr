@@ -8,7 +8,7 @@ class UDP is Handle
 
     native bind(addr, port)
     native connect(addr, port=null)
-    native send(data, addr, port=null, callback=null)
+    native send(data, addr=null, port=null, callback=null)
     native recvStart(callback)
     native recvStop()
 end

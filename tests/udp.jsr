@@ -60,7 +60,7 @@ fun sendRecv()
     end)
 
     var recvCalled = false
-    s.recvStart(fun(data, addr, status)
+    s.recvStart(fun(data, addr, port, status)
         recvCalled = true
 
         s.close()
@@ -117,10 +117,10 @@ fun recvStartFail()
         end
     end)
 
-    udp.recvStart(fun(data, addr, status)
+    udp.recvStart(fun(data, addr, port, status)
         udp.close()
         c.close()
-        udp.recvStart(fun(data, addr, status) end)
+        udp.recvStart(fun(data, addr, port, status) end)
     end)
 
     var didThrow = false
@@ -159,7 +159,7 @@ fun recvStop()
     end)
     
     var recv = 0
-    udp.recvStart(fun(data, addr, status)
+    udp.recvStart(fun(data, addr, port, status)
         recv += 1
         assert(data == "foo")
         udp.recvStop()

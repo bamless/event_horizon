@@ -35,10 +35,10 @@ bool UDP_bind(JStarVM* vm) {
 }
 
 bool UDP_connect(JStarVM* vm) {
-    if(!jsrIsNull(vm, 1) && !jsrIsString(vm, 1)) {
-        JSR_RAISE(vm, "TypeException", "addr must be either null or a String");
-    }
     if(!jsrIsNull(vm, 1)) {
+        JSR_CHECK(String, 1, "addr");
+    }
+    if(!jsrIsNull(vm, 2)) {
         JSR_CHECK(Int, 2, "port");
     }
 
@@ -84,10 +84,10 @@ void sendCallback(uv_udp_send_t* req, int status) {
 
 bool UDP_send(JStarVM* vm) {
     JSR_CHECK(String, 1, "data");
-    if(!jsrIsNull(vm, 2) && !jsrIsString(vm, 2)) {
-        JSR_RAISE(vm, "TypeException", "addr must be either null or a String");
-    }
     if(!jsrIsNull(vm, 2)) {
+        JSR_CHECK(String, 2, "addr");
+    }
+    if(!jsrIsNull(vm, 3)) {
         JSR_CHECK(Int, 3, "port");
     }
     if(!jsrIsNull(vm, 4)) {

@@ -102,7 +102,11 @@ bool TCP_sockName(JStarVM* vm) {
     if(!pushAddr(vm, (struct sockaddr*)&storage)) {
         return false;
     }
+    if(!pushPort(vm, (struct sockaddr*)&storage)) {
+        return false;
+    }
 
+    jsrPushTuple(vm, 2);
     return true;
 }
 
@@ -121,7 +125,11 @@ bool TCP_peerName(JStarVM* vm) {
     if(!pushAddr(vm, (struct sockaddr*)&storage)) {
         return false;
     }
+    if(!pushPort(vm, (struct sockaddr*)&storage)) {
+        return false;
+    }
 
+    jsrPushTuple(vm, 2);
     return true;
 }
 // end

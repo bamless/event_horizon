@@ -182,13 +182,15 @@ void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struc
 
     if(sa != NULL) {
         pushAddr(vm, sa);
+        pushPort(vm, sa);
     } else {
+        jsrPushNull(vm);
         jsrPushNull(vm);
     }
 
     jsrPushNumber(vm, nread > 0 ? 0 : nread);
 
-    if(jsrCall(vm, 3) != JSR_SUCCESS) {
+    if(jsrCall(vm, 4) != JSR_SUCCESS) {
         EventLoop_addException(vm, -1);
     }
     

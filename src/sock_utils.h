@@ -11,6 +11,7 @@ typedef union sockaddr_union {
 } sockaddr_union;
 
 int initSockaddr(const char* address, int port, sockaddr_union* addr);
+bool pushPort(JStarVM* vm, const struct sockaddr* address);
 bool pushAddr(JStarVM* vm, const struct sockaddr* address);
 
 #endif  // SOCK_UTILS_H

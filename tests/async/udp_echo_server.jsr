@@ -1,0 +1,32 @@
+#!/usr/bin/env jstar
+import async for async
+import async_udp for send, recv
+
+import event_horizon as evh
+import event_horizon.udp for UDP
+
+@async
+fun server(handleMessage)
+    var sock = UDP()
+
+    try
+        sock.bind("0.0.0.0", 8080)
+        
+        while true
+            var data, addr, port = yield recv(sock)
+            yield handleMessage(sock, data, addr, port)
+        end
+    except Exception e
+        e.printStacktrace()
+    ensure
+        yield close(sock)
+    end
+end
+
+@async
+fun handleMessage(sock, data, addr, port)
+    yield send(sock, data, addr, port)
+end
+
+server(handleMessage)
+evh.loop().run()

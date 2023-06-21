@@ -13,6 +13,20 @@ int initSockaddr(const char* address, int port, sockaddr_union* addr) {
     return res;
 }
 
+bool pushPort(JStarVM* vm, const struct sockaddr* address) {
+    if(address->sa_family == AF_INET) {
+        const struct sockaddr_in* sa = (const struct sockaddr_in*)address;
+        jsrPushNumber(vm, ntohs(sa->sin_port));
+        return true;
+    } else if(address->sa_family == AF_INET6) {
+        const struct sockaddr_in6* sa = (const struct sockaddr_in6*)address;
+        jsrPushNumber(vm, ntohs(sa->sin6_port));
+        return true;
+    } else {
+        JSR_RAISE(vm, "TypeException", "Invalid protocol family: %d", address->sa_family);
+    }
+}
+
 bool pushAddr(JStarVM* vm, const struct sockaddr* address) {
     if(address->sa_family == AF_INET) {
         char str[INET_ADDRSTRLEN];

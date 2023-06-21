@@ -151,8 +151,8 @@ fun sockName()
     var s = TCP()
     s.bind("0.0.0.0", 8080);
 
-    var addr = s.sockName()
-    assert(addr == "0.0.0.0")
+    var addr, port = s.sockName()
+    assert(addr == "0.0.0.0" and port == 8080)
 
     s.close()
     evh.loop().run()
@@ -187,7 +187,7 @@ fun peerName()
             raise StatusException(status)
         end
 
-        assert(s.peerName() == '127.0.0.1')
+        assert(s.peerName()[0] == '127.0.0.1')
         s.close()
     end)
 
