@@ -6,7 +6,7 @@ import event_horizon as evh
 import event_horizon.udp for UDP
 
 @async
-fun server(handleMessage)
+fun server()
     var sock = UDP()
 
     try
@@ -14,7 +14,7 @@ fun server(handleMessage)
         
         while true
             var data, addr, port = yield recv(sock)
-            yield handleMessage(sock, data, addr, port)
+            yield send(sock, data, addr, port)
         end
     except Exception e
         e.printStacktrace()
@@ -23,10 +23,5 @@ fun server(handleMessage)
     end
 end
 
-@async
-fun handleMessage(sock, data, addr, port)
-    yield send(sock, data, addr, port)
-end
-
-server(handleMessage)
+server()
 evh.loop().run()
