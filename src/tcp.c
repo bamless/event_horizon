@@ -91,18 +91,19 @@ bool TCP_sockName(JStarVM* vm) {
     uv_tcp_t* tcp = (uv_tcp_t*)Handle_getHandle(vm, 0);
     if(!tcp) return false;
 
-    int len = sizeof(struct sockaddr_storage);
-    struct sockaddr_storage storage;
-    int res = uv_tcp_getsockname(tcp, (struct sockaddr*)&storage, &len);
+    sockaddr_union un;
+    int len = sizeof(un);
+
+    int res = uv_tcp_getsockname(tcp, &un.sa, &len);
     if(res < 0) {
         StatusException_raise(vm, res);
         return false;
     }
 
-    if(!pushAddr(vm, (struct sockaddr*)&storage)) {
+    if(!pushAddr(vm, &un.sa)) {
         return false;
     }
-    if(!pushPort(vm, (struct sockaddr*)&storage)) {
+    if(!pushPort(vm, &un.sa)) {
         return false;
     }
 
@@ -114,18 +115,19 @@ bool TCP_peerName(JStarVM* vm) {
     uv_tcp_t* tcp = (uv_tcp_t*)Handle_getHandle(vm, 0);
     if(!tcp) return false;
 
-    int len = sizeof(struct sockaddr_storage);
-    struct sockaddr_storage storage;
-    int res = uv_tcp_getpeername(tcp, (struct sockaddr*)&storage, &len);
+    sockaddr_union un;
+    int len = sizeof(un);
+
+    int res = uv_tcp_getpeername(tcp, &un.sa, &len);
     if(res < 0) {
         StatusException_raise(vm, res);
         return false;
     }
 
-    if(!pushAddr(vm, (struct sockaddr*)&storage)) {
+    if(!pushAddr(vm, &un.sa)) {
         return false;
     }
-    if(!pushPort(vm, (struct sockaddr*)&storage)) {
+    if(!pushPort(vm, &un.sa)) {
         return false;
     }
 

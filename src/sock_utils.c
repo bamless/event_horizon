@@ -3,9 +3,9 @@
 #include "errors.h"
 
 int initSockaddr(const char* address, int port, sockaddr_union* addr) {
-    int res = uv_ip4_addr(address, port, &addr->s4);
+    int res = uv_ip4_addr(address, port, &addr->in4);
     if(res) {
-        int res = uv_ip6_addr(address, port, &addr->s6);
+        int res = uv_ip6_addr(address, port, &addr->in6);
         if(res) {
             return res;
         }
@@ -14,13 +14,12 @@ int initSockaddr(const char* address, int port, sockaddr_union* addr) {
 }
 
 bool pushPort(JStarVM* vm, const struct sockaddr* address) {
-    if(address->sa_family == AF_INET) {
-        const struct sockaddr_in* sa = (const struct sockaddr_in*)address;
-        jsrPushNumber(vm, ntohs(sa->sin_port));
+    const sockaddr_union* un = (sockaddr_union*)address;
+    if(un->sa.sa_family == AF_INET) {
+        jsrPushNumber(vm, ntohs(un->in4.sin_port));
         return true;
     } else if(address->sa_family == AF_INET6) {
-        const struct sockaddr_in6* sa = (const struct sockaddr_in6*)address;
-        jsrPushNumber(vm, ntohs(sa->sin6_port));
+        jsrPushNumber(vm, ntohs(un->in6.sin6_port));
         return true;
     } else {
         JSR_RAISE(vm, "TypeException", "Invalid protocol family: %d", address->sa_family);
@@ -28,10 +27,10 @@ bool pushPort(JStarVM* vm, const struct sockaddr* address) {
 }
 
 bool pushAddr(JStarVM* vm, const struct sockaddr* address) {
-    if(address->sa_family == AF_INET) {
+    const sockaddr_union* un = (sockaddr_union*)address;
+    if(un->sa.sa_family == AF_INET) {
         char str[INET_ADDRSTRLEN];
-        const struct sockaddr_in* sa = (const struct sockaddr_in*)address;
-        int res = uv_inet_ntop(AF_INET, &sa->sin_addr, str, INET_ADDRSTRLEN);
+        int res = uv_inet_ntop(AF_INET, &un->in4.sin_addr, str, INET_ADDRSTRLEN);
         if(res < 0) {
             StatusException_raise(vm, res);
             return false;
@@ -40,8 +39,7 @@ bool pushAddr(JStarVM* vm, const struct sockaddr* address) {
         return true;
     } else if(address->sa_family == AF_INET6) {
         char str[INET6_ADDRSTRLEN];
-        const struct sockaddr_in6* sa = (const struct sockaddr_in6*)address;
-        int res = uv_inet_ntop(AF_INET6, &sa->sin6_addr, str, INET6_ADDRSTRLEN);
+        int res = uv_inet_ntop(AF_INET6, &un->in6.sin6_addr, str, INET6_ADDRSTRLEN);
         if(res < 0) {
             StatusException_raise(vm, res);
             return false;

@@ -6,8 +6,9 @@
 
 typedef union sockaddr_union {
     struct sockaddr sa;
-    struct sockaddr_in s4;
-    struct sockaddr_in6 s6;
+    struct sockaddr_in in4;
+    struct sockaddr_in6 in6;
+    struct sockaddr_storage storage;
 } sockaddr_union;
 
 int initSockaddr(const char* address, int port, sockaddr_union* addr);
