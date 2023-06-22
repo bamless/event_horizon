@@ -191,4 +191,52 @@ bool UDP_recvStop(JStarVM* vm) {
     jsrPushNull(vm);
     return true;
 }
+
+bool UDP_sockName(JStarVM* vm) {
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    sockaddr_union un;
+    int len = sizeof(un);
+
+    int res = uv_udp_getsockname(udp, &un.sa, &len);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    if(!pushAddr(vm, &un.sa)) {
+        return false;
+    }
+    if(!pushPort(vm, &un.sa)) {
+        return false;
+    }
+
+    jsrPushTuple(vm, 2);
+    return true;
+}
+
+bool UDP_peerName(JStarVM* vm) {
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    sockaddr_union un;
+    int len = sizeof(un);
+
+    int res = uv_udp_getpeername(udp, &un.sa, &len);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    if(!pushAddr(vm, &un.sa)) {
+        return false;
+    }
+    if(!pushPort(vm, &un.sa)) {
+        return false;
+    }
+
+    jsrPushTuple(vm, 2);
+    return true;
+}
 // end

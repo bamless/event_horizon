@@ -11,4 +11,6 @@ class UDP is Handle
     native send(data, addr=null, port=null, callback=null)
     native recvStart(callback)
     native recvStop()
+    native sockName()
+    native peerName()
 end
