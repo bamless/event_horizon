@@ -233,6 +233,24 @@ fun peerNameFail()
     evh.loop().run()
 end
 
+@test
+fun sendQueueSize()
+    var u = UDP()
+    var sz = u.sendQueueSize()
+    assert(sz is Number)
+    u.close()
+    evh.loop().run()
+end
+
+@test
+fun sendQueueCount()
+    var u = UDP()
+    var sz = u.sendQueueCount()
+    assert(sz is Number)
+    u.close()
+    evh.loop().run()
+end
+
 if __name__ == '__main__'
     run()
 end

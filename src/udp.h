@@ -11,6 +11,8 @@ bool UDP_recvStart(JStarVM* vm);
 bool UDP_recvStop(JStarVM* vm);
 bool UDP_sockName(JStarVM* vm);
 bool UDP_peerName(JStarVM* vm);
+bool UDP_sendQueueSize(JStarVM* vm);
+bool UDP_sendQueueCount(JStarVM* vm);
 // end
 
 #endif

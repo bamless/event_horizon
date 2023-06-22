@@ -13,4 +13,6 @@ class UDP is Handle
     native recvStop()
     native sockName()
     native peerName()
+    native sendQueueSize()
+    native sendQueueCount()
 end

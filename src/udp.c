@@ -239,4 +239,20 @@ bool UDP_peerName(JStarVM* vm) {
     jsrPushTuple(vm, 2);
     return true;
 }
+
+bool UDP_sendQueueSize(JStarVM* vm) {
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+    int res = uv_udp_get_send_queue_size(udp);
+    jsrPushNumber(vm, res);
+    return true;
+}
+
+bool UDP_sendQueueCount(JStarVM* vm) {
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+    int res = uv_udp_get_send_queue_count(udp);
+    jsrPushNumber(vm, res);
+    return true;
+}
 // end
