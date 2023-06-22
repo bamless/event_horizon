@@ -12,15 +12,14 @@ bool Idle_start(JStarVM* vm) {
 
     uv_idle_t* idle = (uv_idle_t*)Handle_getHandle(vm, 0);
     if(!idle) return false;
-    HandleMetadata* metadata = idle->data;
 
-    int callbackId = Handle_registerCallback(vm, 1, 0);
-    if(callbackId == -1) return false;
-    metadata->callbacks[IDLE_CB] = callbackId;
+    if(!Handle_registerCallback(vm, 1, IDLE_CB, 0)) {
+        return false;
+    }
 
     int res = uv_idle_start(idle, &idleCallback);
     if(res < 0) {
-        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
+        if(!Handle_unregisterCallback(vm, IDLE_CB, 0)) {
             return false;
         }
         StatusException_raise(vm, res);

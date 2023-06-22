@@ -37,7 +37,7 @@ bool Stream_write(JStarVM* vm) {
 
     int callbackId = -1;
     if(!jsrIsNull(vm, 2)) {
-        callbackId = Handle_registerCallback(vm, 2, 0);
+        callbackId = Handle_registerCallbackWithId(vm, 2, 0);
         if(callbackId == -1) {
             return false;
         }
@@ -99,15 +99,14 @@ bool Stream_readStart(JStarVM* vm) {
 
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
-    HandleMetadata* metadata = stream->data;
 
-    int callbackId = Handle_registerCallback(vm, 1, 0);
-    if(callbackId == -1) return false;
-    metadata->callbacks[READ_CB] = callbackId;
+    if(!Handle_registerCallback(vm, 1, READ_CB, 0)) {
+        return false;
+    }
 
     int res = uv_read_start(stream, allocCallback, readCallback);
     if(res < 0) {
-        if(res != UV_EINVAL && !Handle_unregisterCallbackById(vm, callbackId, 0)) {
+        if(res != UV_EINVAL && !Handle_unregisterCallback(vm, READ_CB, 0)) {
             return false;
         }
         StatusException_raise(vm, res);
@@ -154,7 +153,7 @@ bool Stream_shutdown(JStarVM* vm) {
 
     int callbackId = -1;
     if(!jsrIsNull(vm, 1)) {
-        callbackId = Handle_registerCallback(vm, 1, 0);
+        callbackId = Handle_registerCallbackWithId(vm, 1, 0);
         if(callbackId == -1) {
             free(req);
             return false;
@@ -213,15 +212,14 @@ bool Stream_rawListen(JStarVM* vm) {
 
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
-    HandleMetadata* metadata = stream->data;
 
-    int callbackId = Handle_registerCallback(vm, 1, 0);
-    if(callbackId == -1) return false;
-    metadata->callbacks[CONNECT_CB] = callbackId;
+    if(!Handle_registerCallback(vm, 1, CONNECT_CB, 0)) {
+        return false;
+    }
 
     int res = uv_listen(stream, jsrGetNumber(vm, 2), &onConnectionCallback);
     if(res < 0) {
-        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
+        if(!Handle_unregisterCallback(vm, CONNECT_CB, 0)) {
             return false;
         }
         StatusException_raise(vm, res);

@@ -42,7 +42,7 @@ bool TCP_connect(JStarVM* vm) {
 
     int callbackId = -1;
     if(!jsrIsNull(vm, 3)) {
-        callbackId = Handle_registerCallback(vm, 3, 0);
+        callbackId = Handle_registerCallbackWithId(vm, 3, 0);
         if(callbackId == -1) {
             free(req);
             return false;

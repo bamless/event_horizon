@@ -24,7 +24,8 @@ bool Handle_setRecvBufferSize(JStarVM* vm);
 // Uiility methods to be called from natives
 bool Handle_getEventLoop(JStarVM* vm, int handleSlot);
 uv_handle_t* Handle_getHandle(JStarVM* vm, int handleSlot);
-int Handle_registerCallback(JStarVM* vm, int callbackSlot, int handleSlot);
+bool Handle_registerCallback(JStarVM* vm, int callbackSlot, CallbackType type, int handleSlot);
+int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot);
 bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handleSlot);
 bool Handle_unregisterCallback(JStarVM* vm, CallbackType type, int handleSlot);
 bool Handle_unregisterCallbackById(JStarVM* vm, int callbackId, int handleSlot);

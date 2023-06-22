@@ -1,6 +1,6 @@
 #!/usr/bin/env jstar
 import async for async
-import async_udp for send, recv
+import async_udp for send, recv, close
 
 import event_horizon as evh
 import event_horizon.udp for UDP
@@ -8,7 +8,7 @@ import event_horizon.udp for UDP
 @async
 fun server()
     var sock = UDP()
-
+    
     try
         sock.bind("0.0.0.0", 8080)
         

@@ -80,11 +80,8 @@ bool Handle_close(JStarVM* vm) {
     uv_handle_t* handle = Handle_getHandle(vm, 0);
     if(!handle) return false;
 
-    if(!jsrIsNull(vm, 1)) {
-        int callbackId = Handle_registerCallback(vm, 1, 0);
-        if(callbackId == -1) return false;
-        HandleMetadata* metadata = handle->data;
-        metadata->callbacks[CLOSE_CB] = callbackId;
+    if(!jsrIsNull(vm, 1) && !Handle_registerCallback(vm, 1, CLOSE_CB, 0)) {
+        return false;
     }
 
     uv_close(handle, &closeCallback);
@@ -192,7 +189,17 @@ uv_handle_t* Handle_getHandle(JStarVM* vm, int handleSlot) {
     return handle;
 }
 
-int Handle_registerCallback(JStarVM* vm, int callbackSlot, int handleSlot) {
+bool Handle_registerCallback(JStarVM* vm, int callbackSlot, CallbackType type, int handleSlot) {
+    int callbackId = Handle_registerCallbackWithId(vm, callbackSlot, handleSlot);
+    if(callbackId == -1) return false;
+    uv_handle_t* handle = Handle_getHandle(vm, handleSlot);
+    if(!handle) return false;
+    HandleMetadata* metadata = handle->data;
+    metadata->callbacks[type] = callbackId;
+    return true;
+}
+
+int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot) {
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return -1;
     jsrPushValue(vm, callbackSlot);
     if(jsrCallMethod(vm, "ref", 1) != JSR_SUCCESS) return -1;
