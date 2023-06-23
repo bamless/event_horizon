@@ -1,0 +1,24 @@
+import async for async
+import promise for Promise
+
+import event_horizon as evh
+import event_horizon.timer for Timer
+
+fun sleep(ms)
+    return Promise(fun(resolve, _)
+        var t = Timer()
+        t.start(ms, 0, fun()
+            t.close()
+            resolve()
+        end)
+    end)
+end
+
+@async
+fun printDelayed(val, ms)
+    yield sleep(ms)
+    print(val)
+end
+
+printDelayed("Hello, World!", 1500)
+evh.loop().run()
