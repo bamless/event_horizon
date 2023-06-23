@@ -103,7 +103,7 @@ void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
 }
 
 static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t* buf,
-                               bool pushSockAddr, const struct sockaddr* sa, CallbackType cbType) {
+                             bool pushSockAddr, const struct sockaddr* sa, CallbackType cbType) {
     LoopMetadata* loopMetadata = handle->loop->data;
     HandleMetadata* handleMetadata = handle->data;
     JStarVM* vm = loopMetadata->vm;

@@ -13,7 +13,7 @@ bool Timer_start(JStarVM* vm) {
 
     uv_timer_t* timer = (uv_timer_t*)Handle_getHandle(vm, 0);
     if(!timer) return false;
-    
+
     if(!Handle_registerCallback(vm, 3, TIMER_CB, 0)) {
         return false;
     }
