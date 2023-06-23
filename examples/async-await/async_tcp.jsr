@@ -1,3 +1,5 @@
+import event_horizon.errors for StatusException
+
 import promise for Promise
 
 // ---- Promisified `TCP` methods ----

@@ -32,7 +32,7 @@ class LoopExecutionException is EventHorizonException
             for var i, exc in this._exceptions.enumerate()
                 chunks.add(exc.getStacktrace())
                 if i != numExceptions - 1
-                    chunks.add("nn")
+                    chunks.add("\n\n")
                 end
             end
         end

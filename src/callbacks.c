@@ -102,9 +102,10 @@ void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
     buf->len = alloc.capacity;
 }
 
-void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
-    LoopMetadata* loopMetadata = stream->loop->data;
-    HandleMetadata* handleMetadata = stream->data;
+static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t* buf,
+                               bool pushSockAddr, const struct sockaddr* sa, CallbackType cbType) {
+    LoopMetadata* loopMetadata = handle->loop->data;
+    HandleMetadata* handleMetadata = handle->data;
     JStarVM* vm = loopMetadata->vm;
 
     JStarBuffer data = (JStarBuffer){
@@ -119,7 +120,7 @@ void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
     }
     int handleSlot = jsrTop(vm);
 
-    if(!Handle_getCallback(vm, handleMetadata->callbacks[READ_CB], false, handleSlot)) {
+    if(!Handle_getCallback(vm, handleMetadata->callbacks[cbType], false, handleSlot)) {
         jsrBufferFree(&data);
         EventLoop_addException(vm, -1);
         jsrPopN(vm, 3);
@@ -131,6 +132,16 @@ void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
     } else {
         jsrBufferFree(&data);
         jsrPushNull(vm);
+    }
+
+    if(pushSockAddr) {
+        if(sa != NULL) {
+            pushAddr(vm, sa);
+            pushPort(vm, sa);
+        } else {
+            jsrPushNull(vm);
+            jsrPushNull(vm);
+        }
     }
 
     if(nread > 0 || nread == UV_EOF) {
@@ -139,62 +150,21 @@ void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
         jsrPushNumber(vm, nread);
     }
 
-    if(jsrCall(vm, 2) != JSR_SUCCESS) {
+    if(jsrCall(vm, pushSockAddr ? 4 : 2) != JSR_SUCCESS) {
         EventLoop_addException(vm, -1);
     }
 
     jsrPopN(vm, 3);
 }
 
+void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
+    sockReadCallback((uv_handle_t*)stream, nread, buf, false, NULL, READ_CB);
+}
+
 void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* sa,
                   unsigned int flags) {
     (void)flags;
-
-    LoopMetadata* loopMetadata = udp->loop->data;
-    HandleMetadata* handleMetadata = udp->data;
-    JStarVM* vm = loopMetadata->vm;
-
-    JStarBuffer data = (JStarBuffer){
-        .vm = vm,
-        .size = nread < 0 ? 0 : nread,
-        .capacity = buf->len,
-        .data = buf->base,
-    };
-
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        return;
-    }
-    int handleSlot = jsrTop(vm);
-
-    if(!Handle_getCallback(vm, handleMetadata->callbacks[RECV_CB], false, handleSlot)) {
-        jsrBufferFree(&data);
-        EventLoop_addException(vm, -1);
-        jsrPopN(vm, 3);
-        return;
-    }
-
-    if(nread >= 0) {
-        jsrBufferPush(&data);
-    } else {
-        jsrBufferFree(&data);
-        jsrPushNull(vm);
-    }
-
-    if(sa != NULL) {
-        pushAddr(vm, sa);
-        pushPort(vm, sa);
-    } else {
-        jsrPushNull(vm);
-        jsrPushNull(vm);
-    }
-
-    jsrPushNumber(vm, nread > 0 ? 0 : nread);
-
-    if(jsrCall(vm, 4) != JSR_SUCCESS) {
-        EventLoop_addException(vm, -1);
-    }
-
-    jsrPopN(vm, 3);
+    sockReadCallback((uv_handle_t*)udp, nread, buf, true, sa, RECV_CB);
 }
 
 static void voidHandleCallback(uv_handle_t* handle, CallbackType cbType) {

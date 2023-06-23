@@ -1,5 +1,4 @@
 import event_horizon.errors for StatusException
-import event_horizon.udp for UDP
 
 import promise for Promise
 
