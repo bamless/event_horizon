@@ -1,0 +1,11 @@
+import event_horizon as evh
+import event_horizon.handle for Handle, HandleType
+
+class Timer is Handle
+    construct(loop=null)
+        super(loop or evh.loop(), HandleType.TIMER)
+    end
+
+    native start(timeout, repeat, callback)
+    native stop()
+end

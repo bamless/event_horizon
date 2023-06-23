@@ -17,6 +17,8 @@ add_library(event_horizon SHARED
     tcp.h
     udp.h
     udp.c
+    timer.h
+    timer.c
     sock_utils.h
     sock_utils.c
 )

@@ -9,6 +9,7 @@ if __name__ == '__main__'
     import stream
     import tcp
     import udp
+    import timer
 
     test.run()
 end

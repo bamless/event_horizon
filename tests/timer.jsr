@@ -1,0 +1,57 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run, skip
+
+import io
+
+import server_utils for spawnTCPServer
+
+import event_horizon as evh
+import event_horizon.errors for strerror, LoopExecutionException, StatusException
+import event_horizon.timer for Timer
+
+@test
+fun start()
+    var t = Timer()
+    var called = false
+    t.start(1, 0, fun()
+        called = true
+        t.stop()
+        t.close()
+    end)
+    evh.loop().run()
+    assert(called)
+end
+
+@test
+fun repeat()
+    var t = Timer()
+    var called = 0
+
+    t.start(10, 10, fun()
+        called += 1
+        if called == 3
+            t.close()
+        end
+    end)
+
+    evh.loop().run()
+    assert(called == 3)
+end
+
+@test
+fun stop()
+    var t = Timer()
+    var called = 0
+    t.start(10, 10, fun()
+        called += 1
+        t.stop()
+    end)
+
+    evh.loop().run()
+    assert(called == 1)
+
+    t.close()
+    evh.loop().run()
+end
+

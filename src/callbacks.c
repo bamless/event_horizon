@@ -193,13 +193,13 @@ void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struc
     if(jsrCall(vm, 4) != JSR_SUCCESS) {
         EventLoop_addException(vm, -1);
     }
-    
+
     jsrPopN(vm, 3);
 }
 
-void idleCallback(uv_idle_t* idle) {
-    HandleMetadata* handleMetadata = idle->data;
-    LoopMetadata* loopMetadata = idle->loop->data;
+static void voidHandleCallback(uv_handle_t* handle, CallbackType cbType) {
+    HandleMetadata* handleMetadata = handle->data;
+    LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
@@ -207,9 +207,9 @@ void idleCallback(uv_idle_t* idle) {
     }
     int handleSlot = jsrTop(vm);
 
-    int closeCallback = handleMetadata->callbacks[IDLE_CB];
-    if(closeCallback != -1) {
-        if(!Handle_getCallback(vm, closeCallback, true, handleSlot) ||
+    int callback = handleMetadata->callbacks[cbType];
+    if(callback != -1) {
+        if(!Handle_getCallback(vm, callback, false, handleSlot) ||
            (jsrCall(vm, 0) != JSR_SUCCESS)) {
             EventLoop_addException(vm, -1);
         }
@@ -217,6 +217,14 @@ void idleCallback(uv_idle_t* idle) {
     }
 
     jsrPopN(vm, 2);
+}
+
+void idleCallback(uv_idle_t* idle) {
+    voidHandleCallback((uv_handle_t*)idle, IDLE_CB);
+}
+
+void timerCallback(uv_timer_t* timer) {
+    voidHandleCallback((uv_handle_t*)timer, TIMER_CB);
 }
 
 void walkCallback(uv_handle_t* handle, void* arg) {

@@ -15,6 +15,7 @@ typedef enum CallbackType {
     RECV_CB,
     CONNECT_CB,
     IDLE_CB,
+    TIMER_CB,
     NUM_CB,
 } CallbackType;
 

@@ -6,6 +6,7 @@
 #include "idle.h"
 #include "stream.h"
 #include "tcp.h"
+#include "timer.h"
 #include "udp.h"
 
 inline void setRequestCallback(uv_req_t* req, int callbackId);
@@ -58,6 +59,9 @@ static JStarNativeReg registry[] = {
 
     JSR_REGMETH(Idle, start, Idle_start)
     JSR_REGMETH(Idle, stop, Idle_stop)
+
+    JSR_REGMETH(Timer, start, Timer_start)
+    JSR_REGMETH(Timer, stop, Timer_stop)
 
     JSR_REGEND
 };
