@@ -21,4 +21,6 @@ fun printDelayed(val, ms)
 end
 
 printDelayed("Hello, World!", 1500)
+print("After `printDelayed`")
+
 evh.loop().run()
