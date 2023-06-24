@@ -62,6 +62,10 @@ static JStarNativeReg registry[] = {
 
     JSR_REGMETH(Timer, start, Timer_start)
     JSR_REGMETH(Timer, stop, Timer_stop)
+    JSR_REGMETH(Timer, again, Timer_again)
+    JSR_REGMETH(Timer, setRepeat, Timer_setRepeat)
+    JSR_REGMETH(Timer, repeat, Timer_repeat)
+    JSR_REGMETH(Timer, dueIn, Timer_dueIn)
 
     JSR_REGEND
 };

@@ -8,4 +8,8 @@ class Timer is Handle
 
     native start(timeout, repeat, callback)
     native stop()
+    native again()
+    native setRepeat(repeat)
+    native repeat()
+    native dueIn()
 end
