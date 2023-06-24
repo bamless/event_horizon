@@ -14,7 +14,7 @@ class TCP is Stream
     end
 
     native connect(addr, port, callback=null)
-    native bind(addr, port)
+    native bind(addr, port, ipv6Only=false)
     native sockName()
     native peerName()
 end

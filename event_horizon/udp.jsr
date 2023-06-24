@@ -1,12 +1,49 @@
 import event_horizon as evh
 import event_horizon.handle for Handle, HandleType
 
+var UDPFlags = Enum{
+    /// Disables dual stack mode.
+    .IPV6ONLY : 1,
+
+    /// Indicates message was truncated because read buffer was too small. The
+    /// remainder was discarded by the OS. Used in uv_udp_recv_cb.
+    .PARTIAL : 2,
+
+    /// Indicates if SO_REUSEADDR will be set when binding the handle in
+    /// uv_udp_bind.
+    /// This sets the SO_REUSEPORT socket flag on the BSDs and OS X. On other
+    /// Unix platforms, it sets the SO_REUSEADDR flag. What that means is that
+    /// multiple threads or processes can bind to the same address without error
+    /// (provided they all set the flag) but only the last one to bind will receive
+    /// any traffic, in effect "stealing" the port from the previous listener.
+    .REUSEADDR : 4,
+
+    /// Indicates that the message was received by recvmmsg, so the buffer provided
+    /// must not be freed by the recv_cb callback.
+    .MMSG_CHUNK : 8,
+
+    /// Indicates that the buffer provided has been fully utilized by recvmmsg and
+    /// that it should now be freed by the recv_cb callback. When this flag is set
+    /// in uv_udp_recv_cb, nread will always be 0 and addr will always be NULL.
+    .MMSG_FREE : 16,
+
+    /// Indicates if IP_RECVERR/IPV6_RECVERR will be set when binding the handle.
+    /// This sets IP_RECVERR for IPv4 and IPV6_RECVERR for IPv6 UDP sockets on
+    /// Linux. This stops the Linux kernel from suppressing some ICMP error messages
+    /// and enables full ICMP error reporting for faster failover.
+    /// This flag is no-op on platforms other than Linux.
+    .LINUX_RECVERR : 32,
+
+    /// Indicates that recvmmsg should be used, if available.
+    .RECVMMSG : 256 
+}
+
 class UDP is Handle
     construct(loop=null)
         super(loop or evh.loop(), HandleType.UDP)
     end
 
-    native bind(addr, port)
+    native bind(addr, port, flags=0)
     native connect(addr, port=null)
     native send(data, addr=null, port=null, callback=null)
     native recvStart(callback)

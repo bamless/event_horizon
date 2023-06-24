@@ -13,6 +13,7 @@
 bool UDP_bind(JStarVM* vm) {
     JSR_CHECK(String, 1, "addr");
     JSR_CHECK(Int, 2, "port");
+    JSR_CHECK(Int, 3, "flags");
 
     uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
     if(!udp) return false;
@@ -23,8 +24,9 @@ bool UDP_bind(JStarVM* vm) {
         StatusException_raise(vm, res);
         return false;
     }
-
-    res = uv_udp_bind(udp, &sa.sa, 0);
+    
+    unsigned int flags = jsrGetNumber(vm, 3);
+    res = uv_udp_bind(udp, &sa.sa, flags);
     if(res < 0) {
         StatusException_raise(vm, res);
         return false;

@@ -66,6 +66,7 @@ bool TCP_connect(JStarVM* vm) {
 bool TCP_bind(JStarVM* vm) {
     JSR_CHECK(String, 1, "addr");
     JSR_CHECK(Int, 2, "port");
+    JSR_CHECK(Boolean, 3, "ipv6Only");
 
     uv_tcp_t* tcp = (uv_tcp_t*)Handle_getHandle(vm, 0);
     if(!tcp) return false;
@@ -77,7 +78,12 @@ bool TCP_bind(JStarVM* vm) {
         return false;
     }
 
-    res = uv_tcp_bind(tcp, &sa.sa, 0);
+    unsigned int flags = 0;
+    if(jsrGetBoolean(vm, 3)) {
+        flags |= UV_TCP_IPV6ONLY;
+    }
+
+    res = uv_tcp_bind(tcp, &sa.sa, flags);
     if(res < 0) {
         StatusException_raise(vm, res);
         return false;
