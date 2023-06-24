@@ -10,6 +10,7 @@ if __name__ == '__main__'
     import tcp
     import udp
     import timer
+    import dns
 
     test.run()
 end

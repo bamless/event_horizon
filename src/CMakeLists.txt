@@ -1,6 +1,10 @@
 add_library(event_horizon SHARED 
     callbacks.h
     callbacks.c
+    consts.h
+    consts.c
+    dns.h
+    dns.c
     errors.h
     errors.c
     event_horizon.c

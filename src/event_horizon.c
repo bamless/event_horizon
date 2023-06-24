@@ -1,5 +1,7 @@
 #include "event_horizon.h"
 
+#include "consts.h"
+#include "dns.h"
 #include "errors.h"
 #include "event_loop.h"
 #include "handle.h"
@@ -14,6 +16,10 @@ inline int getRequestCallback(uv_req_t* req);
 
 // clang-format off
 static JStarNativeReg registry[] = {
+    JSR_REGFUNC(_consts_init, consts_init)
+
+    JSR_REGFUNC(getAddrInfo, dns_getAddrInfo)
+
     JSR_REGFUNC(strerror, errors_strerror)
 
     JSR_REGMETH(EventLoop, run, EventLoop_run)

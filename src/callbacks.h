@@ -13,5 +13,6 @@ void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struc
 void idleCallback(uv_idle_t* idle);
 void timerCallback(uv_timer_t* timer);
 void walkCallback(uv_handle_t* handle, void* arg);
+void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res);
 
 #endif

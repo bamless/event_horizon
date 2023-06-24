@@ -1,5 +1,6 @@
 #include "callbacks.h"
 
+#include "dns.h"
 #include "event_loop.h"
 #include "handle.h"
 #include "sock_utils.h"
@@ -218,6 +219,56 @@ void walkCallback(uv_handle_t* handle, void* arg) {
     if(jsrCall(vm, 1) != JSR_SUCCESS) {
         jsrPrintStacktrace(vm, -1);
         jsrPop(vm);
+    }
+
+    jsrPopN(vm, 2);
+}
+
+void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
+    LoopMetadata* metadata = req->loop->data;
+    JStarVM* vm = metadata->vm;
+    int callbackId = getRequestCallback((uv_req_t*)req);
+    free(req);
+
+    if(!tryGetEventLoop(vm, metadata->loopId)) {
+        freeaddrinfo(res);
+        return;
+    }
+    
+    if(!dns_getCallback(vm, true, callbackId)) {
+        freeaddrinfo(res);
+        EventLoop_addException(vm, -1);
+        jsrPopN(vm, 2);
+        return;
+    }
+
+    jsrPushList(vm);
+
+    struct addrinfo* info = res;
+    while(info) {
+        if(!pushAddr(vm, info->ai_addr)) {
+            freeaddrinfo(res);
+            EventLoop_addException(vm, -1);
+            jsrPopN(vm, 3);
+            return;
+        }
+        if(!pushPort(vm, info->ai_addr)) {
+            freeaddrinfo(res);
+            EventLoop_addException(vm, -1);
+            jsrPopN(vm, 4);
+            return;
+        }
+        jsrPushTuple(vm, 2);
+        jsrListAppend(vm, -2);
+        jsrPop(vm);
+        info = info->ai_next;
+    }
+    freeaddrinfo(res);
+
+    jsrPushNumber(vm, status);
+    
+    if(jsrCall(vm, 2) != JSR_SUCCESS) {
+        EventLoop_addException(vm, -1);
     }
 
     jsrPopN(vm, 2);
