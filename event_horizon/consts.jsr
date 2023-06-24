@@ -1,0 +1,25 @@
+var Family = Enum(
+    'AF_UNSPEC',
+    'AF_INET',
+    'AF_INET6'
+)
+
+var SockType = Enum(
+    'SOCK_STREAM',
+    'SOCK_DGRAM'
+)
+
+var AIFlags = Enum(
+    'AI_PASSIVE',
+    'AI_CANONNAME',
+    'AI_NUMERICHOST',
+    'AI_V4MAPPED',
+    'AI_ALL',
+    'AI_ADDRCONFIG',
+    'AI_IDN',
+    'AI_CANONIDN',
+    'AI_NUMERICSERV'
+)
+
+static native _consts_init()
+_consts_init()

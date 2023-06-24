@@ -1,0 +1,10 @@
+import event_horizon.registry for Registry
+
+static var callbacks = Registry()
+
+fun _callbacks()
+    return callbacks
+end
+
+native getAddrInfo(callback, node=null, service=null, flags=0, family=0, sockType=0, protocol=0,
+                   loop=null)

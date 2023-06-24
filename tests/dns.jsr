@@ -1,0 +1,52 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, '../')
+import test for test, run, skip
+
+import re
+
+import event_horizon as evh
+import event_horizon.errors for strerror, EventHorizonException, LoopExecutionException
+import event_horizon.event_loop for EventLoop
+import event_horizon.consts as consts
+import event_horizon.dns as dns
+
+@test
+fun getAddrInfo()
+    var host = "www.example.com"
+    var called = false
+    dns.getAddrInfo(fun(res, status)
+        if status < 0
+            raise StatusException(status)
+        else
+            called = true
+            assert(#res > 0)
+        end
+    end, host, "http")
+
+    evh.loop().run()
+    assert(called)
+end
+
+@test
+fun getAddrInfoFamily()
+    var host = "www.example.com"
+    var called = false
+    dns.getAddrInfo(fun(res, status)
+        if status < 0
+            raise StatusException(status)
+        else
+            called = true
+            assert(#res > 0)
+            for var ip, port in res
+                assert(re.match(ip, "^%d%d%d?%.%d%d%d?%.%d%d%d?%.%d%d%d?$"))
+            end
+        end
+    end, host, "http", 0, consts.Family.AF_INET)
+
+    evh.loop().run()
+    assert(called)
+end
+
+if __name__ == '__main__'
+    run()
+end
