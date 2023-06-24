@@ -75,7 +75,10 @@ bool Stream_tryWrite(JStarVM* vm) {
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;
 
-    uv_buf_t buf = (uv_buf_t){.base = (char*)jsrGetString(vm, 1), .len = jsrGetStringSz(vm, 1)};
+    uv_buf_t buf = (uv_buf_t){
+        .base = (char*)jsrGetString(vm, 1),
+        .len = jsrGetStringSz(vm, 1),
+    };
 
     int res = uv_try_write(stream, &buf, 1);
     if(res == UV_EAGAIN) {

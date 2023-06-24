@@ -24,7 +24,7 @@ bool UDP_bind(JStarVM* vm) {
         StatusException_raise(vm, res);
         return false;
     }
-    
+
     unsigned int flags = jsrGetNumber(vm, 3);
     res = uv_udp_bind(udp, &sa.sa, flags);
     if(res < 0) {
@@ -149,6 +149,43 @@ bool UDP_send(JStarVM* vm) {
     return true;
 }
 
+bool UDP_trySend(JStarVM* vm) {
+    JSR_CHECK(String, 1, "data");
+    if(!jsrIsNull(vm, 2)) {
+        JSR_CHECK(String, 2, "addr");
+    }
+    if(!jsrIsNull(vm, 3)) {
+        JSR_CHECK(Int, 3, "port");
+    }
+
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    sockaddr_union sa;
+    int res = initSockaddr(jsrGetString(vm, 2), jsrGetNumber(vm, 3), &sa);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    uv_buf_t buf = (uv_buf_t){
+        .base = (char*)jsrGetString(vm, 1),
+        .len = jsrGetStringSz(vm, 1),
+    };
+
+    res = uv_udp_try_send(udp, &buf, 1, &sa.sa);
+    if(res == UV_EAGAIN) {
+        res = 0;
+    }
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNumber(vm, res);
+    return true;
+}
+
 bool UDP_recvStart(JStarVM* vm) {
     JSR_CHECK(Function, 1, "callback");
 
@@ -255,6 +292,107 @@ bool UDP_sendQueueCount(JStarVM* vm) {
     if(!udp) return false;
     int res = uv_udp_get_send_queue_count(udp);
     jsrPushNumber(vm, res);
+    return true;
+}
+
+bool UDP_setMembership(JStarVM* vm) {
+    JSR_CHECK(String, 1, "multicastAddr");
+    JSR_CHECK(String, 2, "interfaceAddr");
+    JSR_CHECK(Int, 3, "membership");
+
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+    int res = uv_udp_set_membership(udp, jsrGetString(vm, 1), jsrGetString(vm, 2),
+                                    jsrGetNumber(vm, 3));
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+bool UDP_setSourceMembership(JStarVM* vm) {
+    JSR_CHECK(String, 1, "multicastAddr");
+    JSR_CHECK(String, 2, "interfaceAddr");
+    JSR_CHECK(String, 3, "interfaceAddr");
+    JSR_CHECK(Int, 4, "membership");
+
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+    int res = uv_udp_set_source_membership(udp, jsrGetString(vm, 1), jsrGetString(vm, 2),
+                                           jsrGetString(vm, 3), jsrGetNumber(vm, 4));
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+bool UDP_setMulticastLoop(JStarVM* vm) {
+    JSR_CHECK(Boolean, 1, "on");
+
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    int res = uv_udp_set_multicast_loop(udp, jsrGetBoolean(vm, 1));
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+bool UDP_setMulticastTTL(JStarVM* vm) {
+    JSR_CHECK(Int, 1, "ttl");
+
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    int res = uv_udp_set_multicast_ttl(udp, jsrGetNumber(vm, 1));
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+bool UDP_setMulticastInterface(JStarVM* vm) {
+    JSR_CHECK(String, 1, "interfaceAddr");
+
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    int res = uv_udp_set_multicast_interface(udp, jsrGetString(vm, 1));
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+bool UDP_setBroadcast(JStarVM* vm) {
+    JSR_CHECK(Boolean, 1, "on");
+
+    uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
+    if(!udp) return false;
+
+    int res = uv_udp_set_broadcast(udp, jsrGetBoolean(vm, 1));
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
     return true;
 }
 // end

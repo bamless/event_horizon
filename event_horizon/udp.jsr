@@ -1,7 +1,7 @@
 import event_horizon as evh
 import event_horizon.handle for Handle, HandleType
 
-var UDPFlags = Enum{
+var Flags = Enum{
     /// Disables dual stack mode.
     .IPV6ONLY : 1,
 
@@ -38,6 +38,11 @@ var UDPFlags = Enum{
     .RECVMMSG : 256 
 }
 
+var Membership = Enum(
+    'LEAVE_GROUP',
+    'JOIN_GROUP'
+)
+
 class UDP is Handle
     construct(loop=null)
         super(loop or evh.loop(), HandleType.UDP)
@@ -46,10 +51,17 @@ class UDP is Handle
     native bind(addr, port, flags=0)
     native connect(addr, port=null)
     native send(data, addr=null, port=null, callback=null)
+    native trySend(data, addr=null, port=null)
     native recvStart(callback)
     native recvStop()
     native sockName()
     native peerName()
     native sendQueueSize()
     native sendQueueCount()
+    native setMembership(multicastAddr, interfaceAddr, membership)
+    native setSourceMembership(multicastAddr, interfaceAddr, sourceAddr, membership)
+    native setMulticastLoop(on)
+    native setMulticastTTL(ttl)
+    native setMulticastInterface(interfaceAddr)
+    native setBroadcast(on)
 end
