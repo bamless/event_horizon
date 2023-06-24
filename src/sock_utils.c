@@ -15,20 +15,22 @@ int initSockaddr(const char* address, int port, sockaddr_union* addr) {
 
 bool pushPort(JStarVM* vm, const struct sockaddr* address) {
     const sockaddr_union* un = (sockaddr_union*)address;
-    if(un->sa.sa_family == AF_INET) {
+    switch(un->sa.sa_family) {
+    case AF_INET:
         jsrPushNumber(vm, ntohs(un->in4.sin_port));
         return true;
-    } else if(address->sa_family == AF_INET6) {
+    case AF_INET6:
         jsrPushNumber(vm, ntohs(un->in6.sin6_port));
         return true;
-    } else {
+    default:
         JSR_RAISE(vm, "TypeException", "Invalid protocol family: %d", address->sa_family);
     }
 }
 
 bool pushAddr(JStarVM* vm, const struct sockaddr* address) {
     const sockaddr_union* un = (sockaddr_union*)address;
-    if(un->sa.sa_family == AF_INET) {
+    switch(un->sa.sa_family) {
+    case AF_INET: {
         char str[INET_ADDRSTRLEN];
         int res = uv_inet_ntop(AF_INET, &un->in4.sin_addr, str, INET_ADDRSTRLEN);
         if(res < 0) {
@@ -37,7 +39,8 @@ bool pushAddr(JStarVM* vm, const struct sockaddr* address) {
         }
         jsrPushString(vm, str);
         return true;
-    } else if(address->sa_family == AF_INET6) {
+    }
+    case AF_INET6: {
         char str[INET6_ADDRSTRLEN];
         int res = uv_inet_ntop(AF_INET6, &un->in6.sin6_addr, str, INET6_ADDRSTRLEN);
         if(res < 0) {
@@ -46,7 +49,8 @@ bool pushAddr(JStarVM* vm, const struct sockaddr* address) {
         }
         jsrPushString(vm, str);
         return true;
-    } else {
+    }
+    default:
         JSR_RAISE(vm, "TypeException", "Invalid protocol family: %d", address->sa_family);
     }
 }

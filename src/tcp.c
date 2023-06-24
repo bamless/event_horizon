@@ -14,7 +14,7 @@ static void connectCallback(uv_connect_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
-    statusCallback(handle, callbackId, true, status);
+    reqCallback(handle, callbackId, true, status);
 }
 
 bool TCP_connect(JStarVM* vm) {

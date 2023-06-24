@@ -70,7 +70,7 @@ void closeCallback(uv_handle_t* handle) {
     jsrPopN(vm, 2);
 }
 
-void statusCallback(uv_handle_t* handle, int callbackId, bool unregister, int status) {
+void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int status) {
     HandleMetadata* handleMetadata = handle->data;
     LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;

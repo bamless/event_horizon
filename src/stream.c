@@ -19,7 +19,7 @@ void writeCallback(uv_write_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
-    statusCallback(handle, callbackId, true, status);
+    reqCallback(handle, callbackId, true, status);
 }
 
 bool Stream_write(JStarVM* vm) {
@@ -134,7 +134,7 @@ static void shutdownCallback(uv_shutdown_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
-    statusCallback(handle, callbackId, true, status);
+    reqCallback(handle, callbackId, true, status);
 }
 
 bool Stream_shutdown(JStarVM* vm) {
@@ -199,7 +199,7 @@ bool Stream_getWriteQueueSize(JStarVM* vm) {
 
 static void onConnectionCallback(uv_stream_t* stream, int status) {
     HandleMetadata* metadata = stream->data;
-    statusCallback((uv_handle_t*)stream, metadata->callbacks[CONNECT_CB], false, status);
+    reqCallback((uv_handle_t*)stream, metadata->callbacks[CONNECT_CB], false, status);
 }
 
 bool Stream_rawListen(JStarVM* vm) {
