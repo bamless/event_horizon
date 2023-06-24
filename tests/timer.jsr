@@ -55,3 +55,56 @@ fun stop()
     evh.loop().run()
 end
 
+@test
+fun again()
+    var t = Timer()
+    var called = 0
+
+    t.start(0, 10, fun()
+        called += 1
+        if called == 3
+            t.close()
+        end
+    end)
+    t.again()
+
+    evh.loop().run()
+    assert(called == 3)
+end
+
+@test
+fun againFail()
+    var t = Timer()
+    
+    var didThrow = false
+    try
+        t.again()
+    except StatusException e
+        didThrow = true
+        assert(e.err() == 'invalid argument')
+    end
+
+    assert(didThrow)
+
+    t.close()
+    evh.loop().run()
+end
+
+@test
+fun setGetRepeat()
+    var t = Timer()
+    t.setRepeat(42)    
+    assert(t.repeat() == 42)
+    t.close()
+    evh.loop().run()
+end
+
+@test
+fun dueIn()
+    var t = Timer()
+    t.start(10, 10, || => null)
+    var dueIn = t.dueIn()
+    assert(dueIn == 10)
+    t.close()
+    evh.loop().run()
+end
