@@ -5,9 +5,9 @@ import promise for Promise
 import async for async
 import async_tcp for read, write, close, connect
 
-import event_horizon as evh
-import event_horizon.errors for StatusException
-import event_horizon.tcp for TCP
+import event_horizon.uv as uv
+import event_horizon.uv.errors for StatusException
+import event_horizon.uv.tcp for TCP
 
 // ---- Echo Client ----
 
@@ -43,4 +43,4 @@ fun main()
 end
 
 main()
-evh.loop().run()
+uv.loop().run()

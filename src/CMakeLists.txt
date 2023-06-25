@@ -45,7 +45,7 @@ endif()
 
 add_custom_command(TARGET event_horizon POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:event_horizon> 
-            ${PROJECT_SOURCE_DIR}/event_horizon
+            ${PROJECT_SOURCE_DIR}/event_horizon/uv
 )
 
 # Install the shared library

@@ -2,8 +2,8 @@
 import async for async
 import async_udp for send, recv, close
 
-import event_horizon as evh
-import event_horizon.udp for UDP
+import event_horizon.uv as uv
+import event_horizon.uv.udp for UDP
 
 @async
 fun server()
@@ -24,4 +24,4 @@ fun server()
 end
 
 server()
-evh.loop().run()
+uv.loop().run()

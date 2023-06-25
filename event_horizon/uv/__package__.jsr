@@ -1,0 +1,10 @@
+import event_horizon.uv.errors as _
+import event_horizon.uv.event_loop for EventLoop
+
+// private - the global event loop
+static var loop = EventLoop()
+
+/// @return {event_loop.EventLoop} The global event loop
+fun loop()
+    return loop
+end

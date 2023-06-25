@@ -6,9 +6,9 @@ import io
 
 import server_utils for spawnTCPServer
 
-import event_horizon as evh
-import event_horizon.errors for strerror, LoopExecutionException, StatusException
-import event_horizon.tcp for TCP
+import event_horizon.uv as uv
+import event_horizon.uv.errors for strerror, LoopExecutionException, StatusException
+import event_horizon.uv.tcp for TCP
 
 @test
 fun connect()
@@ -27,7 +27,7 @@ fun connect()
         assert(#tcp._callbacks == 1)
 
         assert(!connected, '`connect` callback called before next loop tick')
-        evh.loop().run()
+        uv.loop().run()
         assert(connected, '`connect` not called')
     end
 end
@@ -45,7 +45,7 @@ fun connectFail()
     end)
 
     assert(!called, '`connect` callback called before next loop tick')
-    evh.loop().run()
+    uv.loop().run()
     assert(called, '`connect` not called')
 end
 
@@ -61,13 +61,13 @@ fun connectThrows()
 
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
     end
 
-    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
 end
 
 @test
@@ -86,7 +86,7 @@ fun connectMultipleThrows()
     
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         var exceptions = e.exceptions()
@@ -95,7 +95,7 @@ fun connectMultipleThrows()
         assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
     end
 
-    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
 end
 
 @test
@@ -103,7 +103,7 @@ fun bind()
     var s = TCP()
     s.bind('0.0.0.0', 8080)
     s.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -143,7 +143,7 @@ fun accept()
         end)
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -155,7 +155,7 @@ fun sockName()
     assert(addr == "0.0.0.0" and port == 8080)
 
     s.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -173,7 +173,7 @@ fun sockNameFail()
     assert(didThrow, "sockName did not throw")
 
     s.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -191,7 +191,7 @@ fun peerName()
         s.close()
     end)
 
-    evh.loop().run()
+    uv.loop().run()
     server.close()
 end
 
@@ -210,7 +210,7 @@ fun peerNameFail()
     assert(didThrow, "peerName did not throw")
 
     s.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 if __name__ == '__main__'

@@ -1,5 +1,5 @@
-import event_horizon as evh
-import event_horizon.handle for Handle, HandleType
+import event_horizon.uv as uv
+import event_horizon.uv.handle for Handle, HandleType
 
 var Flags = Enum{
     /// Disables dual stack mode.
@@ -45,7 +45,7 @@ var Membership = Enum(
 
 class UDP is Handle
     construct(loop=null)
-        super(loop or evh.loop(), HandleType.UDP)
+        super(loop or uv.loop(), HandleType.UDP)
     end
 
     native bind(addr, port, flags=0)

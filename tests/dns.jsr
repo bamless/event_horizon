@@ -4,11 +4,11 @@ import test for test, run, skip
 
 import re
 
-import event_horizon as evh
-import event_horizon.errors for strerror, EventHorizonException, LoopExecutionException
-import event_horizon.event_loop for EventLoop
-import event_horizon.consts as consts
-import event_horizon.dns as dns
+import event_horizon.uv as uv
+import event_horizon.uv.errors for strerror, EventHorizonException, LoopExecutionException
+import event_horizon.uv.event_loop for EventLoop
+import event_horizon.uv.consts as consts
+import event_horizon.uv.dns as dns
 
 @test
 fun getAddrInfo()
@@ -23,7 +23,7 @@ fun getAddrInfo()
         end
     end, host, "http")
 
-    evh.loop().run()
+    uv.loop().run()
     assert(called)
 end
 
@@ -43,7 +43,7 @@ fun getAddrInfoFamily()
         end
     end, host, "http", 0, consts.Family.AF_INET)
 
-    evh.loop().run()
+    uv.loop().run()
     assert(called)
 end
 

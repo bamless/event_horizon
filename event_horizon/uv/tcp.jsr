@@ -1,10 +1,10 @@
-import event_horizon as evh
-import event_horizon.handle for HandleType 
-import event_horizon.stream for Stream
+import event_horizon.uv as uv
+import event_horizon.uv.handle for HandleType 
+import event_horizon.uv.stream for Stream
 
 class TCP is Stream
     construct(loop=null)
-        super(loop or evh.loop(), HandleType.TCP)
+        super(loop or uv.loop(), HandleType.TCP)
     end
 
     fun accept()

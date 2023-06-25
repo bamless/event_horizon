@@ -1,4 +1,4 @@
-import event_horizon.registry for Registry
+import event_horizon.uv.registry for Registry
 
 // private - registry holding all active event loops
 static var eventLoops = Registry()

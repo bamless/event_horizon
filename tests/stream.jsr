@@ -4,9 +4,9 @@ import test for test, run, skip
 
 import server_utils for spawnTCPServer
 
-import event_horizon as evh
-import event_horizon.errors for strerror, EventHorizonException, StatusException, LoopExecutionException
-import event_horizon.tcp for TCP
+import event_horizon.uv as uv
+import event_horizon.uv.errors for strerror, EventHorizonException, StatusException, LoopExecutionException
+import event_horizon.uv.tcp for TCP
 
 @test
 fun shutdown()
@@ -26,7 +26,7 @@ fun shutdown()
     end)
 
     assert(!shut, '`shutdown` called before next loop tick')
-    evh.loop().run()
+    uv.loop().run()
     assert(shut, '`shutdown` not called')
 
     server.close()
@@ -43,7 +43,7 @@ fun shutdownFail()
         end)
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -59,13 +59,13 @@ fun shutdownThrows()
     
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
     end
 
-    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
 end
 
 @test
@@ -88,7 +88,7 @@ fun shutdownMultipleThrows()
     
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         var exceptions = e.exceptions()
@@ -97,7 +97,7 @@ fun shutdownMultipleThrows()
         assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
     end
 
-    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
 end
 
 @test
@@ -124,7 +124,7 @@ fun write()
         assert(#s._callbacks == 1)
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 
     assert(#s._callbacks == 0)
 
@@ -162,12 +162,12 @@ fun twoWrite()
         assert(#s._callbacks == 2)
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 
     assert(#s._callbacks == 0)
 
     s.close()
-    evh.loop().run()
+    uv.loop().run()
 
     var res = server.readAll()
     assert(res == data * 2, "'{0}' != '{1}'" % (res, data))
@@ -193,7 +193,7 @@ fun writeFail()
     var didThrow = false
 
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException and e.cause().err() == "Handle is already closed", "Wrong exception type: {0}" % type(e.cause()).getName())
@@ -230,7 +230,7 @@ fun writeThrows()
     var didThrow = false
 
     try
-        evh.loop().run()
+        uv.loop().run()
     except Exception e
         didThrow = true
     end
@@ -262,7 +262,7 @@ fun tryWrite()
         s.close()
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 
     var res = server.readAll()
     assert(data.startsWith(res), "{0} does not start with {1}" % (data, res))
@@ -287,7 +287,7 @@ fun tryWriteFail()
 
     assert(didThrow, "tryWrite did not throw")
 
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -320,7 +320,7 @@ fun read()
         server.flush()
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -361,7 +361,7 @@ fun read()
         server.flush()
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -394,13 +394,13 @@ fun readFail()
 
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException and e.cause().err() == 'Handle is already closed')
     end
 
-    assert(didThrow, '`evh.loop().run() did not throw')
+    assert(didThrow, '`uv.loop().run() did not throw')
 end
 
 @test
@@ -431,16 +431,16 @@ fun readStop()
 
     server.write("Hello, World!")
     server.flush()
-    evh.loop().run()
+    uv.loop().run()
 
     assert(!s.isClosing())
 
     server.write("Hello, World!")
     server.flush()
-    evh.loop().run()
+    uv.loop().run()
 
     s.close()
-    evh.loop().run()
+    uv.loop().run()
 
     server.close()
 
@@ -472,13 +472,13 @@ fun readThrows()
 
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is NameException)
     end
 
-    assert(didThrow, '`evh.loop().run() did not throw')
+    assert(didThrow, '`uv.loop().run() did not throw')
 end
 
 @test
@@ -505,7 +505,7 @@ fun listen()
         c.close()
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -534,7 +534,7 @@ fun isReadableWritable()
         end)
     end)
 
-    evh.loop().run()
+    uv.loop().run()
     server.close()
 end
 
@@ -544,7 +544,7 @@ fun getWriteQueueSize()
     var sz = s.getWriteQueueSize()
     assert(sz is Number and sz >= 0)
     s.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 if __name__ == '__main__'

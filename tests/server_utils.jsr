@@ -1,9 +1,6 @@
 import io
 import sys
 
-import event_horizon.errors for strerror
-import event_horizon.tcp for TCP
-
 fun sleepAndServerAvailable()
     var _, res
     _, res = sys.exec('which nc')

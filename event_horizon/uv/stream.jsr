@@ -1,5 +1,5 @@
 import event_horizon.utils.abc for abstract, abstractMethod
-import event_horizon.handle for Handle
+import event_horizon.uv.handle for Handle
 
 class Stream is Handle
     @abstract(Stream) construct(loop, streamType)

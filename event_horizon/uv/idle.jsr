@@ -1,0 +1,11 @@
+import event_horizon.uv as uv
+import event_horizon.uv.handle for Handle, HandleType
+
+class Idle is Handle
+    construct(loop=null)
+        super(loop or uv.loop(), HandleType.IDLE)
+    end
+
+    native start(callback)
+    native stop()
+end

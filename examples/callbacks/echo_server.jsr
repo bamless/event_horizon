@@ -2,9 +2,9 @@
 
 import io
 
-import event_horizon as evh
-import event_horizon.errors for strerror, EventHorizonException
-import event_horizon.tcp for TCP
+import event_horizon.uv as uv
+import event_horizon.uv.errors for strerror, EventHorizonException
+import event_horizon.uv.tcp for TCP
 
 var server = TCP()
 
@@ -40,4 +40,4 @@ except EventHorizonException e
     server.close()
 end
 
-evh.loop().run()
+uv.loop().run()

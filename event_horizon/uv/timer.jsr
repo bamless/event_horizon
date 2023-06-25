@@ -1,9 +1,9 @@
-import event_horizon as evh
-import event_horizon.handle for Handle, HandleType
+import event_horizon.uv as uv
+import event_horizon.uv.handle for Handle, HandleType
 
 class Timer is Handle
     construct(loop=null)
-        super(loop or evh.loop(), HandleType.TIMER)
+        super(loop or uv.loop(), HandleType.TIMER)
     end
 
     native start(timeout, repeat, callback)

@@ -4,13 +4,13 @@ import test for test, run, skip
 
 import server_utils for spawnTCPServer
 
-import event_horizon as evh
-import event_horizon.errors for EventHorizonException, LoopExecutionException
-import event_horizon.event_loop for EventLoop
-import event_horizon.tcp for TCP
+import event_horizon.uv as uv
+import event_horizon.uv.errors for EventHorizonException, LoopExecutionException
+import event_horizon.uv.event_loop for EventLoop
+import event_horizon.uv.tcp for TCP
 
 fun numHandles(loop=null)
-    loop = loop or evh.loop()
+    loop = loop or uv.loop()
     return #loop._handles
 end
 
@@ -27,7 +27,7 @@ fun close()
     end)
     
     assert(!closed, "`close` called before next loop tick")
-    evh.loop().run()
+    uv.loop().run()
     assert(closed, "`close` callback not called")
 
     assert(numHandles(), "Handle was not unregistred from the registry")
@@ -50,7 +50,7 @@ fun alreadyClosing()
 
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException)
@@ -76,7 +76,7 @@ fun closeFail()
         didThrow = true
     end
 
-    evh.loop().run()
+    uv.loop().run()
 
     assert(didThrow, "Close should throw on subsequent calls")
     assert(numHandles(), "Handle was not unregistred from the registry")
@@ -92,13 +92,13 @@ fun closeThrows()
     
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
     end
 
-    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
 
@@ -115,7 +115,7 @@ fun closeMultipleThrows()
     
     var didThrow = false
     try
-        evh.loop().run()
+        uv.loop().run()
     except LoopExecutionException e
         didThrow = true
         var exceptions = e.exceptions()
@@ -124,7 +124,7 @@ fun closeMultipleThrows()
         assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
     end
 
-    assert(didThrow, "`evh.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
 
@@ -146,7 +146,7 @@ fun doubleClose()
     end)
     
     assert(!closed, "`close` called before next loop tick")
-    evh.loop().run()
+    uv.loop().run()
     assert(closed, "`close` callback not called")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
@@ -170,7 +170,7 @@ fun twoClose()
     end)
     
     assert(!closed1 and !closed2, "`close` called before next loop tick")
-    evh.loop().run()
+    uv.loop().run()
     assert(closed1 and closed2, "`close` callback not called")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
@@ -196,7 +196,7 @@ fun isActive()
     var tcp = TCP()
     assert(!tcp.isActive())
     tcp.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -209,7 +209,7 @@ fun isClosing()
         assert(tcp.isClosing(), "isClosing() returned false")
     end)
     
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -237,7 +237,7 @@ fun size()
         s.close()
     end)
 
-    evh.loop().run()
+    uv.loop().run()
 
     server.close()
 end

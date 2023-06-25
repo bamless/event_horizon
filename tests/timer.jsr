@@ -6,9 +6,9 @@ import io
 
 import server_utils for spawnTCPServer
 
-import event_horizon as evh
-import event_horizon.errors for strerror, LoopExecutionException, StatusException
-import event_horizon.timer for Timer
+import event_horizon.uv as uv
+import event_horizon.uv.errors for strerror, LoopExecutionException, StatusException
+import event_horizon.uv.timer for Timer
 
 @test
 fun start()
@@ -19,7 +19,7 @@ fun start()
         t.stop()
         t.close()
     end)
-    evh.loop().run()
+    uv.loop().run()
     assert(called)
 end
 
@@ -35,7 +35,7 @@ fun repeat()
         end
     end)
 
-    evh.loop().run()
+    uv.loop().run()
     assert(called == 3)
 end
 
@@ -48,11 +48,11 @@ fun stop()
         t.stop()
     end)
 
-    evh.loop().run()
+    uv.loop().run()
     assert(called == 1)
 
     t.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -68,7 +68,7 @@ fun again()
     end)
     t.again()
 
-    evh.loop().run()
+    uv.loop().run()
     assert(called == 3)
 end
 
@@ -87,7 +87,7 @@ fun againFail()
     assert(didThrow)
 
     t.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -96,7 +96,7 @@ fun setGetRepeat()
     t.setRepeat(42)    
     assert(t.repeat() == 42)
     t.close()
-    evh.loop().run()
+    uv.loop().run()
 end
 
 @test
@@ -106,5 +106,5 @@ fun dueIn()
     var dueIn = t.dueIn()
     assert(dueIn == 10)
     t.close()
-    evh.loop().run()
+    uv.loop().run()
 end

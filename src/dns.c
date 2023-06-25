@@ -11,7 +11,7 @@
 #define G_CALLBACKS "_callbacks"
 
 static bool getRegistry(JStarVM* vm) {
-    if(!jsrGetGlobal(vm, "event_horizon.dns", G_CALLBACKS))  return false;
+    if(!jsrGetGlobal(vm, "event_horizon.uv.dns", G_CALLBACKS))  return false;
     if(jsrCall(vm, 0) != JSR_SUCCESS)  return false;
     return true;
 }
@@ -58,7 +58,7 @@ bool dns_getAddrInfo(JStarVM* vm) {
 
     uv_loop_t* loop;
     if(jsrIsNull(vm, 8)) {
-        if(!jsrGetGlobal(vm, "event_horizon", "loop")) return false;
+        if(!jsrGetGlobal(vm, "event_horizon.uv", "loop")) return false;
         if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
         loop = EventLoop_getUVLoop(vm, -1);
         jsrPop(vm);

@@ -2,9 +2,9 @@
 importPaths.insert(0, '../')
 import test for test, run, skip
 
-import event_horizon as evh
-import event_horizon.errors for strerror, EventHorizonException, LoopExecutionException, StatusException
-import event_horizon.idle for Idle
+import event_horizon.uv as uv
+import event_horizon.uv.errors for strerror, EventHorizonException, LoopExecutionException, StatusException
+import event_horizon.uv.idle for Idle
 
 @test
 fun idle()
@@ -17,7 +17,7 @@ fun idle()
 
     assert(called == 0)
 
-    evh.loop().run()
+    uv.loop().run()
     
     assert(called == 1)
 
@@ -27,12 +27,12 @@ fun idle()
         called += 1
     end)
 
-    evh.loop().run()
+    uv.loop().run()
     
     assert(called == 2)
 
     idle1.close()
     idle2.close()
 
-    evh.loop().run()
+    uv.loop().run()
 end

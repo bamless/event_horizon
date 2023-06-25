@@ -6,7 +6,7 @@
 #include "errors.h"
 
 bool getEventLoopFromId(JStarVM* vm, int loopId) {
-    if(!jsrGetGlobal(vm, "event_horizon.event_loop", "getEventLoop")) return false;
+    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", "getEventLoop")) return false;
     jsrPushNumber(vm, loopId);
     if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
     return true;
@@ -22,7 +22,7 @@ bool EventLoop_run(JStarVM* vm) {
     int mode = jsrGetNumber(vm, 1);
 
     // Clear the list of exceptions
-    if(!jsrGetGlobal(vm, "event_horizon.event_loop", G_CLEAR_EXCEPTIONS)) return false;
+    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_CLEAR_EXCEPTIONS)) return false;
     if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
 
     uv_loop_t* loop = EventLoop_getUVLoop(vm, 0);
@@ -35,7 +35,7 @@ bool EventLoop_run(JStarVM* vm) {
     }
 
     // Check for any exceptions raised during `uv_run_loop` callbacks and throw them
-    if(!jsrGetGlobal(vm, "event_horizon.event_loop", G_GET_EXCEPTIONS)) return false;
+    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_GET_EXCEPTIONS)) return false;
     if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
     if(jsrListGetLength(vm, -1) != 0) {
         LoopExecutionException_raise(vm, -1);
@@ -160,7 +160,7 @@ void EventLoop_addException(JStarVM* vm, int exceptionSlot) {
         exceptionSlot -= 1;
     }
 
-    jsrGetGlobal(vm, "event_horizon.event_loop", G_ADD_EXCEPTION);
+    jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_ADD_EXCEPTION);
     jsrPushValue(vm, exceptionSlot);
     jsrCall(vm, 1);
 

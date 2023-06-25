@@ -47,7 +47,7 @@ static uv_handle_t* pushLibUVHandle(JStarVM* vm, uv_loop_t* loop, uv_handle_type
 }
 
 bool Handle_init(JStarVM* vm) {
-    if(!jsrGetGlobal(vm, "event_horizon.event_loop", "EventLoop")) return false;
+    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", "EventLoop")) return false;
     if(!jsrIs(vm, 1, -1)) JSR_RAISE(vm, "TypeException", "loop must be an `EventLoop`");
     jsrPop(vm);
 

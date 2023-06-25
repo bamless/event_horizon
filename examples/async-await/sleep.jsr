@@ -1,8 +1,8 @@
 import async for async
 import promise for Promise
 
-import event_horizon as evh
-import event_horizon.timer for Timer
+import event_horizon.uv as uv
+import event_horizon.uv.timer for Timer
 
 fun sleep(ms)
     return Promise(fun(resolve, _)
@@ -23,4 +23,4 @@ end
 printDelayed("Hello, World!", 1500)
 print("After `printDelayed`")
 
-evh.loop().run()
+uv.loop().run()
