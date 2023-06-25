@@ -1,0 +1,75 @@
+import event_horizon.utils.abc for abstract
+import event_horizon.async for async
+import event_horizon.errors for StatusException
+import event_horizon.handle for Handle
+import event_horizon.promise for Promise
+
+static fun printStacktrace(exc)
+    exc.printStacktrace()
+end
+
+class Stream is Handle
+    @abstract(Stream) construct(stream)
+        super(stream)
+    end
+
+    fun listen(onConnect, onError=null, backlog=0) 
+        var self = this
+        onError = onError or printStacktrace
+        return Promise(fun(_, _)
+            self._handle(async(fun(client, status)
+                if status < 0
+                    raise StatusException(status)
+                else
+                    yield onConnect()
+                end
+            end).catch(|e| => onError(e)))
+        end)
+    end
+
+    fun write(data)
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.wrte(data, fun(status)
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve()
+                end
+            end)
+        end)
+    end
+
+    fun tryWrite(data)
+        return this._handle.tryWrite(data)
+    end
+    
+    // TODO: should give the option to specify how much bytes the user wants to read
+    fun read()
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.readStart(fun(data, status)
+                self._handle.readStop()
+
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve(data)
+                end
+            end)
+        end)
+    end
+
+    fun shutdown()
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.shutdown(fun(status)
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve()
+                end
+            end)
+        end)
+    end
+end

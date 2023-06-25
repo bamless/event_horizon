@@ -1,0 +1,21 @@
+import event_horizon.utils.abc for abstract
+import event_horizon.promise for Promise
+
+class Handle
+    @abstract(Handle) construct(handle)
+        this._handle = handle
+    end
+
+    fun close()
+        var self = this
+        return Promise(fun(resolve, _)
+            self._handle.close(fun()
+                resolve()
+            end)
+        end)
+    end
+
+    fun handle()
+        return this._handle
+    end
+end

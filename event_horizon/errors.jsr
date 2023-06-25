@@ -1,0 +1,59 @@
+import event_horizon.uv.errors for strerror
+
+class EventHorizonException is Exception
+end
+
+class LoopExecutionException is EventHorizonException
+    construct(exceptions)
+        var cause = exceptions[0] if #exceptions == 1 else null
+        this._exceptions = exceptions if #exceptions > 1 else []
+        var exceptionMsg = "Exception raised during loop execution." if #exceptions == 1 else "Multiple exceptions raised during loop execution:"
+        super(exceptionMsg, cause)
+    end
+    
+    fun printStacktrace()
+        super()
+        
+        var numExceptions = #this._exceptions
+        if numExceptions > 1
+            print("n")
+            for var i, exc in this._exceptions.enumerate()
+                exc.printStacktrace()
+                if i != numExceptions - 1
+                    print("n")
+                end
+            end
+        end
+    end
+
+    fun getStacktrace()
+        var chunks = [super()]
+
+        var numExceptions = #this._exceptions
+        if numExceptions > 0
+            chunks.add("nn")
+            for var i, exc in this._exceptions.enumerate()
+                chunks.add(exc.getStacktrace())
+                if i != numExceptions - 1
+                    chunks.add("\n\n")
+                end
+            end
+        end
+        return chunks.join()
+    end
+
+    fun exceptions()
+        return this._exceptions
+    end
+end
+
+class StatusException is EventHorizonException
+    construct(status, exc=null)
+        super(strerror(status), exc)
+        this._status = status
+    end
+
+    fun status()
+        return this._status
+    end
+end

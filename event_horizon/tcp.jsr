@@ -1,0 +1,36 @@
+import event_horizon.errors for StatusException
+import event_horizon.promise for Promise
+import event_horizon.stream for Stream
+import event_horizon.uv.tcp as uv_tcp
+
+class TCPStream is Stream
+    construct(loop=null)
+        super(uv_tcp.TCP(loop))
+    end
+
+    fun connect(addr, port)
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.connect(addr, port, fun(status)
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve()
+                end
+            end)
+        end)
+    end
+
+    fun bind(addr, port, ipv6Only)
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.bind(addr, port, fun(status)
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve()
+                end
+            end)
+        end)
+    end
+end
