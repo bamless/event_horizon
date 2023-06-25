@@ -4,8 +4,9 @@ import test for test, run, skip
 
 import server_utils for spawnTCPServer
 
+import event_horizon.errors for EventHorizonException, StatusException, LoopExecutionException
+import event_horizon.uv.errors for strerror
 import event_horizon.uv as uv
-import event_horizon.uv.errors for strerror, EventHorizonException, StatusException, LoopExecutionException
 import event_horizon.uv.tcp for TCP
 
 @test

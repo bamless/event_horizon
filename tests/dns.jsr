@@ -4,8 +4,9 @@ import test for test, run, skip
 
 import re
 
+import event_horizon.errors for EventHorizonException, LoopExecutionException
+import event_horizon.uv.errors for strerror 
 import event_horizon.uv as uv
-import event_horizon.uv.errors for strerror, EventHorizonException, LoopExecutionException
 import event_horizon.uv.event_loop for EventLoop
 import event_horizon.uv.consts as consts
 import event_horizon.uv.dns as dns

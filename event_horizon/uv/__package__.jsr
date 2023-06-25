@@ -1,4 +1,4 @@
-import event_horizon.uv.errors as _
+import event_horizon.errors as _
 import event_horizon.uv.event_loop for EventLoop
 
 // private - the global event loop

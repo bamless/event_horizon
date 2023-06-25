@@ -2,8 +2,9 @@
 importPaths.insert(0, '../')
 import test for test, run, skip
 
+import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
+import event_horizon.uv.errors
 import event_horizon.uv as uv
-import event_horizon.uv.errors for strerror, EventHorizonException, LoopExecutionException, StatusException
 import event_horizon.uv.idle for Idle
 
 @test

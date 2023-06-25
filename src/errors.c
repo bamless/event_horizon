@@ -3,14 +3,14 @@
 #include <uv.h>
 
 void EventHorizonException_raise(JStarVM* vm, const char* err) {
-    if(!jsrGetGlobal(vm, "event_horizon.uv.errors", "EventHorizonException")) return;
+    if(!jsrGetGlobal(vm, "event_horizon.errors", "EventHorizonException")) return;
     jsrPushString(vm, err);
     if(jsrCall(vm, 1) != JSR_SUCCESS) return;
     jsrRaiseException(vm, -1);
 }
 
 void LoopExecutionException_raise(JStarVM* vm, int exceptionsSlot) {
-    if(!jsrGetGlobal(vm, "event_horizon.uv.errors", "LoopExecutionException")) return;
+    if(!jsrGetGlobal(vm, "event_horizon.errors", "LoopExecutionException")) return;
     if(exceptionsSlot < 0) exceptionsSlot -= 1;
     jsrPushValue(vm, exceptionsSlot);
     if(jsrCall(vm, 1) != JSR_SUCCESS) return;
@@ -18,7 +18,7 @@ void LoopExecutionException_raise(JStarVM* vm, int exceptionsSlot) {
 }
 
 void StatusException_raise(JStarVM* vm, int status) {
-    if(!jsrGetGlobal(vm, "event_horizon.uv.errors", "StatusException")) return;
+    if(!jsrGetGlobal(vm, "event_horizon.errors", "StatusException")) return;
     jsrPushNumber(vm, status);
     if(jsrCall(vm, 1) != JSR_SUCCESS) return;
     jsrRaiseException(vm, -1);

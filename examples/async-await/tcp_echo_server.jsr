@@ -5,8 +5,8 @@ import promise for Promise
 import async for async
 import async_tcp for read, write, close
 
+import event_horizon.uv.errors
 import event_horizon.uv as uv
-import event_horizon.uv.errors for strerror
 import event_horizon.uv.tcp for TCP
 
 // ---- Echo server ----

@@ -2,8 +2,9 @@
 
 import io
 
+import event_horizon.errors for EventHorizonException
+import event_horizon.uv.errors for strerror
 import event_horizon.uv as uv
-import event_horizon.uv.errors for strerror, EventHorizonException
 import event_horizon.uv.tcp for TCP
 
 var server = TCP()

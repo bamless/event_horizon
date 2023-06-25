@@ -1,4 +1,4 @@
-import event_horizon.uv.errors for StatusException
+import event_horizon.errors for StatusException
 
 import promise for Promise
 

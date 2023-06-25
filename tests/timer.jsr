@@ -6,8 +6,9 @@ import io
 
 import server_utils for spawnTCPServer
 
+import event_horizon.errors for LoopExecutionException, StatusException
+import event_horizon.uv.errors for strerror
 import event_horizon.uv as uv
-import event_horizon.uv.errors for strerror, LoopExecutionException, StatusException
 import event_horizon.uv.timer for Timer
 
 @test
