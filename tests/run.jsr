@@ -2,15 +2,16 @@
 
 import test
 
+import uv.loop
+import uv.handle
+import uv.idle
+import uv.stream
+import uv.tcp
+import uv.udp
+import uv.timer
+import uv.dns
+
 if __name__ == '__main__'
-    import loop
-    import handle
-    import idle
-    import stream
-    import tcp
-    import udp
-    import timer
-    import dns
 
     test.run()
 end

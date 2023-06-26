@@ -1,5 +1,7 @@
 #!/usr/bin/env jstar
-importPaths.insert(0, '../')
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
 import test for test, run, skip
 
 import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
