@@ -1,7 +1,7 @@
 # Event Horizon - Asynchronous I/O for the [J*](https://github.com/bamless/jstar) language.
 
 Event Horizon is a library that provides asynchronous I/O functionality to the J* language for writing
-concurrent code using an async/awit-like syntax.  
+concurrent code using an `async/await`-like syntax.  
 Behind the scenes the library uses `libuv` to run a sungle-threaded event loop that handles listening
 for file descriptor changes and scheduling callbacks when data is available.
 
