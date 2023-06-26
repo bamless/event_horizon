@@ -77,11 +77,11 @@ class Stream is Handle
 
                 self._buffer.pushBack(data)
                 self._bufferedBytes += #data
-                data = self._drainUntil(count)
+                var dataChunk = self._drainUntil(count)
 
-                if data
+                if dataChunk
                     self._handle.readStop()
-                    resolve(data)
+                    resolve(dataChunk)
                 end
             end)
         end)
