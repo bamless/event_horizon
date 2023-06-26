@@ -19,7 +19,7 @@ import event_horizon.tcp for TCPStream
 fun handleClient(client)
     var data
     // `client.read` and `client.write` return `Promise`s. A `Promise` represent a not-yet available result,
-    // and must be `await`ed in order for their value to be resolved at some point in the fututre
+    // and must be `await`ed in order for its value to be resolved at some point in the fututre
     while data = yield client.read()  // To `await` for a Promise, we `yield` it
         yield client.write(data)      // Same thing here
     end
