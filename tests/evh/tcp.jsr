@@ -6,8 +6,9 @@ import test for test, run, skip
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.promise for all
+import event_horizon.promise for Promise, all
 import event_horizon.tcp for TCPStream
+import event_horizon.uv.timer for Timer
 
 @test
 fun listenConnect()
@@ -36,6 +37,124 @@ fun listenConnect()
     evh.run(all([server(), client()]))
 
     assert(clientConnect and serverConnect)
+end
+
+@test
+fun writeRead()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            try
+                var data = yield client.read()
+                yield client.write(data)
+            ensure
+                yield client.close()
+                yield server.close()
+            end
+        end))
+    end
+
+    var data
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+        yield client.write("Hello, World!")
+        data = yield client.read()
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+
+    assert(data == "Hello, World!")
+end
+
+@test
+fun writeReadCount()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            yield client.write("0123456789")
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var data1 = yield client.read(5)
+        assert(data1 == "01234")
+
+        var data2 = yield client.read(1)
+        assert(data2 == "5")
+
+        var data3 = yield client.read(4)
+        assert(data3 == "6789")
+
+        var data4 = yield client.read(500)
+        assert(!data4)
+
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun writeReadCountDelayed()
+    fun wait(ms)
+        var t = Timer()
+        return Promise(fun(resolve, reject)
+            t.start(ms, 0, fun()
+                t.close()
+                resolve()
+            end)
+        end)
+    end
+
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            yield client.write("01234")
+            yield wait(1000)
+            yield client.write("56789")
+
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var data1 = yield client.read(8)
+        assert(data1 == "01234567")
+
+        var data2 = yield client.read()
+        assert(data2 == "89")
+
+        var data3 = yield client.read()
+        assert(!data3)
+
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
 end
 
 if __name__ == '__main__'

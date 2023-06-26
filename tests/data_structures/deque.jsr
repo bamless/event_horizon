@@ -183,6 +183,31 @@ fun iterMethods()
     assert(d.map(|e| => e * 2).collect(List) == order.map(|e| => e * 2).collect(List))
 end
 
+@test
+fun peek()
+    var d = Deque()
+    d.pushBack("foo1")
+    d.pushBack("foo2")
+    d.pushFront("foo3")
+    d.pushFront("foo4")
+
+    assert(d.peekBack() == "foo2")
+    assert(d.peekBack(1) == "foo1")
+    assert(d.peekBack(2) == "foo3")
+    assert(d.peekFront() == "foo4")
+    assert(d.peekFront(1) == "foo3")
+    assert(d.peekFront(2) == "foo1")
+
+    d.popFront()
+    assert(d.peekFront() == "foo3")
+
+    d.popBack()
+    assert(d.peekBack() == "foo1")
+
+    d.popBack()
+    assert(d.peekBack() == "foo3" and d.peekFront() == "foo3")
+end
+
 if __name__ == '__main__'
     run()
 end

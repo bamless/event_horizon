@@ -32,6 +32,13 @@ class Deque is iter.Iterable
         this._size -= 1
         return elem
     end
+
+    fun peekBack(n=0)
+        if this._size - n <= 0
+            return null
+        end
+        return this._buffer[(this._end - n - 1) & this._capacityMask]
+    end
     
     fun pushFront(elem)
         if !this._buffer or this._size == #this._buffer
@@ -54,12 +61,25 @@ class Deque is iter.Iterable
         return elem
     end
 
+    fun peekFront(n=0)
+        if this._size - n <= 0
+            return null
+        end
+        return this._buffer[(this._start + n) & this._capacityMask]
+    end
+
+    fun clear()
+        while this._size > 0
+            this.popBack()
+        end
+    end
+
     fun __len__()
         return this._size
     end
 
     fun __string__()
-        return "Deque({0})" % this._buffer.join(", ")
+        return "Deque({0})" % this.collect(Tuple).join(", ")
     end
 
     fun __iter__(idx)

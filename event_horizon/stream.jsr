@@ -1,5 +1,6 @@
 import event_horizon.utils.abc for abstract, abstractMethod
 import event_horizon.async for async
+import event_horizon.data_structures.deque for Deque
 import event_horizon.errors for StatusException
 import event_horizon.handle for Handle
 import event_horizon.promise for Promise
@@ -16,6 +17,8 @@ end
 class Stream is Handle
     @abstract(Stream) construct(handle)
         super(handle)
+        this._buffer = Deque()
+        this._bufferedBytes = 0
     end
 
     fun listen(onConnect, onError=null, backlog=0) 
@@ -45,16 +48,39 @@ class Stream is Handle
         return this._handle.tryWrite(data)
     end
     
-    // TODO: should give the option to specify how much bytes the user wants to read
-    fun read()
+    fun read(count=0)
+        var data = this._drainAll() if count == 0 else this._drainUntil(count)
+        if data
+            return data
+        end
+
         var self = this
         return Promise(fun(resolve, reject)
             self._handle.readStart(fun(data, status)
-                self._handle.readStop()
-
                 if status < 0
+                    self._handle.readStop()
                     reject(StatusException(status))
-                else
+                    return
+                end
+
+                if count == 0
+                    self._handle.readStop()
+                    resolve(data)
+                    return
+                end
+
+                if !data  // EOF
+                    self._handle.readStop()
+                    resolve(self._drainAll())
+                    return
+                end
+
+                self._buffer.pushBack(data)
+                self._bufferedBytes += #data
+                data = self._drainUntil(count)
+
+                if data
+                    self._handle.readStop()
                     resolve(data)
                 end
             end)
@@ -75,4 +101,44 @@ class Stream is Handle
     end
 
     @abstractMethod fun _accept(client) end
+
+    fun _drainUntil(count)
+        var numChunks = 0
+        var chunksSize = 0
+        
+        while chunksSize < count
+            var chunk = this._buffer.peekFront(numChunks)
+            if !chunk
+                return null
+            end
+            chunksSize += #chunk
+            numChunks += 1
+        end
+
+        var data = this._buffer.take(numChunks).join("")
+
+        // clear the buffer up to `numChunks`
+        for var i = 0; i < numChunks; i += 1
+            this._buffer.popFront()
+        end
+
+        if chunksSize > count
+            this._buffer.pushFront(data[count, chunksSize])
+            data = data[0, count]
+        end
+
+        this._bufferedBytes -= count
+        return data
+    end
+
+    fun _drainAll()
+        if this._bufferedBytes == 0
+            return null
+        end
+
+        var data = this._buffer.join("")
+        this._bufferedBytes = 0
+        this._buffer.clear()
+        return data
+    end
 end

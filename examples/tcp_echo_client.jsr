@@ -16,7 +16,7 @@ fun main()
         while line = io.stdin.readLine()
             yield client.write(line.strip())
             var data = yield client.read()
-            if #data == 0  // EOF
+            if !data  // EOF
                 break
             end
             print(data)
