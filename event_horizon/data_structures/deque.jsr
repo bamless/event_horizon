@@ -1,5 +1,9 @@
 static var STARTING_SZ = 2
+assert(STARTING_SZ & 1 == 0, "STARTING_SZ must be a power of 2")
 
+/// Deque implements a double ended queue that supports efficient element insertion and removal at
+/// both ends.
+/// The queue is implemented using a circular buffer in an attempt to limit allocations to a minimum.
 class Deque is iter.Iterable
     construct()
         this._buffer = null
@@ -43,7 +47,6 @@ class Deque is iter.Iterable
         if this._size == 0
             raise IndexOutOfBoundException("No elements to pop from the front")
         end
-
         var elem = this._buffer[this._start]
         this._buffer[this._start] = null
         this._start = (this._start + 1) & this._capacityMask
@@ -56,7 +59,7 @@ class Deque is iter.Iterable
     end
 
     fun __string__()
-        return "Dequeue({0}, {1}, {2})" % (this._start, this._end, this._buffer)
+        return "Deque({0})" % this._buffer.join(", ")
     end
 
     fun __iter__(idx)
@@ -76,14 +79,16 @@ class Deque is iter.Iterable
 
     fun _grow()
         var oldBuffer = this._buffer
-        this._buffer = List((#oldBuffer * 2) if oldBuffer else STARTING_SZ)
+        var oldCapacity = this._capacityMask
+        var newSize = #oldBuffer * 2 if oldBuffer else STARTING_SZ
+        var newBuffer = List(newSize)
 
         if oldBuffer
             var idx, newIdx = this._start, 0
             for ;;
-                this._buffer[newIdx] = oldBuffer[idx]
+                newBuffer[newIdx] = oldBuffer[idx]
 
-                idx = (idx + 1) & this._capacityMask
+                idx = (idx + 1) & oldCapacity
                 if idx == this._end
                     break
                 end
@@ -92,7 +97,8 @@ class Deque is iter.Iterable
             end
         end
 
+        this._buffer = newBuffer
         this._start, this._end = 0, this._size
-        this._capacityMask = #this._buffer - 1
+        this._capacityMask = newSize - 1
     end
 end

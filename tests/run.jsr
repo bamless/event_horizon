@@ -2,7 +2,7 @@
 
 import test
 
-import data_strucutres.dequeue
+import data_structures.deque
 
 import uv.loop
 import uv.handle
