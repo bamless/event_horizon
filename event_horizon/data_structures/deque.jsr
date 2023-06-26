@@ -22,7 +22,6 @@ class Deque is iter.Iterable
         if this._size == 0
             raise IndexOutOfBoundException("No elements to pop from the back")
         end
-        
         this._end = (this._end - 1) & this._capacityMask
         var elem = this._buffer[this._end]
         this._buffer[this._end] = null
