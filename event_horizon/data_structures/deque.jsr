@@ -1,0 +1,99 @@
+static var STARTING_SZ = 2
+
+class Deque is iter.Iterable
+    construct()
+        this._buffer = null
+        this._start = 0
+        this._end = 0
+        this._size = 0
+        this._capacityMask = 0
+    end
+
+    fun pushBack(elem)
+       if !this._buffer or this._size == #this._buffer
+            this._grow()
+        end
+        this._buffer[this._end] = elem
+        this._end = (this._end + 1) & this._capacityMask
+        this._size += 1
+    end
+
+    fun popBack()
+        if this._size == 0
+            raise IndexOutOfBoundException("No elements to pop from the back")
+        end
+        
+        this._end = (this._end - 1) & this._capacityMask
+        var elem = this._buffer[this._end]
+        this._buffer[this._end] = null
+        this._size -= 1
+        return elem
+    end
+    
+    fun pushFront(elem)
+        if !this._buffer or this._size == #this._buffer
+            this._grow()
+        end
+        var idx = (this._start - 1) & this._capacityMask
+        this._start = idx
+        this._buffer[idx] = elem
+        this._size += 1
+    end
+
+    fun popFront()
+        if this._size == 0
+            raise IndexOutOfBoundException("No elements to pop from the front")
+        end
+
+        var elem = this._buffer[this._start]
+        this._buffer[this._start] = null
+        this._start = (this._start + 1) & this._capacityMask
+        this._size -= 1
+        return elem
+    end
+
+    fun __len__()
+        return this._size
+    end
+
+    fun __string__()
+        return "Dequeue({0}, {1}, {2})" % (this._start, this._end, this._buffer)
+    end
+
+    fun __iter__(idx)
+        if this._size == 0
+            return false
+        end
+        if !idx
+            return this._start
+        end
+        var next = (idx + 1) & this._capacityMask
+        return next if next != this._end else false
+    end
+
+    fun __next__(idx)
+        return this._buffer[idx]
+    end
+
+    fun _grow()
+        var oldBuffer = this._buffer
+        this._buffer = List((#oldBuffer * 2) if oldBuffer else STARTING_SZ)
+
+        if oldBuffer
+            var idx, newIdx = this._start, 0
+            for ;;
+                this._buffer[newIdx] = oldBuffer[idx]
+
+                idx = (idx + 1) & this._capacityMask
+                if idx == this._end
+                    break
+                end
+
+                newIdx += 1
+            end
+        end
+
+        this._start, this._end = 0, this._size
+        this._capacityMask = #this._buffer - 1
+    end
+end

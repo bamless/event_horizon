@@ -2,6 +2,8 @@
 
 import test
 
+import data_strucutres.dequeue
+
 import uv.loop
 import uv.handle
 import uv.idle
@@ -10,5 +12,7 @@ import uv.tcp
 import uv.udp
 import uv.timer
 import uv.dns
+
+import evh.tcp
 
 test.run()

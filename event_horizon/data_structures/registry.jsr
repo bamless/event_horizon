@@ -26,6 +26,12 @@ class Registry
         return this._registry[index]
     end
 
+    fun set(index, value)
+        var oldVal = this._registry[index]
+        this._registry[index] = value
+        return oldVal
+    end
+
     fun __len__()
         var freed = 0
         var cur = this._freeIndex

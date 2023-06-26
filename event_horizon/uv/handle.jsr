@@ -1,5 +1,5 @@
 import event_horizon.utils.abc for abstract
-import event_horizon.uv.registry for Registry
+import event_horizon.data_structures.registry for Registry
 
 class Handle
     @abstract(Handle) construct(loop, handleType)
