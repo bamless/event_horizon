@@ -129,3 +129,25 @@ fun asRejected(val)
         reject(val)
     end)
 end
+
+fun all(promises)
+    var count = promises.count()
+    var results = List(count)
+    if count == 0
+        return asResolved(results)
+    end
+
+    var numResolved = 0
+    return Promise(fun(resolve, reject)
+        for var idx, promise in promises.enumerate()
+            asResolved(promise).then(fun(res)
+                results[idx] = res
+                if (numResolved += 1) == count
+                    resolve(results)
+                end
+            end, fun(exc)
+                reject(exc)
+            end)
+        end
+    end)
+end

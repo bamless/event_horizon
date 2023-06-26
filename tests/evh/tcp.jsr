@@ -1,0 +1,43 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run, skip
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.promise for all
+import event_horizon.tcp for TCPStream
+
+@test
+fun listenConnect()
+    var clientConnect, serverConnect = false, false
+
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            serverConnect = true
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+        clientConnect = true
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+
+    assert(clientConnect and serverConnect)
+end
+
+if __name__ == '__main__'
+    run()
+end
