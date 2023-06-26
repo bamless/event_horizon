@@ -1,4 +1,4 @@
-import promise for Promise, asResolved
+import event_horizon.promise for Promise, asResolved
 
 static fun step(gen, arg, exc, resolve, reject)
     var value

@@ -1,0 +1,22 @@
+#!/usr/bin/env jstar
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.tcp for TCPStream
+
+@async
+fun handleClient(client)
+    var data
+    while data = yield client.read()
+        yield client.write(data)
+    end
+end
+
+@async
+fun main()
+    var server = TCPStream()
+    server.bind("0.0.0.0", 8080)
+    yield server.listen(handleClient)
+end
+
+evh.run(main())
