@@ -14,6 +14,30 @@ class Handle
             end)
         end)
     end
+    
+    fun isActive()
+        return this._handle.isActive()
+    end
+
+    fun isClosing()
+        return this._handle.isClosing()
+    end
+
+    fun sendBufferSize()
+        return this._handle.sendBufferSize()
+    end
+
+    fun setSendBufferSize(size)
+        this._handle.setSendBufferSize(size)
+    end
+
+    fun recvBufferSize()
+        return this._handle.recvBufferSize(size)
+    end
+
+    fun setRecvBufferSize(size)
+        this._handle.setRecvBufferSize(size)
+    end
 
     fun handle()
         return this._handle

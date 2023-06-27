@@ -6,9 +6,20 @@ import test for test, run, skip
 
 import event_horizon as evh
 import event_horizon.async for async
+import event_horizon.errors for EventHorizonException
 import event_horizon.promise for Promise, all
 import event_horizon.tcp for TCPStream
 import event_horizon.uv.timer for Timer
+
+fun wait(ms)
+    var t = Timer()
+    return Promise(fun(resolve, reject)
+        t.start(ms, 0, fun()
+            t.close()
+            resolve()
+        end)
+    end)
+end
 
 @test
 fun listenConnect()
@@ -104,6 +115,8 @@ fun writeReadCount()
         var data4 = yield client.read(500)
         assert(!data4)
 
+        assert(#client._buffer == 0)
+
         yield client.close()
     end
 
@@ -112,16 +125,6 @@ end
 
 @test
 fun writeReadCountDelayed()
-    fun wait(ms)
-        var t = Timer()
-        return Promise(fun(resolve, reject)
-            t.start(ms, 0, fun()
-                t.close()
-                resolve()
-            end)
-        end)
-    end
-
     @async
     fun server()
         var server = TCPStream()
@@ -150,6 +153,189 @@ fun writeReadCountDelayed()
 
         var data3 = yield client.read()
         assert(!data3)
+
+        assert(#client._buffer == 0)
+
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun writeReadUntil()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            yield client.write(
+                "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n"
+            )
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var data1 = yield client.readUntil("\r\n\r\n")
+        assert(data1 == "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data2 = yield client.readUntil("\r\n\r\n")
+        assert(data2 == "GET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data3 = yield client.read(500)
+        assert(!data3)
+
+        var didThrow = false
+        try
+            yield client.readUntil("\r\n\r\n")
+        except EventHorizonException e
+            didThrow = true
+            assert(e.err() == "Endpoint closed before reaching separator `\r\n\r\n`".escaped())
+        end
+
+        assert(didThrow)
+        assert(#client._buffer == 0)
+
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun writeReadUntilDelayed()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            yield client.write(
+                "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
+            )
+            yield wait(1000)
+            yield client.write("t: test.com\r\n\r\n")
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var data1 = yield client.readUntil("\r\n\r\n")
+        assert(data1 == "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data2 = yield client.readUntil("\r\n\r\n")
+        assert(data2 == "GET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data3 = yield client.read(500)
+        assert(!data3)
+
+        var didThrow = false
+        try
+            yield client.readUntil("\r\n\r\n")
+        except EventHorizonException e
+            didThrow = true
+            assert(e.err() == "Endpoint closed before reaching separator `\r\n\r\n`".escaped())
+        end
+
+        assert(didThrow)
+        assert(#client._buffer == 0)
+
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun readLine()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            yield client.write("line1\nline")
+            yield client.write("2\nline3\n")
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var data1 = yield client.readLine()
+        assert(data1 == "line1\n")
+
+        var data2 = yield client.readLine()
+        assert(data2 == "line2\n")
+
+        var data3 = yield client.readLine()
+        assert(data3 == "line3\n")
+
+        var data4 = yield client.read()
+        assert(!data4)
+
+        var didThrow = false
+        try
+            yield client.readLine()
+        except EventHorizonException e
+            didThrow = true
+            assert(e.err() == "Endpoint closed before reaching separator `\n`".escaped())
+        end
+
+        assert(didThrow)
+        assert(#client._buffer == 0)
+
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun readUntilFail()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            yield client.write("line1")
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var didThrow = false
+        try
+            yield client.readLine()
+        except EventHorizonException e
+            didThrow = true
+            assert(e.err() == "Endpoint closed before reaching separator `\n`".escaped())
+        end
+
+        assert(didThrow)
+        assert(client._buffer.reduce(0, |acc, e| => acc + #e) == 5)
 
         yield client.close()
     end

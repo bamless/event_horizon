@@ -1,7 +1,7 @@
 import event_horizon.utils.abc for abstract, abstractMethod
 import event_horizon.async for async
 import event_horizon.data_structures.deque for Deque
-import event_horizon.errors for StatusException
+import event_horizon.errors for EventHorizonException, StatusException
 import event_horizon.handle for Handle
 import event_horizon.promise for Promise
 
@@ -87,6 +87,44 @@ class Stream is Handle
         end)
     end
 
+    fun readUntil(separator)
+        var data = this._drainUntilSep(separator)
+        if data
+            return data
+        end
+
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.readStart(fun(data, status)
+                if status < 0
+                    self._handle.readStop()
+                    reject(StatusException(status))
+                    return
+                end
+
+                if !data  // EOF
+                    self._handle.readStop()
+                    reject(EventHorizonException("Endpoint closed before reaching separator `{0}`" %
+                           separator.escaped()))
+                    return
+                end
+
+                self._buffer.pushBack(data)
+                self._bufferedBytes += #data
+                var dataChunk = self._drainUntilSep(separator)
+
+                if dataChunk
+                    self._handle.readStop()
+                    resolve(dataChunk)
+                end
+            end)
+        end)
+    end
+
+    fun readLine()
+        return this.readUntil("\n")
+    end
+
     fun shutdown()
         var self = this
         return Promise(fun(resolve, reject)
@@ -116,10 +154,7 @@ class Stream is Handle
         end
 
         var data = this._buffer.take(numChunks).join("")
-        // clear the buffer up to `numChunks`
-        for var i = 0; i < numChunks; i += 1
-            this._buffer.popFront()
-        end
+        this._clearUpto(numChunks)
 
         if chunksSize > count
             this._buffer.pushFront(data[count, chunksSize])
@@ -127,6 +162,35 @@ class Stream is Handle
         end
 
         this._bufferedBytes -= count
+        return data
+    end
+
+    fun _drainUntilSep(separator)
+        var sepEnd, chunksSize, numChunks = -1, 0, 0
+
+        var chunk
+        while (chunk = this._buffer.peekFront(numChunks)) and sepEnd == -1
+            var pos = chunk.findSubstr(separator) 
+            if pos != -1
+                sepEnd = chunksSize + pos + #separator
+            end
+            numChunks += 1
+            chunksSize += #chunk
+        end
+
+        if sepEnd == -1
+            return null
+        end
+
+        var data = this._buffer.take(numChunks).join("")
+        this._clearUpto(numChunks)
+
+        if chunksSize > sepEnd
+            this._buffer.pushFront(data[sepEnd, chunksSize])
+            data = data[0, sepEnd]
+        end
+
+        this._bufferedBytes -= sepEnd
         return data
     end
 
@@ -139,5 +203,11 @@ class Stream is Handle
         this._bufferedBytes = 0
         this._buffer.clear()
         return data
+    end
+
+    fun _clearUpto(num)
+        for var i = 0; i < num; i += 1
+            this._buffer.popFront()
+        end
     end
 end

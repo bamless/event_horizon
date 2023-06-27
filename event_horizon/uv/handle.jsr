@@ -1,6 +1,27 @@
 import event_horizon.utils.abc for abstract
 import event_horizon.data_structures.registry for Registry
 
+var HandleType = Enum(
+    'UNKNOWN_HANDLE',
+    'ASYNC',
+    'CHECK',
+    'FS_EVENT',
+    'FS_POLL',
+    'HANDLE',
+    'IDLE',
+    'NAMED_PIPE',
+    'POLL',
+    'PREPARE',
+    'PROCESS',
+    'STREAM',
+    'TCP',
+    'TIMER',
+    'TTY',
+    'UDP',
+    'SIGNAL',
+    'FILE',
+)
+
 class Handle
     @abstract(Handle) construct(loop, handleType)
         this._loop = loop
@@ -34,24 +55,3 @@ class Handle
     native setRecvBufferSize(size)
     native _init(loop, handleType)
 end
-
-var HandleType = Enum(
-    'UNKNOWN_HANDLE',
-    'ASYNC',
-    'CHECK',
-    'FS_EVENT',
-    'FS_POLL',
-    'HANDLE',
-    'IDLE',
-    'NAMED_PIPE',
-    'POLL',
-    'PREPARE',
-    'PROCESS',
-    'STREAM',
-    'TCP',
-    'TIMER',
-    'TTY',
-    'UDP',
-    'SIGNAL',
-    'FILE',
-)
