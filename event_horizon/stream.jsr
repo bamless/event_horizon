@@ -137,6 +137,18 @@ class Stream is Handle
         end)
     end
 
+    fun isReadable()
+        return this._handle.isReadable()
+    end
+
+    fun isWritable()
+        return this._handle.isWritable()
+    end
+
+    fun getWriteQueueSize()
+        return this._handle.getWriteQueueSize()
+    end
+
     @abstractMethod fun _accept(client) end
 
     fun _drainUntil(count)
