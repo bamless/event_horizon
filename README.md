@@ -18,10 +18,11 @@ import event_horizon.tcp for TCPStream
 @async  // This decorator enables our function to await for promises via `yield` statements
 fun handleClient(client)
     var data
-    // `client.read` and `client.write` return `Promise`s. A `Promise` represent a not-yet available result,
-    // and must be `await`ed in order for its value to be resolved at some point in the fututre
-    while data = yield client.read()  // To `await` for a Promise, we `yield` it
-        yield client.write(data)      // Same thing here
+    // `client.readLine` and `client.write` return `Promise`s. A `Promise` represent a not-yet
+    // available result, and must be `await`ed in order for its value to be resolved at some point
+    // in the fututre
+    while data = yield client.readLine()  // To `await` for a Promise, we `yield` it
+        yield client.write(data)          // Same thing here
     end
 end
 
