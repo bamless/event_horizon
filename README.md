@@ -9,7 +9,7 @@ for file descriptor changes and scheduling callbacks when data is available.
 
 You can find more examples in the `examples` folder, the following is a short snippet demonstrating
 how to write an echo server using the `async-await` syntax (NOTE: this code deliberately skips error
-cheking to make the example simpler):
+handling to make the example simpler):
 ```
 import event_horizon as evh
 import event_horizon.async for async

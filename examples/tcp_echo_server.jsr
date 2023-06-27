@@ -9,9 +9,6 @@ fun handleClient(client)
     try
         var data
         while data = yield client.readLine()
-            if !data  // EOF
-                break
-            end
             yield client.write(data)
         end
     ensure
