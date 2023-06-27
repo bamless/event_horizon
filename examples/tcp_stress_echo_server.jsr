@@ -11,12 +11,12 @@ fun main()
         yield client.connect("127.0.0.1", 8080)
 
         for var count = 0;; count += 1
-            yield client.write("hello {0}" % count)
+            yield client.write("hello {0}\n" % count)
             var data = yield client.read()
             if !data  // EOF
                 break
             end
-            print(data)
+            print(data.strip())
         end
     ensure
         yield client.close()

@@ -104,8 +104,7 @@ class Stream is Handle
 
                 if !data  // EOF
                     self._handle.readStop()
-                    reject(EventHorizonException("Endpoint closed before reaching separator `{0}`" %
-                           separator.escaped()))
+                    resolve(self._drainAll())
                     return
                 end
 

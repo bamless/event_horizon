@@ -192,15 +192,9 @@ fun writeReadUntil()
         var data3 = yield client.read(500)
         assert(!data3)
 
-        var didThrow = false
-        try
-            yield client.readUntil("\r\n\r\n")
-        except EventHorizonException e
-            didThrow = true
-            assert(e.err() == "Endpoint closed before reaching separator `\r\n\r\n`".escaped())
-        end
+        var data4 = yield client.readUntil("\r\n\r\n")
+        assert(!data4)
 
-        assert(didThrow)
         assert(#client._buffer == 0)
 
         yield client.close()
@@ -241,15 +235,9 @@ fun writeReadUntilDelayed()
         var data3 = yield client.read(500)
         assert(!data3)
 
-        var didThrow = false
-        try
-            yield client.readUntil("\r\n\r\n")
-        except EventHorizonException e
-            didThrow = true
-            assert(e.err() == "Endpoint closed before reaching separator `\r\n\r\n`".escaped())
-        end
+        var data4 = yield client.readUntil("\r\n\r\n")
+        assert(!data4)
 
-        assert(didThrow)
         assert(#client._buffer == 0)
 
         yield client.close()
@@ -290,15 +278,9 @@ fun readLine()
         var data4 = yield client.read()
         assert(!data4)
 
-        var didThrow = false
-        try
-            yield client.readLine()
-        except EventHorizonException e
-            didThrow = true
-            assert(e.err() == "Endpoint closed before reaching separator `\n`".escaped())
-        end
+        var data5 = yield client.readLine()
+        assert(!data5)
 
-        assert(didThrow)
         assert(#client._buffer == 0)
 
         yield client.close()
@@ -326,16 +308,10 @@ fun readUntilFail()
         var client = TCPStream()
         yield client.connect("127.0.0.1", 8080)
 
-        var didThrow = false
-        try
-            yield client.readLine()
-        except EventHorizonException e
-            didThrow = true
-            assert(e.err() == "Endpoint closed before reaching separator `\n`".escaped())
-        end
+        var partial = yield client.readLine()
+        assert(!partial.endsWith("\n"))
 
-        assert(didThrow)
-        assert(client._buffer.reduce(0, |acc, e| => acc + #e) == 5)
+        assert(#client._buffer == 0)
 
         yield client.close()
     end

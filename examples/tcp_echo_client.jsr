@@ -14,12 +14,12 @@ fun main()
 
         var line 
         while line = io.stdin.readLine()
-            yield client.write(line.strip())
-            var data = yield client.read()
+            yield client.write(line)
+            var data = yield client.readLine()
             if !data  // EOF
                 break
             end
-            print(data)
+            print(data.strip())
         end
     ensure
         yield client.close()
