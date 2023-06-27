@@ -1,0 +1,25 @@
+#!/usr/bin/env jstar
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.udp for UDPSocket
+
+@async
+fun client()
+    var sock = UDPSocket()
+    try
+        sock.connect("127.0.0.1", 8080)
+    
+        var count = 0
+        while true
+            yield sock.send("hello {0}" % count)
+            var data, = yield sock.recv()
+            print(data)
+            count += 1
+        end
+    ensure
+        yield sock.close()
+    end
+end
+
+evh.run(client())
