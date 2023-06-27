@@ -1,0 +1,90 @@
+import event_horizon.errors for StatusException
+import event_horizon.handle for Handle
+import event_horizon.promise for Promise
+import event_horizon.uv.udp as uv_udp
+import event_horizon.uv.udp for Flags, Membership
+
+class UDPSocket is Handle
+    construct(loop=null)
+        super(uv_udp.UDP(loop))
+    end
+
+    fun bind(addr, port, flags=0)
+        this._handle.bind(addr, port, flags)
+    end
+
+    fun connect(addr, port=null)
+        this._handle.connect(addr, port)
+    end
+
+    fun send(data, addr=null, port=null)
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.send(data, addr, port, fun(status)
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve()
+                end
+            end)
+        end)
+    end
+
+    fun trySend(data, addr=null, port=null)
+        return this._handle.trySend(data, addr, port)
+    end
+
+    fun recv()
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.recvStart(fun(data, addr, port, status)
+                self._handle.recvStop()
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve((data, addr, port))
+                end
+            end)
+        end)
+    end
+
+    fun sockName()
+        return this._handle.sockName()
+    end
+
+    fun peerName()
+        return this._handle.peerName()
+    end
+
+    fun sendQueueSize()
+        return this._handle.sendQueueSize()
+    end
+
+    fun sendQueueCount()
+        return this._handle.sendQueueCount()
+    end
+
+    fun setMembership(multicastAddr, interfaceAddr, membership)
+        this._handle.setMembership(multicastAddr, interfaceAddr, membership)
+    end
+
+    fun setSourceMembership(multicastAddr, interfaceAddr, sourceAddr, membership)
+        this._handle.setSourceMembership(multicastAddr, interfaceAddr, sourceAddr, membership)
+    end
+
+    fun setMulticastLoop(on)
+        this._handle.setMulticastLoop(on)
+    end
+
+    fun setMulticastTTL(ttl)
+        this._handle.setMulticastTTL(ttl)
+    end
+
+    fun setMulticastInterface(interfaceAddr)
+        this._handle.setMulticastInterface(interfaceAddr)
+    end
+
+    fun setBroadcast(on)
+        this._handle.setBroadcast(on)
+    end
+end

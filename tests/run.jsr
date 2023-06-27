@@ -14,5 +14,6 @@ import uv.timer
 import uv.dns
 
 import evh.tcp
+import evh.udp
 
 test.run()
