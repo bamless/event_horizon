@@ -2,6 +2,7 @@
 
 #include <uv.h>
 
+#include "callbacks.h"
 #include "errors.h"
 #include "handle.h"
 #include "sock_utils.h"
@@ -18,6 +19,42 @@ bool Pipe_bind(JStarVM* vm) {
         StatusException_raise(vm, res);
         return false;
     }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+static void connectCallback(uv_connect_t* req, int status) {
+    int callbackId = getRequestCallback((uv_req_t*)req);
+    uv_handle_t* handle = (uv_handle_t*)req->handle;
+    free(req);
+    reqCallback(handle, callbackId, true, status);
+}
+
+bool Pipe_connect(JStarVM* vm) {
+    JSR_CHECK(String, 1, "name");
+    JSR_CHECK(Function, 2, "callback");
+
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
+
+    uv_pipe_t* pipe = (uv_pipe_t*)Handle_getHandle(vm, 0);
+    if(!pipe) return false;
+
+    uv_connect_t* req = malloc(sizeof(*req));
+    
+    int callbackId = -1;
+    if(!jsrIsNull(vm, 2)) {
+        callbackId = Handle_registerCallbackWithId(vm, 2, 0);
+        if(callbackId == -1) {
+            free(req);
+            return false;
+        }
+    }
+
+    setRequestCallback((uv_req_t*)req, callbackId);
+    uv_pipe_connect(req, pipe, jsrGetString(vm, -1), &connectCallback);
 
     jsrPushNull(vm);
     return true;

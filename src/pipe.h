@@ -5,6 +5,7 @@
 
 // class Pipe
 bool Pipe_bind(JStarVM* vm);
+bool Pipe_connect(JStarVM* vm);
 // end
 
 #endif

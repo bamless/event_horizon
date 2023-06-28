@@ -8,4 +8,5 @@ class Pipe is Stream
     end
 
     native bind(name)
+    native connect(name, callback=null)
 end

@@ -82,6 +82,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Timer, dueIn, Timer_dueIn)
 
     JSR_REGMETH(Pipe, bind, Pipe_bind)
+    JSR_REGMETH(Pipe, connect, Pipe_connect)
 
     JSR_REGEND
 };
