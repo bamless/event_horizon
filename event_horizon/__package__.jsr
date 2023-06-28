@@ -1,6 +1,8 @@
 import event_horizon.uv as uv
 
-fun run(promise, loop=null)
-    promise.catch(|e| => e.printStacktrace())
+fun run(promise=null, loop=null)
+    if promise
+        promise.catch(|e| => e.printStacktrace())
+    end
     return (loop or uv.loop()).run()
 end

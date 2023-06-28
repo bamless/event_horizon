@@ -33,8 +33,9 @@ fun main()
     yield server.listen(handleClient)
 end
 
-// This is the entry point for asynchronous code. It takes in a promise, and it runs the event loop
-// Until all of the promises spawned by async code are either resolved or rejected.
+// This is the entry point for asynchronous code. It runs the event loop untill all aynschronous
+// operations are completed. If a promise is passed to it it will attach error handlers to gracefully
+// handle any errors in case of the promise being rejected
 evh.run(main())
 ```
 

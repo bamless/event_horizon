@@ -1,0 +1,72 @@
+import event_horizon.promise for Promise
+import event_horizon.idle for IdleHandle
+import event_horizon.timer for TimerHandle
+
+fun nextTick(callback, forever=false, loop=null)
+    var idle = IdleHandle(loop)
+    fun cancel()
+        idle.close()
+    end
+    idle.start(fun()
+        try
+            if !forever
+                idle.close()
+                callback()
+            else
+                callback(cancel)
+            end
+        except Exception e
+            e.printStacktrace()
+        end
+    end)
+    return cancel
+end
+
+fun setTimeout(callback, ms, loop=null)
+    var timer = TimerHandle(loop)
+    fun cancel()
+        timer.close()
+    end
+    timer.start(ms, 0, fun()
+        timer.close()
+        try
+            callback()
+        except Exception e
+            e.printStacktrace()
+        end
+    end)
+    return cancel
+end
+
+fun setInterval(callback, ms, loop=null)
+    var timer = TimerHandle(loop)
+    fun cancel()
+        timer.close()
+    end
+    timer.start(ms, ms, fun()
+        try
+            callback(cancel)
+        except Exception e
+            e.printStacktrace()
+        end
+    end)
+    return cancel
+end
+
+fun waitOneTick(loop=null)
+    var idle = IdleHandle(loop)
+    return Promise(fun(resolve, _)
+        idle.close()
+        resolve()
+    end)
+end
+
+fun wait(ms, loop=null)
+    var timer = TimerHandle(loop)
+    return Promise(fun(resolve, _)
+        timer.start(ms, 0, fun()
+            timer.close()
+            resolve()
+        end)
+    end)
+end

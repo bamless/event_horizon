@@ -1,0 +1,16 @@
+import event_horizon.handle for Handle
+import event_horizon.uv.idle as uv_idle
+
+class IdleHandle is Handle
+    construct(loop=null)
+        super(uv_idle.Idle(loop))
+    end
+
+    fun start(callback)
+        this._handle.start(callback)
+    end
+
+    fun stop()
+        this._handle.stop()
+    end
+end

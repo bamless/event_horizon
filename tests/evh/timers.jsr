@@ -1,0 +1,129 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run, skip
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.timers as timers
+
+@test
+fun nextTick()
+    var called = false
+
+    timers.nextTick(fun()
+        called = true
+    end)
+
+    assert(!called)
+    evh.run()
+    assert(called)
+end
+
+@test
+fun nextTickCancel()
+    var called = false
+    var cancel = timers.nextTick(fun()
+        called = true
+    end)
+    cancel()
+    evh.run()
+    assert(!called)
+end
+
+@test
+fun foreverTick()
+    var called = 0
+    timers.nextTick(fun(cancel)
+        called += 1
+        if called == 5
+            cancel()
+        end
+    end, true)
+
+    evh.run()
+    assert(called == 5)
+end
+
+@test
+fun setTimeout()
+    var called = false
+    timers.setTimeout(fun()
+        called = true
+    end, 200)
+    evh.run()
+    assert(called)
+end
+
+@test
+fun setTimeoutCancel()
+    var called = false
+    var cancel = timers.setTimeout(fun()
+        called = true
+    end, 200)
+    cancel()
+    evh.run()
+    assert(!called)
+end
+
+@test
+fun setInterval()
+    var called = 0
+    timers.setInterval(fun(cancel)
+        called += 1
+        if called == 2
+            cancel()
+        end
+    end, 200)
+    evh.run()
+    assert(called == 2)
+end
+
+@test
+fun setIntervalCancel()
+    var called = 0
+    var cancel = timers.setInterval(fun(cancel)
+        called += 1
+        if called == 2
+            cancel()
+        end
+    end, 200)
+    cancel()
+    evh.run()
+    assert(called == 0)
+end
+
+@test
+fun waitOneTick()
+    var called = false
+
+    @async
+    fun test()
+        yield timers.waitOneTick()
+        called = true
+    end
+
+    assert(!called)
+    evh.run(test())
+    assert(called)
+end
+
+@test
+fun wait()
+    var called = false
+
+    @async
+    fun test()
+        yield timers.wait(200)
+        called = true
+    end
+
+    assert(!called)
+    evh.run(test())
+    assert(called)
+end
+
+if __name__ == '__main__'
+    run()
+end

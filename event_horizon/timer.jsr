@@ -1,0 +1,32 @@
+import event_horizon.handle for Handle
+import event_horizon.uv.timer as uv_timer
+
+class TimerHandle is Handle
+    construct(loop=null)
+        super(uv_timer.Timer())
+    end
+
+    fun start(timeout, repeat, callback)
+        this._handle.start(timeout, repeat, callback)
+    end
+
+    fun stop()
+        this._handle.stop()
+    end
+
+    fun again()
+        this._handle.again()
+    end
+
+    fun setRepeat(repeat)
+        this._handle.setRepeat(repeat)
+    end
+
+    fun repeat()
+        return this._handle.repeat()
+    end
+
+    fun dueIn()
+        return this._handle.dueIn()
+    end
+end
