@@ -30,6 +30,14 @@ static uv_handle_t* pushLibUVHandle(JStarVM* vm, uv_loop_t* loop, uv_handle_type
         jsrPushUserdata(vm, sizeof(uv_timer_t), &freeHandle);
         uv_timer_init(loop, jsrGetUserdata(vm, -1));
         break;
+    case UV_NAMED_PIPE:
+        jsrTupleGet(vm, 0, 3);
+        bool ipc = jsrGetBoolean(vm, -1);
+        jsrPop(vm);
+
+        jsrPushUserdata(vm, sizeof(uv_pipe_t), &freeHandle);
+        uv_pipe_init(loop, jsrGetUserdata(vm, -1), ipc);
+        break;
     default:
         jsrRaise(vm, "InvalidArgException", "unkown handle type: %d", type);
         return NULL;

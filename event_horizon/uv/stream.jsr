@@ -2,8 +2,8 @@ import event_horizon.utils.abc for abstract, abstractMethod
 import event_horizon.uv.handle for Handle
 
 class Stream is Handle
-    @abstract(Stream) construct(loop, streamType)
-        super(loop, streamType)
+    @abstract(Stream) construct(loop, streamType, ...args)
+        super(loop, streamType, ...args)
     end
     
     fun listen(callback, backlog=0)

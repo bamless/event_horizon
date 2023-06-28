@@ -15,6 +15,8 @@ add_library(event_horizon SHARED
     handle.c
     idle.h
     idle.c
+    pipe.h
+    pipe.c
     stream.h
     stream.c
     tcp.c

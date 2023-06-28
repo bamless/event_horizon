@@ -1,0 +1,9 @@
+import event_horizon.uv as uv
+import event_horizon.uv.handle for HandleType
+import event_horizon.uv.stream for Stream
+
+class Pipe is Stream
+    construct(ipc=false, loop=null)
+        super(loop or uv.loop(), HandleType.NAMED_PIPE, ipc)
+    end
+end
