@@ -6,6 +6,7 @@
 #include "event_loop.h"
 #include "handle.h"
 #include "idle.h"
+#include "pipe.h"
 #include "stream.h"
 #include "tcp.h"
 #include "timer.h"
@@ -79,6 +80,8 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Timer, setRepeat, Timer_setRepeat)
     JSR_REGMETH(Timer, repeat, Timer_repeat)
     JSR_REGMETH(Timer, dueIn, Timer_dueIn)
+
+    JSR_REGMETH(Pipe, bind, Pipe_bind)
 
     JSR_REGEND
 };

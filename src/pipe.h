@@ -3,4 +3,8 @@
 
 #include <jstar/jstar.h>
 
+// class Pipe
+bool Pipe_bind(JStarVM* vm);
+// end
+
 #endif

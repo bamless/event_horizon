@@ -6,4 +6,6 @@ class Pipe is Stream
     construct(ipc=false, loop=null)
         super(loop or uv.loop(), HandleType.NAMED_PIPE, ipc)
     end
+
+    native bind(name)
 end
