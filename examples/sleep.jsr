@@ -1,0 +1,26 @@
+#!/usr/bin/env jstar
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.timers as timers
+
+@async
+fun printDelayed(val, ms)
+    yield timers.wait(ms)
+    print(val)
+end
+
+@async
+fun main()
+    print("main called")
+
+    yield printDelayed("Hello, World", 1000)
+    print("After first `printDelayed`")
+    
+    var p = printDelayed("Hello, Again!", 1000)
+    print("After second `printDelayed`")
+
+    yield p
+end
+
+evh.run(main())
