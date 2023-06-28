@@ -92,6 +92,13 @@ void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int statu
     jsrPopN(vm, 2);
 }
 
+void connectCallback(uv_connect_t* req, int status) {
+    int callbackId = getRequestCallback((uv_req_t*)req);
+    uv_handle_t* handle = (uv_handle_t*)req->handle;
+    free(req);
+    reqCallback(handle, callbackId, true, status);
+}
+
 void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
     LoopMetadata* metadata = handle->loop->data;
     JStarVM* vm = metadata->vm;

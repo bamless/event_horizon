@@ -24,13 +24,6 @@ bool Pipe_bind(JStarVM* vm) {
     return true;
 }
 
-static void connectCallback(uv_connect_t* req, int status) {
-    int callbackId = getRequestCallback((uv_req_t*)req);
-    uv_handle_t* handle = (uv_handle_t*)req->handle;
-    free(req);
-    reqCallback(handle, callbackId, true, status);
-}
-
 bool Pipe_connect(JStarVM* vm) {
     JSR_CHECK(String, 1, "name");
     JSR_CHECK(Function, 2, "callback");

@@ -10,13 +10,6 @@
 #include "sock_utils.h"
 
 // class TCP
-static void connectCallback(uv_connect_t* req, int status) {
-    int callbackId = getRequestCallback((uv_req_t*)req);
-    uv_handle_t* handle = (uv_handle_t*)req->handle;
-    free(req);
-    reqCallback(handle, callbackId, true, status);
-}
-
 bool TCP_connect(JStarVM* vm) {
     JSR_CHECK(String, 1, "addr");
     JSR_CHECK(Int, 2, "port");
