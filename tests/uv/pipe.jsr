@@ -1,0 +1,44 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run, skip
+
+import event_horizon.errors for LoopExecutionException, StatusException
+import event_horizon.uv.errors for strerror 
+import event_horizon.uv as uv
+import event_horizon.uv.pipe for Pipe
+
+@test
+fun bindConnect()
+    var s = Pipe()
+    s.bind("./test")
+
+    var clientConnected = false
+
+    s.listen(fun(client, status)
+        assert(status >= 0)
+        clientConnected = true    
+        client.close()
+        s.close()
+    end)
+
+    var connected = false
+
+    var c = Pipe()
+    
+    c.connect("./test", fun(status)
+        assert(status >= 0)
+        connected = true
+        c.close()
+    end)
+
+    uv.loop().run()
+
+    assert(clientConnected)
+    assert(connected)
+end
+
+if __name__ == '__main__'
+    run()
+end

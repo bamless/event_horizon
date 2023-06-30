@@ -83,6 +83,8 @@ static JStarNativeReg registry[] = {
 
     JSR_REGMETH(Pipe, bind, Pipe_bind)
     JSR_REGMETH(Pipe, connect, Pipe_connect)
+    JSR_REGMETH(Pipe, sockName, Pipe_sockName)
+    JSR_REGMETH(Pipe, peerName, Pipe_peerName)
 
     JSR_REGEND
 };
