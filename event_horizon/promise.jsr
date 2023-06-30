@@ -78,9 +78,9 @@ class Promise
     end
 
     fun _doResolve(fn)
-        var self = this
         var done = false
         try
+            var self = this
             fn(fun(value=null)
                 if done return end
                 done = true
@@ -93,7 +93,7 @@ class Promise
         except Exception e
             if done return end
             done = true
-            self.reject(e)
+            this.reject(e)
         end
     end
 
