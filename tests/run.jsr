@@ -18,5 +18,6 @@ import evh.tcp
 import evh.pipe
 import evh.udp
 import evh.timers
+import evh.dns
 
 test.run()
