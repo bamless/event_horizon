@@ -12,7 +12,7 @@ fun main()
 
         for var count = 0;; count += 1
             yield client.write("hello {0}\n" % count)
-            var data = yield client.read()
+            var data = yield client.readLine()
             if !data  // EOF
                 break
             end

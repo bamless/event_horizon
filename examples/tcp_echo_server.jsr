@@ -20,7 +20,11 @@ end
 fun main()
     var server = TCPStream()
     server.bind("0.0.0.0", 8080)
-    yield server.listen(handleClient)
+    try
+        yield server.listen(handleClient)
+    ensure
+        yield server.close()
+    end
 end
 
 evh.run(main())
