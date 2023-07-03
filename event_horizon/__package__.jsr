@@ -1,6 +1,6 @@
 import event_horizon.uv as uv
 
-VERSION = (0, 0, 1)
+var VERSION = (0, 0, 1)
 
 fun run(promise=null, loop=null)
     if promise
