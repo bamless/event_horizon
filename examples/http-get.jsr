@@ -45,7 +45,7 @@ fun main()
 
     if hostname == ""
         io.stderr.writeln("Emtpy hostname")
-        io.exit(-1)
+        sys.exit(-1)
     end
 
     if path == ""
