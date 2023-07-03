@@ -1,0 +1,39 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import event_horizon.utils.ip as ip
+
+import test for test, run, skip
+
+@test
+fun getIPType()
+    // https://stackoverflow.com/questions/10975935/lua-function-check-if-ipv4-or-ipv6-or-string
+    var ips = {
+        "128.1.0.1": ip.IPType.IPV4,
+        "223.255.254.254": ip.IPType.IPV4,
+        "999.12345.0.0001": ip.IPType.ERROR,
+        "1050:0:0:0:5:600:300c:326b": ip.IPType.IPV6,
+        "1050!0!0+0-5@600$300c#326b": ip.IPType.ERROR,
+        "1050:0:0:0:5:600:300c:326babcdef": ip.IPType.ERROR,
+        "1050:0000:0000:0000:0005:0600:300c:326b": ip.IPType.IPV6,
+        "fe80:0000:0000:0000:0202:b3ff:fe1e:8329": ip.IPType.IPV6,
+        "fe80:0:0:0:202:b3ff:fe1e:8329": ip.IPType.IPV6,
+        "fe80::202:b3ff:fe1e:8329": ip.IPType.IPV6,
+        "1050:::600:5:1000::": ip.IPType.ERROR,
+        "::": ip.IPType.IPV6,
+        "::1": ip.IPType.IPV6,
+        "::1::": ip.IPType.ERROR,
+        "129.garbage.9.1": ip.IPType.ERROR,
+        "xxx127.0.0.0": ip.IPType.ERROR,
+        "xxx1050:0000:0000:0000:0005:0600:300c:326b": ip.IPType.ERROR,
+    }
+
+    for var addr in ips
+        assert(ips[addr] == ip.getIPType(addr))
+    end
+end
+
+if __name__ == '__main__'
+    run()
+end

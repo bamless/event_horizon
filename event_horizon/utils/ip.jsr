@@ -1,0 +1,23 @@
+import re for match, matchAll, substituteAll
+
+var IPType = Enum(
+    'ERROR',
+    'IPV4',
+    'IPV6',
+)
+
+fun getIPType(ip)
+    var ipv4chunks = match(ip, "^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
+    if ipv4chunks and #ipv4chunks == 4 and ipv4chunks.all(|b| => std.int(b) <= 255)
+        return IPType.IPV4
+    end
+
+    var ipv6chunks = matchAll(ip, "([a-fA-F0-9]*[^:]*)%:?")
+    if ipv6chunks and
+       (#ipv6chunks == 8 or (#ipv6chunks < 8 and match(ip, "::") and !match(substituteAll(ip, "::", "", 1), "::"))) and
+       ipv6chunks.all(|c| => #c <= 4 and match(c, "[a-fA-F0-9]*"))
+        return IPType.IPV6
+    end
+
+    return IPType.ERROR
+end
