@@ -52,9 +52,9 @@ fun main()
         path = "/"
     end
 
-    var html = yield get(hostname, path)    
+    var page = yield get(hostname, path)    
     with io.File(out, "w") f
-        f.write(html)
+        f.write(page)
     end
 end
 
