@@ -1,17 +1,21 @@
 import event_horizon.errors for StatusException
 import event_horizon.promise for Promise
 import event_horizon.stream for Stream
-import event_horizon.uv.tcp as uv_tcp
+import event_horizon.uv.pipe as uv_pipe
 
-class TCPStream is Stream
-    construct(loop=null, tcp=null)
-        super(tcp or uv_tcp.TCP(loop))
+class PipeStream is Stream
+    construct(ipc=false, loop=null, pipe=null)
+        super(pipe or uv_pipe.Pipe(ipc, loop))
     end
 
-    fun connect(addr, port)
+    fun bind(name)
+        this._handle.bind(name)
+    end
+
+    fun connect(name)
         var self = this
         return Promise(fun(resolve, reject)
-            self._handle.connect(addr, port, fun(status)
+            self._handle.connect(name, fun(status)
                 if status < 0
                     reject(StatusException(status))
                 else
@@ -21,19 +25,15 @@ class TCPStream is Stream
         end)
     end
 
-    fun bind(addr, port, ipv6Only=false)
-        this._handle.bind(addr, port, ipv6Only)
-    end
-
     fun sockName()
-        return self._handle.sockName()
+        return this._handle.sockName(name)
     end
 
     fun peerName()
-        return self._handle.peerName()
+        return this._handle.peerName(name)
     end
 
     fun _accept(client)
-        return TCPStream(this._handle.loop(), client)
+        return PipeStream(false, this._handle.loop(), client)
     end
 end

@@ -15,6 +15,7 @@ import uv.dns
 import uv.pipe
 
 import evh.tcp
+import evh.pipe
 import evh.udp
 import evh.timers
 
