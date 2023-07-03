@@ -56,8 +56,10 @@ end
 fun waitOneTick(loop=null)
     var idle = IdleHandle(loop)
     return Promise(fun(resolve, _)
-        idle.close()
-        resolve()
+        idle.start(fun()
+            idle.close()
+            resolve()
+        end)
     end)
 end
 
