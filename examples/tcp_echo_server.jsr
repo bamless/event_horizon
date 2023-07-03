@@ -19,8 +19,8 @@ end
 @async
 fun main()
     var server = TCPStream()
-    server.bind("0.0.0.0", 8080)
     try
+        server.bind("0.0.0.0", 8080)
         yield server.listen(handleClient)
     ensure
         yield server.close()
