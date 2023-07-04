@@ -9,6 +9,24 @@
 #include "sock_utils.h"
 
 // class Pipe
+bool Pipe_open(JStarVM* vm) {
+    JSR_CHECK(Number, 1, "fd");
+
+    uv_pipe_t* pipe = (uv_pipe_t*)Handle_getHandle(vm, 0);
+    if(!pipe) return false;
+
+    uv_file fd = (uv_file)jsrGetNumber(vm, 1);
+    int res = uv_pipe_open(pipe, fd);
+
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
 bool Pipe_bind(JStarVM* vm) {
     JSR_CHECK(String, 1, "name");
 

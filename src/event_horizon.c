@@ -35,6 +35,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Handle, setSendBufferSize, Handle_setSendBufferSize)
     JSR_REGMETH(Handle, recvBufferSize, Handle_recvBufferSize)
     JSR_REGMETH(Handle, setRecvBufferSize, Handle_setRecvBufferSize)
+    JSR_REGMETH(Handle, fileno, Handle_fileno)
 
     JSR_REGMETH(Stream, write, Stream_write)
     JSR_REGMETH(Stream, tryWrite, Stream_tryWrite)
@@ -79,6 +80,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Timer, repeat, Timer_repeat)
     JSR_REGMETH(Timer, dueIn, Timer_dueIn)
 
+    JSR_REGMETH(Pipe, open, Pipe_open)
     JSR_REGMETH(Pipe, bind, Pipe_bind)
     JSR_REGMETH(Pipe, connect, Pipe_connect)
     JSR_REGMETH(Pipe, sockName, Pipe_sockName)

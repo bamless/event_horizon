@@ -25,6 +25,10 @@ class PipeStream is Stream
         end)
     end
 
+    fun open(fd)
+        this._handle.open(fd)
+    end
+
     fun sockName()
         return this._handle.sockName(name)
     end

@@ -53,5 +53,6 @@ class Handle
     native setSendBufferSize(size)
     native recvBufferSize()
     native setRecvBufferSize(size)
+    native fileno()
     native _init(loop, handleType, ...args)
 end

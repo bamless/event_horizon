@@ -20,6 +20,7 @@ bool Handle_sendBufferSize(JStarVM* vm);
 bool Handle_setSendBufferSize(JStarVM* vm);
 bool Handle_recvBufferSize(JStarVM* vm);
 bool Handle_setRecvBufferSize(JStarVM* vm);
+bool Handle_fileno(JStarVM* vm);
 
 // Uiility methods to be called from natives
 bool Handle_getEventLoop(JStarVM* vm, int handleSlot);

@@ -244,6 +244,16 @@ fun size()
     server.close()
 end
 
+@test
+fun fileno()
+    var s = TCP()
+    s.bind("0.0.0.0", 8080)
+    var fd = s.fileno()
+    assert(fd is Number)
+    s.close()
+    uv.loop().run()
+end
+
 if __name__ == '__main__'
     run()
 end
