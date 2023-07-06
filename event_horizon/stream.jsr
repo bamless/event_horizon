@@ -21,6 +21,16 @@ class Stream is Handle
         this._bufferedBytes = 0
     end
 
+    @abstractMethod
+    fun _accept(client) end
+
+    fun close()
+        if this._resolveListen
+            this._resolveListen()
+        end
+        return super()
+    end
+
     fun listen(onConnect, onError=null, backlog=0) 
         var self = this
         return Promise(fun(resolve, _)
@@ -30,13 +40,6 @@ class Stream is Handle
                     catch(onError or (|e| => e.printStacktrace()))
             end)
         end)
-    end
-
-    fun close()
-        if this._resolveListen
-            this._resolveListen()
-        end
-        return super()
     end
 
     fun write(data)
@@ -156,8 +159,6 @@ class Stream is Handle
     fun getWriteQueueSize()
         return this._handle.getWriteQueueSize()
     end
-
-    @abstractMethod fun _accept(client) end
 
     fun _drainUntil(count)
         var numChunks = 0
