@@ -212,7 +212,7 @@ class Stream is Handle
         if this._bufferedBytes == 0
             return null
         end
-        var data = this._buffer.join("")
+        var data = this._buffer.join()
         this._bufferedBytes = 0
         this._buffer.clear()
         return data
