@@ -161,9 +161,7 @@ class Stream is Handle
     end
 
     fun _drainUntil(count)
-        var numChunks = 0
-        var chunksSize = 0
-        
+        var numChunks, chunksSize = 0, 0
         while chunksSize < count
             var chunk = this._buffer.peekFront(numChunks)
             if !chunk
@@ -173,9 +171,7 @@ class Stream is Handle
             numChunks += 1
         end
 
-        var data = this._buffer.take(numChunks).join("")
-        this._clearUpto(numChunks)
-
+        var data = this._bufferTakeFront(numChunks)
         if chunksSize > count
             this._buffer.pushFront(data[count, chunksSize])
             data = data[0, count]
@@ -202,9 +198,7 @@ class Stream is Handle
             return null
         end
 
-        var data = this._buffer.take(numChunks).join("")
-        this._clearUpto(numChunks)
-
+        var data = this._bufferTakeFront(numChunks)
         if chunksSize > sepEnd
             this._buffer.pushFront(data[sepEnd, chunksSize])
             data = data[0, sepEnd]
@@ -218,16 +212,18 @@ class Stream is Handle
         if this._bufferedBytes == 0
             return null
         end
-
         var data = this._buffer.join("")
         this._bufferedBytes = 0
         this._buffer.clear()
         return data
     end
 
-    fun _clearUpto(num)
+    fun _bufferTakeFront(num)
+        var data = this._buffer.take(num).join()
+        // clear the consumed buffer chunks
         for var i = 0; i < num; i += 1
             this._buffer.popFront()
         end
+        return data
     end
 end
