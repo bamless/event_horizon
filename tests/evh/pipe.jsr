@@ -9,17 +9,7 @@ import event_horizon.async for async
 import event_horizon.errors for EventHorizonException
 import event_horizon.promise for Promise, all
 import event_horizon.pipe for PipeStream
-import event_horizon.uv.timer for Timer
-
-fun wait(ms)
-    var t = Timer()
-    return Promise(fun(resolve, reject)
-        t.start(ms, 0, fun()
-            t.close()
-            resolve()
-        end)
-    end)
-end
+import event_horizon.timers for wait
 
 @test
 fun listenConnect()
@@ -48,6 +38,70 @@ fun listenConnect()
     evh.run(all([server(), client()]))
 
     assert(clientConnect and serverConnect)
+end
+
+@test
+fun listenOnError()
+    var onErrorCalled = false
+
+    @async
+    fun server()
+        var server = PipeStream()
+        server.bind("test_pipe")
+        
+        yield server.listen(async(fun(client)
+            yield client.close()
+            yield server.close()
+            print(doesNotExist)
+        end), fun(exc)
+            onErrorCalled = true
+            assert(exc is NameException)
+        end)
+    end
+
+    @async
+    fun client()
+        var client = PipeStream()
+        yield client.connect("test_pipe")
+        yield client.close()
+    end
+    
+    assert(!onErrorCalled)
+
+    evh.run(all([server(), client()]))
+
+    assert(onErrorCalled)
+end
+
+@test
+fun listenClose()
+    var closed = false
+
+    @async
+    fun server()
+        var server = PipeStream()
+        server.bind("test_pipe")
+        
+        yield server.listen(async(fun(client)
+            yield client.close()
+            yield server.close()
+        end))
+
+        closed = true
+    end
+
+    @async
+    fun client()
+        var client = PipeStream()
+        yield client.connect("test_pipe")
+        yield client.close()
+    end
+
+    assert(!closed)
+
+    evh.run(all([server(), client()]))
+
+    assert(closed)
 end
 
 @test
