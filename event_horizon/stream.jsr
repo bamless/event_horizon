@@ -98,6 +98,16 @@ class Stream is Handle
         end)
     end
 
+    @async
+    fun readAll()
+        var chunks = [] 
+        var chunk
+        while chunk = yield this.read()
+            chunks.add(chunk)
+        end
+        return chunks.join()
+    end
+
     fun readUntil(separator)
         var data = this._drainUntilSep(separator)
         if data

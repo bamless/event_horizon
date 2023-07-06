@@ -21,13 +21,7 @@ fun get(hostname, path, printHeader=false)
             print(header.strip().split("\r\n").map(|line| => "   " + line).join("\n"))
         end
 
-        var chunk
-        var body = []
-        while chunk = yield s.read(4096)
-            body.add(chunk)
-        end
-
-        return body.join()
+        return yield s.readAll()
     ensure
         yield s.close()
     end
