@@ -52,7 +52,7 @@ add_custom_command(TARGET event_horizon POST_BUILD
 
 # Install the shared library
 install(TARGETS event_horizon LIBRARY 
-    DESTINATION lib/jstar/event_horizon
+    DESTINATION lib/jstar/event_horizon/uv
 )
 
 # Install J* source files
