@@ -301,6 +301,58 @@ fun writeReadUntilDelayed()
 end
 
 @test
+fun writeln()
+    @async
+    fun server()
+        var server = PipeStream()
+        server.bind("test_pipe")
+        
+        yield server.listen(async(fun(client)
+            yield client.write(yield client.readLine())
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = PipeStream()
+        yield client.connect("test_pipe")
+        yield client.writeln("Hello, World!")
+        var data = yield client.readLine()
+        assert(data == "Hello, World!\n")
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+fun writeln()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+        
+        yield server.listen(async(fun(client)
+            yield client.write(yield client.readLine())
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+        yield client.writeln("Hello, World!")
+        var data = yield client.readLine()
+        assert(data == "Hello, World!\n")
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
 fun readLine()
     @async
     fun server()

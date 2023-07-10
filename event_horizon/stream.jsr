@@ -55,6 +55,11 @@ class Stream is Handle
         end)
     end
 
+    fun writeln(data)
+        var self = this
+        return this.write(data).then(|_| => self.write("\n"))
+    end
+
     fun tryWrite(data)
         return this._handle.tryWrite(data)
     end
