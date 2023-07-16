@@ -1,5 +1,6 @@
 build/
 .ccls*
+.cache*
 *.so
 *.dll
 *.dylib
