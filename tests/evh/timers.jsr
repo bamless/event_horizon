@@ -104,8 +104,11 @@ fun waitOneTick()
         called = true
     end
 
+    test().catch(|e| => e.printStacktrace())
     assert(!called)
-    evh.run(test())
+
+    evh.run()
+
     assert(called)
 end
 
@@ -119,8 +122,12 @@ fun wait()
         called = true
     end
 
+    
+    test().catch(|e| => e.printStacktrace())
     assert(!called)
-    evh.run(test())
+
+    evh.run()
+
     assert(called)
 end
 

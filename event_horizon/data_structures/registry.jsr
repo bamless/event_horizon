@@ -2,9 +2,12 @@ class Registry
     construct()
         this._registry = []
         this._freeIndex = -1
+        this._size = 0
     end
 
     fun ref(value)
+        this._size += 1
+
         if this._freeIndex == -1
             this._registry.add(value)
             return #this._registry - 1
@@ -18,6 +21,7 @@ class Registry
     end
 
     fun unref(index)
+        this._size -= 1
         this._registry[index] = this._freeIndex
         this._freeIndex = index
     end
@@ -33,12 +37,6 @@ class Registry
     end
 
     fun __len__()
-        var freed = 0
-        var cur = this._freeIndex
-        while cur != -1
-            freed += 1
-            cur = this._registry[cur]
-        end
-        return #this._registry - freed
+        return this._size
     end
 end

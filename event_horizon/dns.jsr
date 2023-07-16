@@ -1,0 +1,15 @@
+import event_horizon.errors for StatusException
+import event_horizon.promise for Promise
+import event_horizon.uv.dns as uv_dns
+
+fun getAddrInfo(node, service=null, flags=0, family=0, sockType=0, protocol=0, loop=null)
+    return Promise(fun(resolve, reject)
+        uv_dns.getAddrInfo(fun(res, status)
+            if status < 0
+                reject(StatusException(status))
+            else
+                resolve(res)
+            end
+        end, node, service, flags, family, sockType, protocol, loop)
+    end)
+end

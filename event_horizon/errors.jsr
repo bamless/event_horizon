@@ -16,11 +16,11 @@ class LoopExecutionException is EventHorizonException
         
         var numExceptions = #this._exceptions
         if numExceptions > 1
-            print("n")
+            print("\n")
             for var i, exc in this._exceptions.enumerate()
                 exc.printStacktrace()
                 if i != numExceptions - 1
-                    print("n")
+                    print("\n")
                 end
             end
         end
@@ -31,7 +31,7 @@ class LoopExecutionException is EventHorizonException
 
         var numExceptions = #this._exceptions
         if numExceptions > 0
-            chunks.add("nn")
+            chunks.add("\n")
             for var i, exc in this._exceptions.enumerate()
                 chunks.add(exc.getStacktrace())
                 if i != numExceptions - 1

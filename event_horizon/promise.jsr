@@ -47,9 +47,9 @@ class Promise
     end
 
     fun then(onFulfilled, onRejected=null)
-        var outer = this
+        var self = this
         return Promise(fun(resolve, reject)
-            return outer.done(fun(result)
+            return self.done(fun(result)
                 if onFulfilled is Function
                     try
                         return resolve(onFulfilled(result))
@@ -78,22 +78,22 @@ class Promise
     end
 
     fun _doResolve(fn)
-        var outer = this
         var done = false
         try
+            var self = this
             fn(fun(value=null)
                 if done return end
                 done = true
-                outer.resolve(value)
+                self.resolve(value)
             end, fun(exc)
                 if done return end
                 done = true
-                outer.reject(exc)
+                self.reject(exc)
             end)
         except Exception e
             if done return end
             done = true
-            outer.reject(e)
+            this.reject(e)
         end
     end
 

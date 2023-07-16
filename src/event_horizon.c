@@ -18,9 +18,7 @@ inline int getRequestCallback(uv_req_t* req);
 // clang-format off
 static JStarNativeReg registry[] = {
     JSR_REGFUNC(_consts_init, consts_init)
-
     JSR_REGFUNC(getAddrInfo, dns_getAddrInfo)
-
     JSR_REGFUNC(strerror, errors_strerror)
 
     JSR_REGMETH(EventLoop, run, EventLoop_run)
@@ -37,6 +35,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Handle, setSendBufferSize, Handle_setSendBufferSize)
     JSR_REGMETH(Handle, recvBufferSize, Handle_recvBufferSize)
     JSR_REGMETH(Handle, setRecvBufferSize, Handle_setRecvBufferSize)
+    JSR_REGMETH(Handle, fileno, Handle_fileno)
 
     JSR_REGMETH(Stream, write, Stream_write)
     JSR_REGMETH(Stream, tryWrite, Stream_tryWrite)
@@ -81,8 +80,11 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Timer, repeat, Timer_repeat)
     JSR_REGMETH(Timer, dueIn, Timer_dueIn)
 
+    JSR_REGMETH(Pipe, open, Pipe_open)
     JSR_REGMETH(Pipe, bind, Pipe_bind)
     JSR_REGMETH(Pipe, connect, Pipe_connect)
+    JSR_REGMETH(Pipe, sockName, Pipe_sockName)
+    JSR_REGMETH(Pipe, peerName, Pipe_peerName)
 
     JSR_REGEND
 };

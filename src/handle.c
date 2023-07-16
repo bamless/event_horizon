@@ -188,6 +188,21 @@ bool Handle_setRecvBufferSize(JStarVM* vm) {
     return true;
 }
 
+bool Handle_fileno(JStarVM* vm) {
+    uv_handle_t* handle = Handle_getHandle(vm, 0);
+    if(!handle) return false;
+
+    uv_os_fd_t fd;
+    int res = uv_fileno(handle, &fd);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    jsrPushNumber(vm, fd);
+    return true;
+}
+
 bool Handle_getEventLoop(JStarVM* vm, int handleSlot) {
     if(!jsrGetField(vm, handleSlot, M_HANDLE_LOOP)) return false;
     return true;

@@ -1,6 +1,9 @@
+import event_horizon.dns for getAddrInfo
 import event_horizon.errors for StatusException
-import event_horizon.promise for Promise
+import event_horizon.promise for Promise, asResolved
 import event_horizon.stream for Stream
+import event_horizon.utils.ip for getIPType, IPType
+import event_horizon.uv.consts for SockType
 import event_horizon.uv.tcp as uv_tcp
 
 class TCPStream is Stream
@@ -9,20 +12,38 @@ class TCPStream is Stream
     end
 
     fun connect(addr, port)
+        var resolveAddr
+        if getIPType(addr) != IPType.ERROR
+            resolveAddr = asResolved(addr)
+        else
+            resolveAddr = getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_STREAM)
+        end
+
         var self = this
-        return Promise(fun(resolve, reject)
-            self._handle.connect(addr, port, fun(status)
-                if status < 0
-                    reject(StatusException(status))
-                else
-                    resolve()
-                end
+        return resolveAddr.then(fun(ip)
+            var addr = ip if ip is String else ip[0][0]
+            return Promise(fun(resolve, reject)
+                self._handle.connect(addr, port, fun(status)
+                    if status < 0
+                        reject(StatusException(status))
+                    else
+                        resolve()
+                    end
+                end)
             end)
         end)
     end
 
     fun bind(addr, port, ipv6Only=false)
         this._handle.bind(addr, port, ipv6Only)
+    end
+
+    fun sockName()
+        return self._handle.sockName()
+    end
+
+    fun peerName()
+        return self._handle.peerName()
     end
 
     fun _accept(client)

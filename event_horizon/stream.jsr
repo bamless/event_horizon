@@ -9,21 +9,32 @@ import event_horizon.promise for Promise
 static fun handleConnection(client, status, onConnect)
     if status < 0
         raise StatusException(status)
-    else
-        yield onConnect(client)
     end
+    return onConnect(client)
 end
 
 class Stream is Handle
     @abstract(Stream) construct(handle)
         super(handle)
+        this._resolveListen = null
         this._buffer = Deque()
         this._bufferedBytes = 0
     end
 
+    @abstractMethod
+    fun _accept(client) end
+
+    fun close()
+        if this._resolveListen
+            this._resolveListen()
+        end
+        return super()
+    end
+
     fun listen(onConnect, onError=null, backlog=0) 
         var self = this
-        return Promise(fun(_resolve, _reject)
+        return Promise(fun(resolve, _)
+            self._resolveListen = resolve
             self._handle.listen(fun(client, status)
                 handleConnection(self._accept(client), status, onConnect).
                     catch(onError or (|e| => e.printStacktrace()))
@@ -42,6 +53,11 @@ class Stream is Handle
                 end
             end)
         end)
+    end
+
+    fun writeln(data)
+        var self = this
+        return this.write(data).then(|_| => self.write("\n"))
     end
 
     fun tryWrite(data)
@@ -85,6 +101,16 @@ class Stream is Handle
                 end
             end)
         end)
+    end
+
+    @async
+    fun readAll()
+        var chunks = [] 
+        var chunk
+        while chunk = yield this.read()
+            chunks.add(chunk)
+        end
+        return chunks.join()
     end
 
     fun readUntil(separator)
@@ -149,12 +175,8 @@ class Stream is Handle
         return this._handle.getWriteQueueSize()
     end
 
-    @abstractMethod fun _accept(client) end
-
     fun _drainUntil(count)
-        var numChunks = 0
-        var chunksSize = 0
-        
+        var numChunks, chunksSize = 0, 0
         while chunksSize < count
             var chunk = this._buffer.peekFront(numChunks)
             if !chunk
@@ -164,9 +186,7 @@ class Stream is Handle
             numChunks += 1
         end
 
-        var data = this._buffer.take(numChunks).join("")
-        this._clearUpto(numChunks)
-
+        var data = this._bufferTakeFront(numChunks)
         if chunksSize > count
             this._buffer.pushFront(data[count, chunksSize])
             data = data[0, count]
@@ -193,9 +213,7 @@ class Stream is Handle
             return null
         end
 
-        var data = this._buffer.take(numChunks).join("")
-        this._clearUpto(numChunks)
-
+        var data = this._bufferTakeFront(numChunks)
         if chunksSize > sepEnd
             this._buffer.pushFront(data[sepEnd, chunksSize])
             data = data[0, sepEnd]
@@ -209,16 +227,18 @@ class Stream is Handle
         if this._bufferedBytes == 0
             return null
         end
-
-        var data = this._buffer.join("")
+        var data = this._buffer.join()
         this._bufferedBytes = 0
         this._buffer.clear()
         return data
     end
 
-    fun _clearUpto(num)
+    fun _bufferTakeFront(num)
+        var data = this._buffer.take(num).join()
+        // clear the consumed buffer chunks
         for var i = 0; i < num; i += 1
             this._buffer.popFront()
         end
+        return data
     end
 end

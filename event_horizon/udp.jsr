@@ -1,6 +1,9 @@
+import event_horizon.dns for getAddrInfo
 import event_horizon.errors for StatusException
 import event_horizon.handle for Handle
-import event_horizon.promise for Promise
+import event_horizon.promise for Promise, asResolved
+import event_horizon.utils.ip for getIPType, IPType
+import event_horizon.uv.consts for SockType
 import event_horizon.uv.udp as uv_udp
 import event_horizon.uv.udp for Flags, Membership
 
@@ -18,14 +21,24 @@ class UDPSocket is Handle
     end
 
     fun send(data, addr=null, port=null)
+        var resolveAddr
+        if !addr or getIPType(addr) != IPType.ERROR    
+            resolveAddr = asResolved(addr)
+        else
+            resolveAddr = getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_DGRAM)
+        end
+
         var self = this
-        return Promise(fun(resolve, reject)
-            self._handle.send(data, addr, port, fun(status)
-                if status < 0
-                    reject(StatusException(status))
-                else
-                    resolve()
-                end
+        return resolveAddr.then(fun(ip)
+            var addr = ip if !ip or ip is String else ip[0][0]
+            return Promise(fun(resolve, reject)
+                self._handle.send(data, addr, port, fun(status)
+                    if status < 0
+                        reject(StatusException(status))
+                    else
+                        resolve()
+                    end
+                end)
             end)
         end)
     end

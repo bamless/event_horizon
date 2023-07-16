@@ -1,0 +1,55 @@
+#!/usr/bin/env jstar
+
+import io
+import re
+import sys
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.tcp for TCPStream
+
+@async
+fun get(hostname, path, printHeader=false)
+    var s = TCPStream()
+    try
+        yield s.connect(hostname, 80)
+        yield s.write("GET {0} HTTP/1.1\r\nHost: {1}\r\nConnection: close\r\n\r\n" % (path, hostname))
+        
+        var header = yield s.readUntil("\r\n\r\n")
+        if printHeader
+            print("Header:")
+            print(header.strip().split("\r\n").map(|line| => "   " + line).join("\n"))
+        end
+
+        return yield s.readAll()
+    ensure
+        yield s.close()
+    end
+end
+
+@async
+fun main()
+    if #argv != 2
+        io.stderr.writeln("Usage: http-get.jsr url path")
+        sys.exit(-1)
+    end
+
+    var url, out = argv
+    var hostname, path = re.match(re.substituteAll(url, "^.*%://", "", 1), "([^/]*)(/?.*)")
+
+    if hostname == ""
+        io.stderr.writeln("Emtpy hostname")
+        sys.exit(-1)
+    end
+
+    if path == ""
+        path = "/"
+    end
+
+    var page = yield get(hostname, path, true)    
+    with io.File(out, "w") f
+        f.write(page)
+    end
+end
+
+evh.run(main())

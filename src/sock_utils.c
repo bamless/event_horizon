@@ -4,13 +4,8 @@
 
 int initSockaddr(const char* address, int port, sockaddr_union* addr) {
     int res = uv_ip4_addr(address, port, &addr->in4);
-    if(res) {
-        int res = uv_ip6_addr(address, port, &addr->in6);
-        if(res) {
-            return res;
-        }
-    }
-    return res;
+    if(!res) return res;
+    return uv_ip6_addr(address, port, &addr->in6);
 }
 
 bool pushPort(JStarVM* vm, const struct sockaddr* address) {

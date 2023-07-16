@@ -7,6 +7,15 @@ class Pipe is Stream
         super(loop or uv.loop(), HandleType.NAMED_PIPE, ipc)
     end
 
+    fun accept()
+        var client = Pipe(this._loop)
+        this._rawAccept(client.handle())
+        return client
+    end
+
+    native open(fd)
     native bind(name)
     native connect(name, callback=null)
+    native sockName()
+    native peerName()
 end

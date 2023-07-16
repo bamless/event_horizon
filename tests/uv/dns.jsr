@@ -4,9 +4,8 @@ importPaths.insert(0, './tests')
 
 import test for test, run, skip
 
-import re
-
 import event_horizon.errors for EventHorizonException, LoopExecutionException
+import event_horizon.utils.ip for getIPType, IPType
 import event_horizon.uv.errors for strerror 
 import event_horizon.uv as uv
 import event_horizon.uv.event_loop for EventLoop
@@ -41,7 +40,7 @@ fun getAddrInfoFamily()
             called = true
             assert(#res > 0)
             for var ip, port in res
-                assert(re.match(ip, "^%d%d%d?%.%d%d%d?%.%d%d%d?%.%d%d%d?$"))
+                assert(getIPType(ip) == IPType.IPV4)
             end
         end
     end, host, "http", 0, consts.Family.AF_INET)

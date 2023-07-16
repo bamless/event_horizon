@@ -1,0 +1,73 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run, skip
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.dns as dns
+import event_horizon.errors for StatusException
+
+@test
+fun getAddrInfo()
+    var addr
+
+    @async
+    fun test()
+        var res = yield dns.getAddrInfo("www.example.com")
+        addr, = res
+    end
+
+    assert(!addr)
+
+    evh.run(test())
+
+    assert(addr)
+    assert(addr[0] is String)
+    assert(addr[1] == 0)
+end
+
+@test
+fun getAddrInfoFamily()
+    var addr
+
+    @async
+    fun test()
+        var res = yield dns.getAddrInfo("www.example.com", "https")
+        addr, = res
+    end
+
+    assert(!addr)
+
+    evh.run(test())
+
+    assert(addr)
+    assert(addr[0] is String)
+    assert(addr[1] == 443)
+end
+
+@test
+fun getAddrInfoFail()
+    var didThrow = false
+
+    @async
+    fun test()
+        try
+            yield dns.getAddrInfo("thiurldoesnotexist-4efe1693-6196-4a4a-83ff-7308f056c221.it", "https")
+        except StatusException e
+            didThrow = true
+            assert(e.err() == "unknown node or service")
+        end
+    end
+
+    assert(!didThrow)
+
+    evh.run(test())
+
+    assert(didThrow)
+end
+
+if __name__ == '__main__'
+    run()
+end

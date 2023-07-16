@@ -36,9 +36,9 @@ target_link_libraries(event_horizon PUBLIC jstar::jstar libuv)
 target_compile_definitions(event_horizon PRIVATE jstar_EXPORTS)
 target_compile_options(event_horizon
     PRIVATE
-        $<$<CXX_COMPILER_ID:MSVC>:/W3>
-        $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra>
-        $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra>
+        $<$<C_COMPILER_ID:MSVC>:/W3>
+        $<$<C_COMPILER_ID:Clang>:-Wall -Wextra>
+        $<$<C_COMPILER_ID:GNU>:-Wall -Wextra>
 )
 
 if(LTO)

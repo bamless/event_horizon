@@ -1,0 +1,43 @@
+import event_horizon.errors for StatusException
+import event_horizon.promise for Promise
+import event_horizon.stream for Stream
+import event_horizon.uv.pipe as uv_pipe
+
+class PipeStream is Stream
+    construct(ipc=false, loop=null, pipe=null)
+        super(pipe or uv_pipe.Pipe(ipc, loop))
+    end
+
+    fun bind(name)
+        this._handle.bind(name)
+    end
+
+    fun connect(name)
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.connect(name, fun(status)
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve()
+                end
+            end)
+        end)
+    end
+
+    fun open(fd)
+        this._handle.open(fd)
+    end
+
+    fun sockName()
+        return this._handle.sockName(name)
+    end
+
+    fun peerName()
+        return this._handle.peerName(name)
+    end
+
+    fun _accept(client)
+        return PipeStream(false, this._handle.loop(), client)
+    end
+end
