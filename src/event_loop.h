@@ -5,8 +5,6 @@
 #include <stdbool.h>
 #include <uv.h>
 
-#include "event_horizon.h"
-
 bool getEventLoopFromId(JStarVM* vm, int loopId);
 
 // class EventLoop

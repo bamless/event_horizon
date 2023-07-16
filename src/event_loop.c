@@ -4,6 +4,7 @@
 
 #include "callbacks.h"
 #include "errors.h"
+#include "event_horizon.h"
 
 bool getEventLoopFromId(JStarVM* vm, int loopId) {
     if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", "getEventLoop")) return false;

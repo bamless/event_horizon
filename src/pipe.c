@@ -6,7 +6,6 @@
 #include "callbacks.h"
 #include "errors.h"
 #include "handle.h"
-#include "sock_utils.h"
 
 // class Pipe
 bool Pipe_open(JStarVM* vm) {

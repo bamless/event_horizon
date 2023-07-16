@@ -1,5 +1,3 @@
-#include "event_horizon.h"
-
 #include "consts.h"
 #include "dns.h"
 #include "errors.h"

@@ -5,7 +5,6 @@
 #include "callbacks.h"
 #include "errors.h"
 #include "event_horizon.h"
-#include "event_loop.h"
 #include "handle.h"
 #include "sock_utils.h"
 
