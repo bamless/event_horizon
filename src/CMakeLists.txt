@@ -45,21 +45,15 @@ if(LTO)
     set_target_properties(event_horizon PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
+# Copy the built shared librarty to the `event_horizon/uv` folder
 add_custom_command(TARGET event_horizon POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:event_horizon> 
             ${PROJECT_SOURCE_DIR}/event_horizon/uv
 )
 
-# Install the shared library
-install(TARGETS event_horizon LIBRARY 
-    DESTINATION lib/jstar/event_horizon
-)
-
-# Install J* source files
+# Install event_horizon
+include(GNUInstallDirs)
 install(DIRECTORY
     ${PROJECT_SOURCE_DIR}/event_horizon
-    DESTINATION lib/jstar
-    PATTERN "*.so"    EXCLUDE
-    PATTERN "*.dll"   EXCLUDE
-    PATTERN "*.dylib" EXCLUDE
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/jstar
 )
