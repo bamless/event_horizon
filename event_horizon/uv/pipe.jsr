@@ -4,11 +4,12 @@ import event_horizon.uv.stream for Stream
 
 class Pipe is Stream
     construct(ipc=false, loop=null)
+        typeAssert(ipc, Boolean, "ipc")
         super(loop or uv.loop(), HandleType.NAMED_PIPE, ipc)
     end
 
     fun accept()
-        var client = Pipe(this._loop)
+        var client = Pipe(false, this._loop)
         this._rawAccept(client.handle())
         return client
     end
