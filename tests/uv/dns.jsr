@@ -4,7 +4,7 @@ importPaths.insert(0, './tests')
 
 import test for test, run, skip
 
-import event_horizon.errors for EventHorizonException, LoopExecutionException
+import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
 import event_horizon.utils.ip for getIPType, IPType
 import event_horizon.uv.errors for strerror 
 import event_horizon.uv as uv
