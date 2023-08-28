@@ -6,9 +6,6 @@ class Stream is Handle
         super(loop, streamType, ...args)
     end
     
-    @abstractMethod
-    fun accept() end
-
     fun listen(callback, backlog=0)
         var stream = this
         this._rawListen(fun(status)
@@ -29,6 +26,9 @@ class Stream is Handle
     native isReadable()
     native isWritable()
     native getWriteQueueSize()
+
+    @abstractMethod
+    fun accept() end
 
     native _rawListen(callback, backlog)
     native _rawAccept(client)

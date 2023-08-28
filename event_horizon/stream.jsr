@@ -21,9 +21,6 @@ class Stream is Handle
         this._bufferedBytes = 0
     end
 
-    @abstractMethod
-    fun _accept(client) end
-
     fun close()
         if this._resolveListen
             this._resolveListen()
@@ -241,4 +238,7 @@ class Stream is Handle
         end
         return data
     end
+
+    @abstractMethod
+    fun _accept(client) end
 end
