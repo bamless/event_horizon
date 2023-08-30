@@ -172,6 +172,9 @@ class Stream is Handle
         return this._handle.getWriteQueueSize()
     end
 
+    @abstractMethod
+    fun _accept(client) end
+
     fun _drainUntil(count)
         var numChunks, chunksSize = 0, 0
         while chunksSize < count
@@ -185,16 +188,16 @@ class Stream is Handle
 
         var data = this._bufferTakeFront(numChunks)
         if chunksSize > count
-            this._buffer.pushFront(data[count, chunksSize])
-            data = data[0, count]
+            this._bufferPushFront(data[count, chunksSize])
+            return data[0, count]
+        else
+            return data
         end
-
-        this._bufferedBytes -= count
-        return data
     end
 
     fun _drainUntilSep(separator)
-        var sepEnd, chunksSize, numChunks = -1, 0, 0
+        var sepEnd = -1
+        var chunksSize, numChunks = 0, 0
 
         var chunk
         while (chunk = this._buffer.peekFront(numChunks)) and sepEnd == -1
@@ -212,12 +215,11 @@ class Stream is Handle
 
         var data = this._bufferTakeFront(numChunks)
         if chunksSize > sepEnd
-            this._buffer.pushFront(data[sepEnd, chunksSize])
-            data = data[0, sepEnd]
+            this._bufferPushFront(data[sepEnd, chunksSize])
+            return data[0, sepEnd]
+        else
+            return data
         end
-
-        this._bufferedBytes -= sepEnd
-        return data
     end
 
     fun _drainAll()
@@ -230,15 +232,27 @@ class Stream is Handle
         return data
     end
 
-    fun _bufferTakeFront(num)
-        var data = this._buffer.take(num).join()
-        // clear the consumed buffer chunks
-        for var i = 0; i < num; i += 1
-            this._buffer.popFront()
-        end
+    fun _bufferPushBack(data)
+        this._buffer.pushBack(data)
+        this._bufferedBytes += #data
+    end
+
+    fun _bufferPushFront(data)
+        this._buffer.pushFront(data)
+        this._bufferedBytes += #data
+    end
+
+    fun _bufferPopFront()
+        var data = this._buffer.popFront()
+        this._bufferedBytes -= #data
         return data
     end
 
-    @abstractMethod
-    fun _accept(client) end
+    fun _bufferTakeFront(num)
+        var data = this._buffer.take(num).join()
+        for var i = 0; i < num; i += 1
+            this._bufferPopFront()
+        end
+        return data
+    end
 end
