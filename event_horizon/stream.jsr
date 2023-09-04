@@ -88,8 +88,7 @@ class Stream is Handle
                     return
                 end
 
-                self._buffer.pushBack(data)
-                self._bufferedBytes += #data
+                self._bufferPushBack(data)
                 var dataChunk = self._drainUntil(count)
 
                 if dataChunk
@@ -131,8 +130,7 @@ class Stream is Handle
                     return
                 end
 
-                self._buffer.pushBack(data)
-                self._bufferedBytes += #data
+                self._bufferPushBack(data)
                 var dataChunk = self._drainUntilSep(separator)
 
                 if dataChunk
