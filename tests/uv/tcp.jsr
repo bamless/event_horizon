@@ -59,7 +59,7 @@ fun connectThrows()
     tcp.connect("0.0.0.0", 80, fun(status)
         assert(status is Number)
         tcp.close()
-        print(doesNotExist)
+        raise NameException()
     end)
 
     var didThrow = false
@@ -78,7 +78,7 @@ fun connectMultipleThrows()
     var tcp1 = TCP()
     tcp1.connect("0.0.0.0", 80, fun(status)
         tcp1.close()
-        print(doesNotExist)
+        raise NameException()
     end)
 
     var tcp2 = TCP()

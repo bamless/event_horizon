@@ -141,7 +141,6 @@ fun recvStartFail()
 
     c.send("foo", "127.0.0.1", 8080, fun(status)
         if status < 0
-            s.close()
             c.close()
             raise StatusException(status)
         end
@@ -174,7 +173,6 @@ fun recvStop()
 
     c.send("foo", "127.0.0.1", 8080, fun(status)
         if status < 0
-            s.close()
             c.close()
             raise StatusException(status)
         end
@@ -182,7 +180,6 @@ fun recvStop()
 
     c.send("bar", "127.0.0.1", 8080, fun(status)
         if status < 0
-            s.close()
             c.close()
             raise StatusException(status)
         end

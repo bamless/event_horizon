@@ -30,11 +30,11 @@ class PipeStream is Stream
     end
 
     fun sockName()
-        return this._handle.sockName(name)
+        return this._handle.sockName()
     end
 
     fun peerName()
-        return this._handle.peerName(name)
+        return this._handle.peerName()
     end
 
     fun _accept(client)

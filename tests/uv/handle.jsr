@@ -6,7 +6,7 @@ import test for test, run, skip
 
 import server_utils for spawnTCPServer
 
-import event_horizon.errors for EventHorizonException, LoopExecutionException
+import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
 import event_horizon.uv as uv
 import event_horizon.uv.event_loop for EventLoop
 import event_horizon.uv.tcp for TCP
@@ -90,14 +90,14 @@ fun closeThrows()
 
     assert(numHandles(), "Handle was not registered in the registry")
 
-    tcp.close(|| => print(doesNotExist))
+    tcp.close(fun() raise Exception() end)
     
     var didThrow = false
     try
         uv.loop().run()
     except LoopExecutionException e
         didThrow = true
-        assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
+        assert(e.cause() is Exception, "Chained exception is of wrong type: {0}" % type(e.cause()))
     end
 
     assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
@@ -110,7 +110,7 @@ fun closeMultipleThrows()
 
     assert(numHandles(), "Handle was not registered in the registry")
 
-    tcp1.close(fun() print(doesNotExist) end)
+    tcp1.close(fun() raise InvalidArgException() end)
 
     var tcp2 = TCP()
     tcp2.close(fun() raise TypeException() end)
@@ -122,7 +122,7 @@ fun closeMultipleThrows()
         didThrow = true
         var exceptions = e.exceptions()
         assert(#exceptions == 2, "Too many exceptions: {0}" % #exceptions)
-        assert(exceptions.find(|e| => e is NameException), "Expected to find a `NameException`")
+        assert(exceptions.find(|e| => e is InvalidArgException), "Expected to find a `NameException`")
         assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
     end
 

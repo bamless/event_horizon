@@ -39,11 +39,11 @@ class TCPStream is Stream
     end
 
     fun sockName()
-        return self._handle.sockName()
+        return this._handle.sockName()
     end
 
     fun peerName()
-        return self._handle.peerName()
+        return this._handle.peerName()
     end
 
     fun _accept(client)

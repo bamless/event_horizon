@@ -52,7 +52,7 @@ fun listenOnError()
         yield server.listen(async(fun(client)
             yield client.close()
             yield server.close()
-            print(doesNotExist)
+            raise NameException()
         end), fun(exc)
             onErrorCalled = true
             assert(exc is NameException)

@@ -32,7 +32,7 @@ class Handle
     end
 
     fun recvBufferSize()
-        return this._handle.recvBufferSize(size)
+        return this._handle.recvBufferSize()
     end
 
     fun setRecvBufferSize(size)
