@@ -23,19 +23,15 @@ var HandleType = Enum(
 )
 
 class Handle
-    @abstract(Handle) construct(loop, handleType, ...args)
+    @abstract(Handle) construct(loop, handle)
         this._loop = loop
-        this._handleType = handleType
+        this._handle = handle
         this._callbacks = Registry()
-        this._init(loop, handleType, ...args)
-    end
-
-    fun handleType()
-        return this._handleType
+        this._init(loop, handle)
     end
 
     fun handleTypeName()
-        return HandleType.name(this._handleType)
+        return HandleType.name(this.handleType())
     end
 
     fun handle()
@@ -54,5 +50,6 @@ class Handle
     native recvBufferSize()
     native setRecvBufferSize(size)
     native fileno()
+    native handleType()
     native _init(loop, handleType, ...args)
 end

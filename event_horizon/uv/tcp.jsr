@@ -1,10 +1,12 @@
 import event_horizon.uv as uv
-import event_horizon.uv.handle for HandleType 
 import event_horizon.uv.stream for Stream
+
+static native uvTCP(loop)
 
 class TCP is Stream
     construct(loop=null)
-        super(loop or uv.loop(), HandleType.TCP)
+        loop = loop or uv.loop()
+        super(loop, uvTCP(loop))
     end
 
     fun accept()

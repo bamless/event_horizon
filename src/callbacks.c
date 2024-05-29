@@ -1,10 +1,12 @@
 #include "callbacks.h"
 
 #include "dns.h"
-#include "event_horizon.h"
 #include "event_loop.h"
 #include "handle.h"
 #include "sock_utils.h"
+
+inline void setRequestCallback(uv_req_t* req, int callbackId);
+inline int getRequestCallback(uv_req_t* req);
 
 static bool tryGetEventLoop(JStarVM* vm, int loopId) {
     if(!getEventLoopFromId(vm, loopId)) {
@@ -242,7 +244,7 @@ void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res
         freeaddrinfo(res);
         return;
     }
-    
+
     if(!dns_getCallback(vm, true, callbackId)) {
         freeaddrinfo(res);
         EventLoop_addException(vm, -1);
@@ -274,7 +276,7 @@ void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res
     freeaddrinfo(res);
 
     jsrPushNumber(vm, status);
-    
+
     if(jsrCall(vm, 2) != JSR_SUCCESS) {
         EventLoop_addException(vm, -1);
     }

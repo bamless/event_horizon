@@ -1,3 +1,5 @@
+#include <jstar/jstar.h>
+
 #include "consts.h"
 #include "dns.h"
 #include "errors.h"
@@ -9,9 +11,6 @@
 #include "tcp.h"
 #include "timer.h"
 #include "udp.h"
-
-inline void setRequestCallback(uv_req_t* req, int callbackId);
-inline int getRequestCallback(uv_req_t* req);
 
 // clang-format off
 static JStarNativeReg registry[] = {
@@ -34,6 +33,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Handle, recvBufferSize, Handle_recvBufferSize)
     JSR_REGMETH(Handle, setRecvBufferSize, Handle_setRecvBufferSize)
     JSR_REGMETH(Handle, fileno, Handle_fileno)
+    JSR_REGMETH(Handle, handleType, Handle_handleType)
 
     JSR_REGMETH(Stream, write, Stream_write)
     JSR_REGMETH(Stream, tryWrite, Stream_tryWrite)
@@ -50,6 +50,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(TCP, bind, TCP_bind)
     JSR_REGMETH(TCP, sockName, TCP_sockName)
     JSR_REGMETH(TCP, peerName, TCP_peerName)
+    JSR_REGFUNC(uvTCP, uvTCP)
 
     JSR_REGMETH(UDP, bind, UDP_bind)
     JSR_REGMETH(UDP, connect, UDP_connect)
@@ -67,9 +68,11 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(UDP, setMulticastTTL, UDP_setMulticastTTL)
     JSR_REGMETH(UDP, setMulticastInterface, UDP_setMulticastInterface)
     JSR_REGMETH(UDP, setBroadcast, UDP_setBroadcast)
+    JSR_REGFUNC(uvUDP, uvUDP)
 
     JSR_REGMETH(Idle, start, Idle_start)
     JSR_REGMETH(Idle, stop, Idle_stop)
+    JSR_REGFUNC(uvIdle, uvIdle)
 
     JSR_REGMETH(Timer, start, Timer_start)
     JSR_REGMETH(Timer, stop, Timer_stop)
@@ -77,12 +80,14 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Timer, setRepeat, Timer_setRepeat)
     JSR_REGMETH(Timer, repeat, Timer_repeat)
     JSR_REGMETH(Timer, dueIn, Timer_dueIn)
+    JSR_REGFUNC(uvTimer, uvTimer)
 
     JSR_REGMETH(Pipe, open, Pipe_open)
     JSR_REGMETH(Pipe, bind, Pipe_bind)
     JSR_REGMETH(Pipe, connect, Pipe_connect)
     JSR_REGMETH(Pipe, sockName, Pipe_sockName)
     JSR_REGMETH(Pipe, peerName, Pipe_peerName)
+    JSR_REGFUNC(uvPipe, uvPipe)
 
     JSR_REGEND
 };

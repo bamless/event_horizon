@@ -5,7 +5,6 @@
 
 #include "callbacks.h"
 #include "errors.h"
-#include "event_horizon.h"
 #include "handle.h"
 
 typedef struct {

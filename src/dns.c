@@ -3,7 +3,6 @@
 #include <string.h>
 #include <uv.h>
 
-#include "event_horizon.h"
 #include "callbacks.h"
 #include "event_loop.h"
 #include "errors.h"

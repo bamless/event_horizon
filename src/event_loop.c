@@ -128,6 +128,7 @@ int EventLoop_getId(JStarVM* vm, int eventLoopSlot) {
 int EventLoop_registerHandle(JStarVM* vm, int handleSlot, int eventLoopSlot) {
     jsrPushValue(vm, eventLoopSlot);
     if(!jsrGetField(vm, -1, M_LOOP_HANDLES)) return -1;
+
     jsrPushValue(vm, handleSlot);
     if(jsrCallMethod(vm, "ref", 1) != JSR_SUCCESS) return -1;
 

@@ -11,6 +11,8 @@ typedef struct HandleMetadata {
     int callbacks[NUM_CB];
 } HandleMetadata;
 
+uv_handle_t* pushLibUVHandle(JStarVM* vm, size_t size);
+
 // class Handle
 #define M_HANDLE_LOOP      "_loop"
 #define M_HANDLE_HANDLE    "_handle"
@@ -26,6 +28,7 @@ bool Handle_setSendBufferSize(JStarVM* vm);
 bool Handle_recvBufferSize(JStarVM* vm);
 bool Handle_setRecvBufferSize(JStarVM* vm);
 bool Handle_fileno(JStarVM* vm);
+bool Handle_handleType(JStarVM* vm);
 
 // Uiility methods to be called from natives
 bool Handle_getEventLoop(JStarVM* vm, int handleSlot);

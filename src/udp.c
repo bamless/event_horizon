@@ -5,11 +5,10 @@
 
 #include "callbacks.h"
 #include "errors.h"
-#include "event_horizon.h"
+#include "event_loop.h"
 #include "handle.h"
 #include "sock_utils.h"
 
-// class UDP
 bool UDP_bind(JStarVM* vm) {
     JSR_CHECK(String, 1, "addr");
     JSR_CHECK(Int, 2, "port");
@@ -395,4 +394,11 @@ bool UDP_setBroadcast(JStarVM* vm) {
     jsrPushNull(vm);
     return true;
 }
-// end
+
+bool uvUDP(JStarVM* vm) {
+    uv_udp_t* handle = (uv_udp_t*)pushLibUVHandle(vm, sizeof(uv_udp_t));
+    uv_loop_t* loop = EventLoop_getUVLoop(vm, 1);
+    if(!loop) return false;
+    uv_udp_init(loop, handle);
+    return true;
+}

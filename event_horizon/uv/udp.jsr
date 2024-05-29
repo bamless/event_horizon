@@ -1,5 +1,5 @@
 import event_horizon.uv as uv
-import event_horizon.uv.handle for Handle, HandleType
+import event_horizon.uv.handle for Handle
 
 var Flags = Enum{
     /// Disables dual stack mode.
@@ -43,9 +43,12 @@ var Membership = Enum(
     'JOIN_GROUP'
 )
 
+static native uvUDP(loop)
+
 class UDP is Handle
     construct(loop=null)
-        super(loop or uv.loop(), HandleType.UDP)
+        loop = loop or uv.loop()
+        super(loop, uvUDP(loop))
     end
 
     native bind(addr, port, flags=0)

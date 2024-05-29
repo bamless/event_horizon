@@ -11,4 +11,6 @@ bool Pipe_sockName(JStarVM* vm);
 bool Pipe_peerName(JStarVM* vm);
 // end
 
+bool uvPipe(JStarVM* vm);
+
 #endif

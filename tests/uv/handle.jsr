@@ -9,11 +9,42 @@ import server_utils for spawnTCPServer
 import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
 import event_horizon.uv as uv
 import event_horizon.uv.event_loop for EventLoop
+import event_horizon.uv.handle for HandleType
 import event_horizon.uv.tcp for TCP
+import event_horizon.uv.udp for UDP
+import event_horizon.uv.pipe for Pipe
+import event_horizon.uv.idle for Idle
+import event_horizon.uv.timer for Timer
 
 fun numHandles(loop=null)
     loop = loop or uv.loop()
     return #loop._handles
+end
+
+@test
+fun handleType()
+    var tcp = TCP()
+    assert(tcp.handleType() == HandleType.TCP)
+
+    var udp = UDP()
+    assert(udp.handleType() == HandleType.UDP)
+
+    var pipe = Pipe()
+    assert(pipe.handleType() == HandleType.NAMED_PIPE)
+
+    var idle = Idle()
+    assert(idle.handleType() == HandleType.IDLE)
+
+    var timer = Timer()
+    assert(timer.handleType() == HandleType.TIMER)
+
+    tcp.close()
+    udp.close()
+    pipe.close()
+    idle.close()
+    timer.close()
+
+    uv.loop().run()
 end
 
 @test

@@ -1,11 +1,12 @@
 #include "pipe.h"
 
 #include <assert.h>
+#include <jstar/jstar.h>
 #include <uv.h>
 
 #include "callbacks.h"
-#include "event_horizon.h"
 #include "errors.h"
+#include "event_loop.h"
 #include "handle.h"
 
 // class Pipe
@@ -55,7 +56,7 @@ bool Pipe_connect(JStarVM* vm) {
     if(!pipe) return false;
 
     uv_connect_t* req = malloc(sizeof(*req));
-    
+
     int callbackId = -1;
     if(!jsrIsNull(vm, 2)) {
         callbackId = Handle_registerCallbackWithId(vm, 2, 0);
@@ -117,4 +118,15 @@ bool Pipe_peerName(JStarVM* vm) {
     jsrBufferPush(&buf);
     return true;
 }
-//end
+// end
+
+bool uvPipe(JStarVM* vm) {
+    JSR_CHECK(Boolean, 2, "ipc");
+
+    uv_pipe_t* handle = (uv_pipe_t*)pushLibUVHandle(vm, sizeof(uv_pipe_t));
+    uv_loop_t* loop = EventLoop_getUVLoop(vm, 1);
+    if(!loop) return false;
+
+    uv_pipe_init(loop, handle, jsrGetBoolean(vm, 2));
+    return true;
+}

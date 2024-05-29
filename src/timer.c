@@ -5,9 +5,9 @@
 
 #include "callbacks.h"
 #include "errors.h"
+#include "event_loop.h"
 #include "handle.h"
 
-// class Timer
 bool Timer_start(JStarVM* vm) {
     JSR_CHECK(Int, 1, "timeout");
     JSR_CHECK(Int, 2, "repeat");
@@ -88,4 +88,11 @@ bool Timer_dueIn(JStarVM* vm) {
     jsrPushNumber(vm, dueIn);
     return true;
 }
-// end
+
+bool uvTimer(JStarVM* vm) {
+    uv_timer_t* handle = (uv_timer_t*)pushLibUVHandle(vm, sizeof(uv_timer_t));
+    uv_loop_t* loop = EventLoop_getUVLoop(vm, 1);
+    if(!loop) return false;
+    uv_timer_init(loop, handle);
+    return true;
+}

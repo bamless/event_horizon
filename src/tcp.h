@@ -10,4 +10,6 @@ bool TCP_sockName(JStarVM* vm);
 bool TCP_peerName(JStarVM* vm);
 // end
 
+bool uvTCP(JStarVM* vm);
+
 #endif

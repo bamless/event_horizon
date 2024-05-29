@@ -12,4 +12,6 @@ bool Timer_repeat(JStarVM* vm);
 bool Timer_dueIn(JStarVM* vm);
 // end
 
+bool uvTimer(JStarVM* vm);
+
 #endif

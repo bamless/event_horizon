@@ -30,8 +30,8 @@ bool EventLoop_walk(JStarVM* vm);
 int EventLoop_getId(JStarVM* vm, int eventLoopSlot);
 uv_loop_t* EventLoop_getUVLoop(JStarVM* vm, int eventLoopSlot);
 int EventLoop_registerHandle(JStarVM* vm, int handleSlot, int eventLoopSlot);
-bool EventLoop_getHandle(JStarVM* vm, int handleId, int eventLoopSlot);
 bool EventLoop_unregisterHandle(JStarVM* vm, int handleId, int eventLoopSlot);
+bool EventLoop_getHandle(JStarVM* vm, int handleId, int eventLoopSlot);
 void EventLoop_addException(JStarVM* vm, int exceptionSlot);
 // end
 

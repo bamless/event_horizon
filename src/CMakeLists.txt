@@ -8,7 +8,6 @@ add_library(event_horizon SHARED
     errors.h
     errors.c
     event_horizon.c
-    event_horizon.h
     event_loop.h
     event_loop.c
     handle.h

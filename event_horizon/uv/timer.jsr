@@ -1,9 +1,12 @@
 import event_horizon.uv as uv
 import event_horizon.uv.handle for Handle, HandleType
 
+static native uvTimer(loop)
+
 class Timer is Handle
     construct(loop=null)
-        super(loop or uv.loop(), HandleType.TIMER)
+        loop = loop or uv.loop()
+        super(loop, uvTimer(loop))
     end
 
     native start(timeout, repeat, callback)

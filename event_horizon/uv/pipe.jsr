@@ -1,11 +1,12 @@
 import event_horizon.uv as uv
-import event_horizon.uv.handle for HandleType
 import event_horizon.uv.stream for Stream
+
+static native uvPipe(loop, ipc)
 
 class Pipe is Stream
     construct(ipc=false, loop=null)
-        typeAssert(ipc, Boolean, "ipc")
-        super(loop or uv.loop(), HandleType.NAMED_PIPE, ipc)
+        loop = loop or uv.loop()
+        super(loop or uv.loop(), uvPipe(loop, ipc))
     end
 
     fun accept()

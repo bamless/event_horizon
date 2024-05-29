@@ -1,9 +1,12 @@
 import event_horizon.uv as uv
 import event_horizon.uv.handle for Handle, HandleType
 
+static native uvIdle(loop)
+
 class Idle is Handle
     construct(loop=null)
-        super(loop or uv.loop(), HandleType.IDLE)
+        loop = loop or uv.loop()
+        super(loop, uvIdle(loop))
     end
 
     native start(callback)

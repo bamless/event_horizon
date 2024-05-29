@@ -22,4 +22,6 @@ bool UDP_setMulticastInterface(JStarVM* vm);
 bool UDP_setBroadcast(JStarVM* vm);
 // end
 
+bool uvUDP(JStarVM* vm);
+
 #endif

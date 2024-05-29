@@ -4,6 +4,7 @@
 
 #include "callbacks.h"
 #include "errors.h"
+#include "event_loop.h"
 #include "handle.h"
 
 bool Idle_start(JStarVM* vm) {
@@ -39,5 +40,13 @@ bool Idle_stop(JStarVM* vm) {
 
     uv_idle_stop(idle);
     jsrPushNull(vm);
+    return true;
+}
+
+bool uvIdle(JStarVM* vm) {
+    uv_idle_t* handle = (uv_idle_t*)pushLibUVHandle(vm, sizeof(uv_idle_t));
+    uv_loop_t* loop = EventLoop_getUVLoop(vm, 1);
+    if(!loop) return false;
+    uv_idle_init(loop, handle);
     return true;
 }

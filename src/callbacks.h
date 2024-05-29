@@ -14,6 +14,14 @@ typedef enum CallbackType {
     NUM_CB,
 } CallbackType;
 
+inline void setRequestCallback(uv_req_t* req, int callbackId) {
+    req->data = (void*)(uintptr_t)callbackId;
+}
+
+inline int getRequestCallback(uv_req_t* req) {
+    return (int)(uintptr_t)req->data;
+}
+
 void closeCallback(uv_handle_t* handle);
 void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int status);
 void connectCallback(uv_connect_t* req, int status);

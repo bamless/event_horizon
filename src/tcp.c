@@ -4,11 +4,10 @@
 
 #include "callbacks.h"
 #include "errors.h"
-#include "event_horizon.h"
+#include "event_loop.h"
 #include "handle.h"
 #include "sock_utils.h"
 
-// class TCP
 bool TCP_connect(JStarVM* vm) {
     JSR_CHECK(String, 1, "addr");
     JSR_CHECK(Int, 2, "port");
@@ -132,4 +131,11 @@ bool TCP_peerName(JStarVM* vm) {
     jsrPushTuple(vm, 2);
     return true;
 }
-// end
+
+bool uvTCP(JStarVM* vm) {
+    uv_tcp_t* handle = (uv_tcp_t*)pushLibUVHandle(vm, sizeof(uv_tcp_t));
+    uv_loop_t* loop = EventLoop_getUVLoop(vm, 1);
+    if(!loop) return false;
+    uv_tcp_init(loop, handle);
+    return true;
+}
