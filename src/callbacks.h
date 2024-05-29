@@ -4,6 +4,16 @@
 #include <jstar/jstar.h>
 #include <uv.h>
 
+typedef enum CallbackType {
+    CLOSE_CB,
+    READ_CB,
+    RECV_CB,
+    CONNECT_CB,
+    IDLE_CB,
+    TIMER_CB,
+    NUM_CB,
+} CallbackType;
+
 void closeCallback(uv_handle_t* handle);
 void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int status);
 void connectCallback(uv_connect_t* req, int status);

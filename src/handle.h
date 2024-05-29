@@ -4,7 +4,12 @@
 #include <jstar/jstar.h>
 #include <uv.h>
 
-#include "event_horizon.h"
+#include "callbacks.h"
+
+typedef struct HandleMetadata {
+    int handleId;
+    int callbacks[NUM_CB];
+} HandleMetadata;
 
 // class Handle
 #define M_HANDLE_LOOP      "_loop"

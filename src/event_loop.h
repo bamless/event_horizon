@@ -5,6 +5,11 @@
 #include <stdbool.h>
 #include <uv.h>
 
+typedef struct LoopMetadata {
+    JStarVM* vm;
+    int loopId;
+} LoopMetadata;
+
 bool getEventLoopFromId(JStarVM* vm, int loopId);
 
 // class EventLoop

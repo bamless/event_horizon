@@ -4,6 +4,7 @@
 #include <uv.h>
 
 #include "callbacks.h"
+#include "event_horizon.h"
 #include "errors.h"
 #include "handle.h"
 

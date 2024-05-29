@@ -4,7 +4,6 @@
 
 #include "callbacks.h"
 #include "errors.h"
-#include "event_horizon.h"
 #include "handle.h"
 
 bool Idle_start(JStarVM* vm) {

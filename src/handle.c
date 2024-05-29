@@ -2,7 +2,6 @@
 
 #include "callbacks.h"
 #include "errors.h"
-#include "event_horizon.h"
 #include "event_loop.h"
 
 // class Handle
