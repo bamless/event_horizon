@@ -1,5 +1,5 @@
 import event_horizon.uv as uv
-import event_horizon.uv.handle for Handle, HandleType
+import event_horizon.uv.handle for Handle
 
 static native uvTimer(loop)
 
