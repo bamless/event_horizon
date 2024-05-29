@@ -9,7 +9,6 @@
 #include "event_loop.h"
 #include "handle.h"
 
-// class Pipe
 bool Pipe_open(JStarVM* vm) {
     JSR_CHECK(Number, 1, "fd");
 
@@ -118,7 +117,6 @@ bool Pipe_peerName(JStarVM* vm) {
     jsrBufferPush(&buf);
     return true;
 }
-// end
 
 bool uvPipe(JStarVM* vm) {
     JSR_CHECK(Boolean, 2, "ipc");
