@@ -12,6 +12,7 @@ fun server()
         
         while true
             var data, addr, port = yield sock.recv()
+            print("Received data from {0}:{1}" % (addr, port))
             yield sock.send(data, addr, port)
         end
     ensure
