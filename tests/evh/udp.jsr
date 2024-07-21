@@ -163,6 +163,46 @@ fun echo()
     assert(serverRecv and clientRecv)
 end
 
+@test
+fun echoPromise()
+    var serverRecv, clientRecv = false, false
+
+    fun server()
+        var udp = UDPSocket()
+        udp.bind("0.0.0.0", 8080)
+
+        return udp.recv().then(fun((data, addr, port))
+            serverRecv = true
+
+            assert(data == "Hello, World!")
+            assert(addr == "127.0.0.1")
+
+            return udp.send(data, addr, port)
+        end).then(fun(_)
+            return udp.close()
+        end)
+    end
+
+    fun client()
+        var udp = UDPSocket()
+        return udp.send("Hello, World!", "127.0.0.1", 8080).then(fun(_)
+            return udp.recv()
+        end).then(fun((data, addr, port))
+            clientRecv = true
+
+            assert(data == "Hello, World!")
+            assert(addr == "127.0.0.1")
+            assert(port == 8080)
+
+            return udp.close()
+        end)
+    end
+
+    evh.run(all([server(), client()]))
+
+    assert(serverRecv and clientRecv)
+end
+
 if __name__ == "__main__"
     run()
 end

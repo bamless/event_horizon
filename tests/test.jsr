@@ -1,4 +1,5 @@
 import io
+import sys
 
 static var tests = []
 
@@ -13,20 +14,33 @@ fun skip(fn)
 end
 
 fun run()
-    for var fn in tests
-        if !fn
-            continue
-        end
+    var numTests = #tests
+
+    print("========")
+    print("Running {0} tests" % numTests)
+    print("========")
+    print("")
+
+    var numPassed = 0
+    for var idx, fn in tests.enumerate()
+        print("[{0}%] Running test {1}()" % (std.int((idx + 1) / numTests * 100), fn.getName()))
 
         try
             fn()
-            print("Test function {0}() passed" % fn.getName())
+            numPassed += 1
         except Exception e
             if !(e is ProgramInterrupt)
-                io.stderr.writeln("Test function {0}() failed with: {1}({2})" % (fn.getName(), type(e).getName(), e.err())) 
+                io.stderr.writeln("Test {0}() failed with: {1}({2})" % (fn.getName(), type(e).getName(), e.err())) 
                 io.stderr.writeln(e.getStacktrace())
                 io.stderr.write('\n')
             end
         end
     end
+
+    print("")
+    print("Tests done")
+    print("Passed:", numPassed)
+    print("Failed:", numTests - numPassed)
+
+    sys.exit(0 if numPassed == numTests else 1)
 end

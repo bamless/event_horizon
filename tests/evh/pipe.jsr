@@ -139,6 +139,42 @@ fun writeRead()
 end
 
 @test
+fun writeReadPromise()
+    fun server()
+        var server = PipeStream()
+        server.bind("test_pipe")
+
+        return server.listen(fun(client)
+            return client.read().then(fun(data)
+                return client.write(data)
+            end).then(fun(_)
+                return client.close()
+            end).then(fun(_)
+                return server.close()
+            end)
+        end)
+    end
+
+    var data
+
+    fun client()
+        var client = PipeStream()
+        return client.connect("test_pipe").then(fun(_)
+            return client.write("Hello, World!")
+        end).then(fun(_)
+            return client.read()
+        end).then(fun(d)
+            data = d
+            return client.close()
+        end)
+    end
+
+    evh.run(all([server(), client()]))
+
+    assert(data == "Hello, World!")
+end
+
+@test
 fun writeReadCount()
     @async
     fun server()

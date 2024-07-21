@@ -42,34 +42,30 @@ class Promise
         end
     end
 
-    fun done(onFulfilled, onRejected)
-        this._handle((onFulfilled, onRejected))
-    end
-
     fun then(onFulfilled, onRejected=null)
         var self = this
         return Promise(fun(resolve, reject)
-            return self.done(fun(result)
+            self._handle((fun(result)
                 if onFulfilled is Function
                     try
-                        return resolve(onFulfilled(result))
+                        resolve(onFulfilled(result))
                     except Exception e
-                        return reject(e)
+                        reject(e)
                     end
                 else
-                    return resolve(result)
+                    resolve(result)
                 end
             end, fun(exc)
                 if onRejected is Function
                     try
-                        return reject(onRejected(exc))
+                        reject(onRejected(exc))
                     except Exception e
-                        return reject(e)
+                        reject(e)
                     end
                 else
-                    return reject(exc)
+                    reject(exc)
                 end
-            end)
+            end))
         end)
     end
 
