@@ -44,3 +44,26 @@ evh.run(main())
 While the `async/await` syntax is the default and preferred method to write asynchronous code using
 Event Horizon, raw bindings are provided in the `event_horizon.uv` module that provide a
 thin wrapper to `libuv` for writing async code with good ol' callbacks.
+
+## How to install
+
+Ensure you have `libuv` installed on your system. Then, simply issue this on your terminal:
+```bash
+mkdir build;
+cd build;
+cmake ..;
+make -j;
+sudo make install;
+```
+
+Then you can start using the library in your J* code:
+```
+import event_horizon as evh
+```
+
+### Withouth installing libuv
+
+You can choose to bundle `libuv` with the library by setting the `EVH_VENDOR_LIBUV` CMake option to
+`ON`. This will download and compile `libuv` as part of the build process, not requiring you to have
+it installed on your system.
+
