@@ -1,5 +1,5 @@
 static var STARTING_SZ = 2
-assert(STARTING_SZ & 1 == 0, "STARTING_SZ must be a power of 2")
+assert((STARTING_SZ & (STARTING_SZ - 1)) == 0, "STARTING_SZ must be a power of 2")
 
 /// Deque implements a double ended queue that supports efficient element insertion and removal at
 /// both ends.
