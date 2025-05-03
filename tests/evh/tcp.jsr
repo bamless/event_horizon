@@ -129,7 +129,7 @@ fun connectResolveURLFail()
     fun client()
         var client = TCPStream()
         try
-            yield client.connect("thiurldoesnotexist-4efe1693-6196-4a4a-83ff-7308f056c221.it", 443)
+            yield client.connect("url.invalid", 443)
         except StatusException e
             didThrow = true
             assert(e.err() == "unknown node or service")

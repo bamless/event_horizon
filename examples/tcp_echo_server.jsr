@@ -12,6 +12,7 @@ fun handleClient(client)
         var data
         while data = yield client.readLine()
             yield client.write(data)
+            print("Sent {0} bytes to {1}:{2}" % (#data, ...peer))
         end
     ensure
         yield client.close()
