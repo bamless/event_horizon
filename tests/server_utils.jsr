@@ -1,3 +1,5 @@
+// TODO: refactor this code to use something more portable
+
 import io
 import sys
 

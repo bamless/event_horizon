@@ -2,6 +2,7 @@ import io
 import sys
 
 static var tests = []
+static var skip = {}
 
 fun test(fn)
     tests.add(fn)
@@ -9,38 +10,40 @@ fun test(fn)
 end
 
 fun skip(fn)
-    tests.remove(fn)
-    return null
+    skip[fn] = true
 end
 
 fun run()
-    var numTests = #tests
-
     print("========")
-    print("Running {0} tests" % numTests)
-    print("========")
-    print("")
+    print("Running {0} tests" % #tests)
+    print("========\n")
 
-    var numPassed = 0
+    var passed = 0
     for var idx, fn in tests.enumerate()
-        print("[{0}%] Running test {1}()" % (std.int((idx + 1) / numTests * 100), fn.getName()))
+        io.stdout.write("[{0}%] Running test {1}() " % (std.int((idx + 1) / #tests * 100), fn.getName()))
+        io.stdout.flush()
+
+        if skip[fn]
+            print("[SKIPPED]")
+            continue
+        end
 
         try
             fn()
-            numPassed += 1
+            print("[OK]")
+            passed += 1
         except Exception e
-            if !(e is ProgramInterrupt)
-                io.stderr.writeln("Test {0}() failed with: {1}({2})" % (fn.getName(), type(e).getName(), e.err())) 
-                io.stderr.writeln(e.getStacktrace())
-                io.stderr.write('\n')
-            end
+            print("[ERR]")
+            io.stderr.writeln("Test {0}() failed with: {1}({2})" % (fn.getName(), type(e).getName(), e.err()))
+            io.stderr.writeln(e.getStacktrace())
+            io.stderr.write('\n')
         end
     end
 
     print("")
     print("Tests done")
-    print("Passed:", numPassed)
-    print("Failed:", numTests - numPassed)
+    print("Passed:", passed)
+    print("Failed:", #tests - #skip - passed)
 
-    sys.exit(0 if numPassed == numTests else 1)
+    sys.exit(0 if passed == #tests else 1)
 end
