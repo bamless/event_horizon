@@ -194,7 +194,7 @@ bool Handle_registerCallback(JStarVM* vm, int callbackSlot, CallbackType type, i
 int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot) {
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return -1;
     jsrPushValue(vm, callbackSlot);
-    if(jsrCallMethod(vm, "ref", 1) != JSR_SUCCESS) return -1;
+    if(!jsrCallMethod(vm, "ref", 1)) return -1;
 
     if(!jsrCheckInt(vm, -1, "Handle._callbacks.ref()")) {
         jsrPop(vm);
@@ -210,7 +210,7 @@ int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot)
 bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handleSlot) {
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return false;
     jsrPushNumber(vm, callbackId);
-    if(jsrCallMethod(vm, "get", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "get", 1)) return false;
 
     if(unregister && !Handle_unregisterCallbackById(vm, callbackId, handleSlot)) {
         jsrPop(vm);
@@ -233,14 +233,14 @@ bool Handle_unregisterCallbackById(JStarVM* vm, int callbackId, int handleSlot) 
     if(callbackId == -1) return true;
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return false;
     jsrPushNumber(vm, callbackId);
-    if(jsrCallMethod(vm, "unref", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "unref", 1)) return false;
     jsrPop(vm);
     return true;
 }
 
 bool Handle_checkClosing(JStarVM* vm, int handleSlot) {
     jsrPushValue(vm, handleSlot);
-    if(jsrCallMethod(vm, "isClosing", 0) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "isClosing", 0)) return false;
     JSR_CHECK(Boolean, -1, "Handle.isClosing()");
 
     bool isClosing = jsrGetBoolean(vm, -1);

@@ -8,7 +8,7 @@
 bool getEventLoopFromId(JStarVM* vm, int loopId) {
     if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", "getEventLoop")) return false;
     jsrPushNumber(vm, loopId);
-    if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
+    if(!jsrCall(vm, 1)) return false;
     return true;
 }
 
@@ -23,7 +23,7 @@ bool EventLoop_run(JStarVM* vm) {
 
     // Clear the list of exceptions
     if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_CLEAR_EXCEPTIONS)) return false;
-    if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
+    if(!jsrCall(vm, 0)) return false;
 
     uv_loop_t* loop = EventLoop_getUVLoop(vm, 0);
     if(!loop) return false;
@@ -36,7 +36,7 @@ bool EventLoop_run(JStarVM* vm) {
 
     // Check for any exceptions raised during `uv_run_loop` callbacks and throw them
     if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_GET_EXCEPTIONS)) return false;
-    if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
+    if(!jsrCall(vm, 0)) return false;
     if(jsrListGetLength(vm, -1) != 0) {
         LoopExecutionException_raise(vm, -1);
         return false;
@@ -130,7 +130,7 @@ int EventLoop_registerHandle(JStarVM* vm, int handleSlot, int eventLoopSlot) {
     if(!jsrGetField(vm, -1, M_LOOP_HANDLES)) return -1;
 
     jsrPushValue(vm, handleSlot);
-    if(jsrCallMethod(vm, "ref", 1) != JSR_SUCCESS) return -1;
+    if(!jsrCallMethod(vm, "ref", 1)) return -1;
 
     JSR_CHECK(Int, -1, "loop._handles.ref()");
     int handleId = jsrGetNumber(vm, -1);
@@ -142,7 +142,7 @@ int EventLoop_registerHandle(JStarVM* vm, int handleSlot, int eventLoopSlot) {
 bool EventLoop_getHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
     if(!jsrGetField(vm, eventLoopSlot, M_LOOP_HANDLES)) return false;
     jsrPushNumber(vm, handleId);
-    if(jsrCallMethod(vm, "get", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "get", 1)) return false;
     return true;
 }
 
@@ -150,7 +150,7 @@ bool EventLoop_unregisterHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
     jsrPushValue(vm, eventLoopSlot);
     if(!jsrGetField(vm, -1, M_LOOP_HANDLES)) return false;
     jsrPushNumber(vm, handleId);
-    if(jsrCallMethod(vm, "unref", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "unref", 1)) return false;
     jsrPop(vm);
     return true;
 }

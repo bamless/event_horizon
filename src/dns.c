@@ -11,14 +11,14 @@
 
 static bool getRegistry(JStarVM* vm) {
     if(!jsrGetGlobal(vm, "event_horizon.uv.dns", G_CALLBACKS))  return false;
-    if(jsrCall(vm, 0) != JSR_SUCCESS)  return false;
+    if(!jsrCall(vm, 0))  return false;
     return true;
 }
 
 static int registerCallback(JStarVM* vm, int callbackSlot) {
     if(!getRegistry(vm)) return -1;
     jsrPushValue(vm, callbackSlot);
-    if(jsrCallMethod(vm, "ref", 1) != JSR_SUCCESS) return -1;
+    if(!jsrCallMethod(vm, "ref", 1)) return -1;
     int callbackId = jsrGetNumber(vm, -1);
     jsrPop(vm);
     return callbackId;
@@ -27,7 +27,7 @@ static int registerCallback(JStarVM* vm, int callbackSlot) {
 static bool unregisterCallback(JStarVM* vm, int callbackId) {
     if(!getRegistry(vm)) return false;
     jsrPushNumber(vm, callbackId);
-    if(jsrCallMethod(vm, "unref", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "unref", 1)) return false;
     jsrPop(vm);
     return true;
 }
@@ -35,7 +35,7 @@ static bool unregisterCallback(JStarVM* vm, int callbackId) {
 bool dns_getCallback(JStarVM* vm, bool unregister, int callbackId) {
     if(!getRegistry(vm)) return false;
     jsrPushNumber(vm, callbackId);
-    if(jsrCallMethod(vm, "get", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "get", 1)) return false;
     if(unregister && !unregisterCallback(vm, callbackId)) {
         return false;
     }
@@ -58,7 +58,7 @@ bool dns_getAddrInfo(JStarVM* vm) {
     uv_loop_t* loop;
     if(jsrIsNull(vm, 8)) {
         if(!jsrGetGlobal(vm, "event_horizon.uv", "loop")) return false;
-        if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
+        if(!jsrCall(vm, 0)) return false;
         loop = EventLoop_getUVLoop(vm, -1);
         jsrPop(vm);
     } else {

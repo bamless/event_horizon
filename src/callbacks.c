@@ -64,8 +64,7 @@ void closeCallback(uv_handle_t* handle) {
 
     int closeCallback = handleMetadata->callbacks[CLOSE_CB];
     if(closeCallback != -1) {
-        if(!Handle_getCallback(vm, closeCallback, true, handleSlot) ||
-           (jsrCall(vm, 0) != JSR_SUCCESS)) {
+        if(!Handle_getCallback(vm, closeCallback, true, handleSlot) || !jsrCall(vm, 0)) {
             EventLoop_addException(vm, -1);
         }
         jsrPop(vm);
@@ -86,7 +85,7 @@ void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int statu
 
     if(callbackId != -1) {
         if(!Handle_getCallback(vm, callbackId, unregister, handleSlot) ||
-           (jsrPushNumber(vm, status), jsrCall(vm, 1) != JSR_SUCCESS)) {
+           (jsrPushNumber(vm, status), !jsrCall(vm, 1))) {
             EventLoop_addException(vm, -1);
         }
         jsrPop(vm);
@@ -161,7 +160,7 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
         jsrPushNumber(vm, nread);
     }
 
-    if(jsrCall(vm, pushSockAddr ? 4 : 2) != JSR_SUCCESS) {
+    if(!jsrCall(vm, pushSockAddr ? 4 : 2)) {
         EventLoop_addException(vm, -1);
     }
 
@@ -190,8 +189,7 @@ static void voidHandleCallback(uv_handle_t* handle, CallbackType cbType) {
 
     int callback = handleMetadata->callbacks[cbType];
     if(callback != -1) {
-        if(!Handle_getCallback(vm, callback, false, handleSlot) ||
-           (jsrCall(vm, 0) != JSR_SUCCESS)) {
+        if(!Handle_getCallback(vm, callback, false, handleSlot) || !jsrCall(vm, 0)) {
             EventLoop_addException(vm, -1);
         }
         jsrPop(vm);
@@ -226,7 +224,7 @@ void walkCallback(uv_handle_t* handle, void* arg) {
     }
 
     jsrPushValue(vm, handleSlot);
-    if(jsrCall(vm, 1) != JSR_SUCCESS) {
+    if(!jsrCall(vm, 1)) {
         jsrPrintStacktrace(vm, -1);
         jsrPop(vm);
     }
@@ -277,7 +275,7 @@ void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res
 
     jsrPushNumber(vm, status);
 
-    if(jsrCall(vm, 2) != JSR_SUCCESS) {
+    if(!jsrCall(vm, 2)) {
         EventLoop_addException(vm, -1);
     }
 
