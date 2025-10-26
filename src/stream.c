@@ -2,6 +2,7 @@
 
 #include <memory.h>
 #include <uv.h>
+#include <uv/unix.h>
 
 #include "callbacks.h"
 #include "errors.h"
@@ -9,9 +10,8 @@
 
 typedef struct {
     uv_write_t req;
-    uv_buf_t buf;
     char data[];
-} WriteRequest;
+} WriteReq;
 
 void writeCallback(uv_write_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
@@ -42,18 +42,17 @@ bool Stream_write(JStarVM* vm) {
     }
 
     const char* data = jsrGetString(vm, 1);
-    size_t dataLen = jsrGetStringSz(vm, 1);
+    size_t dataSz = jsrGetStringSz(vm, 1);
 
     // TODO: can do better than copy
     // From libuv:
     // 'Note: The memory pointed to by the buffers must remain valid until the callback gets called'
-    WriteRequest* req = malloc(sizeof(*req) + dataLen);
-    memcpy(req->data, data, dataLen);
-    req->buf.base = req->data;
-    req->buf.len = dataLen;
+    WriteReq* req = malloc(sizeof(*req) + dataSz);
+    memcpy(req->data, data, dataSz);
+    uv_buf_t buf = {req->data, dataSz};
     setRequestCallback((uv_req_t*)req, callbackId);
 
-    int res = uv_write(&req->req, stream, &req->buf, 1, &writeCallback);
+    int res = uv_write(&req->req, stream, &buf, 1, &writeCallback);
     if(res < 0) {
         free(req);
         if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {

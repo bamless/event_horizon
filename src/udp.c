@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <uv.h>
+#include <uv/unix.h>
 
 #include "callbacks.h"
 #include "errors.h"
@@ -72,9 +73,8 @@ bool UDP_connect(JStarVM* vm) {
 
 typedef struct {
     uv_udp_send_t req;
-    uv_buf_t buf;
     char data[];
-} SendRequest;
+} SendReq;
 
 void sendCallback(uv_udp_send_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
@@ -123,18 +123,17 @@ bool UDP_send(JStarVM* vm) {
     }
 
     const char* data = jsrGetString(vm, 1);
-    size_t dataLen = jsrGetStringSz(vm, 1);
+    size_t dataSz = jsrGetStringSz(vm, 1);
 
     // TODO: can do better than copy
     // From libuv:
     // 'Note: The memory pointed to by the buffers must remain valid until the callback gets called'
-    SendRequest* req = malloc(sizeof(*req) + dataLen);
-    memcpy(req->data, data, dataLen);
-    req->buf.base = req->data;
-    req->buf.len = dataLen;
+    SendReq* req = malloc(sizeof(*req) + dataSz);
+    memcpy(req->data, data, dataSz);
+    uv_buf_t buf = {req->data, dataSz};
     setRequestCallback((uv_req_t*)req, callbackId);
 
-    int res = uv_udp_send(&req->req, udp, &req->buf, 1, sa, &sendCallback);
+    int res = uv_udp_send(&req->req, udp, &buf, 1, sa, &sendCallback);
     if(res < 0) {
         free(req);
         if(callbackId != -1 && !Handle_unregisterCallbackById(vm, callbackId, 0)) {

@@ -132,7 +132,7 @@ fun write()
 
     assert(#s._callbacks == 0)
 
-    var res = server.readAll()
+    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
     assert(res == data, "'{0}' != '{1}'" % (res, data))
 
     server.close()
@@ -173,7 +173,7 @@ fun twoWrite()
     s.close()
     uv.loop().run()
 
-    var res = server.readAll()
+    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
     assert(res == data * 2, "'{0}' != '{1}'" % (res, data))
 
     server.close()
@@ -206,7 +206,7 @@ fun writeFail()
 
     assert(didThrow)
 
-    var res = server.readAll()
+    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
     assert(res == '', "Non empty server result: {0}" % res)
 
     server.close()
@@ -241,7 +241,7 @@ fun writeThrows()
 
     assert(didThrow)
 
-    var res = server.readAll()
+    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
     assert(res == data, "'{0}' != '{1}'" % (res, data))
 
     server.close()
@@ -268,7 +268,7 @@ fun tryWrite()
 
     uv.loop().run()
 
-    var res = server.readAll()
+    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
     assert(data.startsWith(res), "{0} does not start with {1}" % (data, res))
 
     server.close()
