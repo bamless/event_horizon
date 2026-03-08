@@ -2,7 +2,6 @@
 
 #include <string.h>
 #include <uv.h>
-#include <uv/unix.h>
 
 #include "callbacks.h"
 #include "errors.h"

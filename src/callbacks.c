@@ -5,9 +5,6 @@
 #include "handle.h"
 #include "sock_utils.h"
 
-inline void setRequestCallback(uv_req_t* req, int callbackId);
-inline int getRequestCallback(uv_req_t* req);
-
 static bool tryGetEventLoop(JStarVM* vm, int loopId) {
     if(!getEventLoopFromId(vm, loopId)) {
         EventLoop_addException(vm, -1);
@@ -281,3 +278,6 @@ void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res
 
     jsrPopN(vm, 2);
 }
+
+extern inline void setRequestCallback(uv_req_t* req, int callbackId);
+extern inline int getRequestCallback(uv_req_t* req);
