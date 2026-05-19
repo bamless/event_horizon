@@ -3,7 +3,7 @@
 
 #include <jstar/jstar.h>
 
-// class Stream
+// class Stream is Stream
 bool Stream_write(JStarVM* vm);
 bool Stream_tryWrite(JStarVM* vm);
 bool Stream_readStart(JStarVM* vm);

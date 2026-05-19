@@ -193,6 +193,7 @@ bool Handle_registerCallback(JStarVM* vm, int callbackSlot, CallbackType type, i
 
 int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot) {
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return -1;
+
     jsrPushValue(vm, callbackSlot);
     if(!jsrCallMethod(vm, "ref", 1)) return -1;
 
@@ -233,6 +234,32 @@ bool Handle_unregisterCallbackById(JStarVM* vm, int callbackId, int handleSlot) 
     if(callbackId == -1) return true;
     if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return false;
     jsrPushNumber(vm, callbackId);
+    if(!jsrCallMethod(vm, "unref", 1)) return false;
+    jsrPop(vm);
+    return true;
+}
+
+int Handle_queueData(JStarVM* vm, int dataSlot, int handleSlot) {
+    if(!jsrGetField(vm, handleSlot, M_HANDLE_QUEUED_DATA)) return -1;
+
+    jsrPushValue(vm, dataSlot);
+    if(!jsrCallMethod(vm, "ref", 1)) return -1;
+
+    if(!jsrCheckInt(vm, -1, "Handle._queued.ref()")) {
+        jsrPop(vm);
+        return -1;
+    }
+
+    int dataRef = jsrGetNumber(vm, -1);
+    jsrPop(vm);
+
+    return dataRef;
+}
+
+bool Handle_dequeueData(JStarVM* vm, int dataRef, int handleSlot) {
+    if(dataRef == -1) return true;
+    if(!jsrGetField(vm, handleSlot, M_HANDLE_QUEUED_DATA)) return false;
+    jsrPushNumber(vm, dataRef);
     if(!jsrCallMethod(vm, "unref", 1)) return false;
     jsrPop(vm);
     return true;

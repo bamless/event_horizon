@@ -9,14 +9,16 @@
 
 typedef struct {
     uv_write_t req;
-    char data[];
+    int dataRef;
 } WriteReq;
 
 void writeCallback(uv_write_t* req, int status) {
+    WriteReq* writeReq = (WriteReq*)req;
+    int dataRef = writeReq->dataRef;
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
-    reqCallback(handle, callbackId, true, status);
+    reqCallback(handle, callbackId, true, dataRef, status);
 }
 
 bool Stream_write(JStarVM* vm) {
@@ -35,28 +37,25 @@ bool Stream_write(JStarVM* vm) {
     int callbackId = -1;
     if(!jsrIsNull(vm, 2)) {
         callbackId = Handle_registerCallbackWithId(vm, 2, 0);
-        if(callbackId == -1) {
-            return false;
-        }
+        if(callbackId == -1) return false;
     }
 
     const char* data = jsrGetString(vm, 1);
     size_t dataSz = jsrGetStringSz(vm, 1);
 
-    // TODO: can do better than copy
-    // From libuv:
-    // 'Note: The memory pointed to by the buffers must remain valid until the callback gets called'
-    WriteReq* req = malloc(sizeof(*req) + dataSz);
-    memcpy(req->data, data, dataSz);
-    uv_buf_t buf = {req->data, dataSz};
+    int dataRef = Handle_queueData(vm, 1, 0);
+    if(dataRef == -1) return false;
+
+    WriteReq* req = malloc(sizeof(*req));
+    req->dataRef = dataRef;
     setRequestCallback((uv_req_t*)req, callbackId);
 
+    uv_buf_t buf = {(char*)data, dataSz};
     int res = uv_write(&req->req, stream, &buf, 1, &writeCallback);
     if(res < 0) {
         free(req);
-        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
-            return false;
-        }
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
+        if(!Handle_dequeueData(vm, dataRef, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }
@@ -105,9 +104,7 @@ bool Stream_readStart(JStarVM* vm) {
 
     int res = uv_read_start(stream, allocCallback, readCallback);
     if(res < 0) {
-        if(res != UV_EINVAL && !Handle_unregisterCallback(vm, READ_CB, 0)) {
-            return false;
-        }
+        if(res != UV_EINVAL && !Handle_unregisterCallback(vm, READ_CB, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }
@@ -133,7 +130,7 @@ static void shutdownCallback(uv_shutdown_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
-    reqCallback(handle, callbackId, true, status);
+    reqCallback(handle, callbackId, true, -1, status);
 }
 
 bool Stream_shutdown(JStarVM* vm) {
@@ -164,9 +161,7 @@ bool Stream_shutdown(JStarVM* vm) {
     int res = uv_shutdown(req, stream, &shutdownCallback);
     if(res < 0) {
         free(req);
-        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) {
-            return false;
-        }
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }
@@ -198,7 +193,7 @@ bool Stream_getWriteQueueSize(JStarVM* vm) {
 
 static void onConnectionCallback(uv_stream_t* stream, int status) {
     HandleMetadata* metadata = stream->data;
-    reqCallback((uv_handle_t*)stream, metadata->callbacks[CONNECT_CB], false, status);
+    reqCallback((uv_handle_t*)stream, metadata->callbacks[CONNECT_CB], false, -1, status);
 }
 
 bool Stream_rawListen(JStarVM* vm) {
@@ -218,9 +213,7 @@ bool Stream_rawListen(JStarVM* vm) {
 
     int res = uv_listen(stream, jsrGetNumber(vm, 2), &onConnectionCallback);
     if(res < 0) {
-        if(!Handle_unregisterCallback(vm, CONNECT_CB, 0)) {
-            return false;
-        }
+        if(!Handle_unregisterCallback(vm, CONNECT_CB, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }

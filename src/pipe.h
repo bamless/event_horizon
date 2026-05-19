@@ -3,7 +3,7 @@
 
 #include <jstar/jstar.h>
 
-// class Pipe
+// class Pipe is Stream
 bool Pipe_open(JStarVM* vm);
 bool Pipe_bind(JStarVM* vm);
 bool Pipe_connect(JStarVM* vm);

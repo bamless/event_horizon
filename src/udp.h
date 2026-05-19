@@ -3,7 +3,7 @@
 
 #include <jstar/jstar.h>
 
-// class UDP
+// class UDP is Handle
 bool UDP_bind(JStarVM* vm);
 bool UDP_connect(JStarVM* vm);
 bool UDP_send(JStarVM* vm);

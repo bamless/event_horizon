@@ -1,5 +1,7 @@
 #include "callbacks.h"
 
+#include <jstar/jstar.h>
+
 #include "dns.h"
 #include "event_loop.h"
 #include "handle.h"
@@ -24,14 +26,13 @@ static bool tryGetHandle(JStarVM* vm, int handleId, int loopSlot) {
 }
 
 static bool tryGetEventLoopAndHandle(JStarVM* vm, int handleId, int loopId) {
-    if(!tryGetEventLoop(vm, loopId)) {
-        return false;
-    }
-    if(!tryGetHandle(vm, handleId, -1)) {
+    if(tryGetEventLoop(vm, loopId)) {
+        if(tryGetHandle(vm, handleId, -1)) {
+            return true;
+        }
         jsrPop(vm);
-        return false;
     }
-    return true;
+    return false;
 }
 
 static bool tryUnregisterHandle(JStarVM* vm, int handleId, int loopSlot) {
@@ -48,9 +49,7 @@ void closeCallback(uv_handle_t* handle) {
     LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        return;
-    }
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int loopSlot = jsrTop(vm) - 1;
     int handleSlot = jsrTop(vm);
 
@@ -70,20 +69,26 @@ void closeCallback(uv_handle_t* handle) {
     jsrPopN(vm, 2);
 }
 
-void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int status) {
+void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int dataRef, int status) {
     HandleMetadata* handleMetadata = handle->data;
     LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        return;
-    }
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int handleSlot = jsrTop(vm);
+
+    if(dataRef != -1) {
+        if(!Handle_dequeueData(vm, dataRef, handleSlot)) {
+            EventLoop_addException(vm, -1);
+            jsrPop(vm);
+        }
+    }
 
     if(callbackId != -1) {
         if(!Handle_getCallback(vm, callbackId, unregister, handleSlot) ||
            (jsrPushNumber(vm, status), !jsrCall(vm, 1))) {
             EventLoop_addException(vm, -1);
+            jsrPop(vm);
         }
         jsrPop(vm);
     }
@@ -95,7 +100,7 @@ void connectCallback(uv_connect_t* req, int status) {
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
-    reqCallback(handle, callbackId, true, status);
+    reqCallback(handle, callbackId, true, -1, status);
 }
 
 void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
@@ -122,9 +127,7 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
         .data = buf->base,
     };
 
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        return;
-    }
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int handleSlot = jsrTop(vm);
 
     if(!Handle_getCallback(vm, handleMetadata->callbacks[cbType], false, handleSlot)) {
@@ -179,9 +182,7 @@ static void voidHandleCallback(uv_handle_t* handle, CallbackType cbType) {
     LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        return;
-    }
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int handleSlot = jsrTop(vm);
 
     int callback = handleMetadata->callbacks[cbType];
@@ -209,9 +210,7 @@ void walkCallback(uv_handle_t* handle, void* arg) {
     LoopMetadata* loopMetadata = loop->data;
     JStarVM* vm = loopMetadata->vm;
 
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        return;
-    }
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int loopSlot = jsrTop(vm) - 1;
     int handleSlot = jsrTop(vm);
 

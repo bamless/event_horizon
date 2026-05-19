@@ -10,8 +10,6 @@ typedef struct LoopMetadata {
     int loopId;
 } LoopMetadata;
 
-bool getEventLoopFromId(JStarVM* vm, int loopId);
-
 // class EventLoop
 #define M_LOOP_ID            "_id"
 #define M_LOOP_CLOSED        "_closed"
@@ -34,5 +32,8 @@ bool EventLoop_unregisterHandle(JStarVM* vm, int handleId, int eventLoopSlot);
 bool EventLoop_getHandle(JStarVM* vm, int handleId, int eventLoopSlot);
 void EventLoop_addException(JStarVM* vm, int exceptionSlot);
 // end
+
+// Returns the EventLoopInstance from its ID
+bool getEventLoopFromId(JStarVM* vm, int loopId);
 
 #endif

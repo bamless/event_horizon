@@ -5,13 +5,6 @@
 #include "callbacks.h"
 #include "errors.h"
 
-bool getEventLoopFromId(JStarVM* vm, int loopId) {
-    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", "getEventLoop")) return false;
-    jsrPushNumber(vm, loopId);
-    if(!jsrCall(vm, 1)) return false;
-    return true;
-}
-
 // class EventLoop
 #define G_ADD_EXCEPTION    "_addException"
 #define G_CLEAR_EXCEPTIONS "_clearExceptions"
@@ -168,3 +161,10 @@ void EventLoop_addException(JStarVM* vm, int exceptionSlot) {
     jsrPop(vm);
 }
 // end
+
+bool getEventLoopFromId(JStarVM* vm, int loopId) {
+    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", "getEventLoop")) return false;
+    jsrPushNumber(vm, loopId);
+    if(!jsrCall(vm, 1)) return false;
+    return true;
+}

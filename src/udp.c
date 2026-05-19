@@ -72,14 +72,16 @@ bool UDP_connect(JStarVM* vm) {
 
 typedef struct {
     uv_udp_send_t req;
-    char data[];
+    int dataRef;
 } SendReq;
 
 void sendCallback(uv_udp_send_t* req, int status) {
+    SendReq* sendReq = (SendReq*)req;
+    int dataRef = sendReq->dataRef;
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
     free(req);
-    reqCallback(handle, callbackId, true, status);
+    reqCallback(handle, callbackId, true, dataRef, status);
 }
 
 bool UDP_send(JStarVM* vm) {
@@ -116,28 +118,25 @@ bool UDP_send(JStarVM* vm) {
     int callbackId = -1;
     if(!jsrIsNull(vm, 4)) {
         callbackId = Handle_registerCallbackWithId(vm, 4, 0);
-        if(callbackId == -1) {
-            return false;
-        }
+        if(callbackId == -1) return false;
     }
 
     const char* data = jsrGetString(vm, 1);
     size_t dataSz = jsrGetStringSz(vm, 1);
 
-    // TODO: can do better than copy
-    // From libuv:
-    // 'Note: The memory pointed to by the buffers must remain valid until the callback gets called'
-    SendReq* req = malloc(sizeof(*req) + dataSz);
-    memcpy(req->data, data, dataSz);
-    uv_buf_t buf = {req->data, dataSz};
+    int dataRef = Handle_queueData(vm, 1, 0);
+    if(dataRef == -1) return false;
+
+    SendReq* req = malloc(sizeof(*req));
+    req->dataRef = dataRef;
     setRequestCallback((uv_req_t*)req, callbackId);
 
+    uv_buf_t buf = {(char*)data, dataSz};
     int res = uv_udp_send(&req->req, udp, &buf, 1, sa, &sendCallback);
     if(res < 0) {
         free(req);
-        if(callbackId != -1 && !Handle_unregisterCallbackById(vm, callbackId, 0)) {
-            return false;
-        }
+        if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
+        if(!Handle_dequeueData(vm, dataRef, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }
@@ -165,7 +164,7 @@ bool UDP_trySend(JStarVM* vm) {
         return false;
     }
 
-    uv_buf_t buf = (uv_buf_t){
+    uv_buf_t buf = {
         .base = (char*)jsrGetString(vm, 1),
         .len = jsrGetStringSz(vm, 1),
     };
@@ -199,9 +198,7 @@ bool UDP_recvStart(JStarVM* vm) {
 
     int res = uv_udp_recv_start(udp, &allocCallback, &recvCallback);
     if(res < 0) {
-        if(!Handle_unregisterCallback(vm, RECV_CB, 0)) {
-            return false;
-        }
+        if(!Handle_unregisterCallback(vm, RECV_CB, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }
@@ -265,14 +262,10 @@ bool UDP_peerName(JStarVM* vm) {
         return false;
     }
 
-    if(!pushAddr(vm, &un.sa)) {
-        return false;
-    }
-    if(!pushPort(vm, &un.sa)) {
-        return false;
-    }
-
+    if(!pushAddr(vm, &un.sa)) return false;
+    if(!pushPort(vm, &un.sa)) return false;
     jsrPushTuple(vm, 2);
+
     return true;
 }
 
