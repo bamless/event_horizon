@@ -16,11 +16,11 @@ import uv.timer
 import uv.dns
 import uv.pipe
 
+import evh.promise
 import evh.tcp
 import evh.pipe
 import evh.udp
 import evh.timers
 import evh.dns
-import evh.promise
 
 test.run()
