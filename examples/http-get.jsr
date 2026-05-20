@@ -13,7 +13,7 @@ fun get(hostname, path, printHeader=false)
     var s = TCPStream()
     try
         yield s.connect(hostname, 80)
-        yield s.write("GET {0} HTTP/1.1\r\nHost: {1}\r\nConnection: close\r\n\r\n" % (path, hostname))
+        yield s.write("GET {0} HTTP/1.0\r\nHost: {1}\r\n\r\n" % (path, hostname))
         
         var header = yield s.readUntil("\r\n\r\n")
         if printHeader
