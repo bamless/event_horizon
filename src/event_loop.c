@@ -66,6 +66,11 @@ bool EventLoop_walk(JStarVM* vm) {
 
     uv_walk(loop, &walkCallback, loop);
 
+    // uv_walk is synchronous; release the callback reference immediately so it
+    // can be collected rather than staying live until the next walk call.
+    jsrPushNull(vm);
+    if(!jsrSetField(vm, 0, M_LOOP_WALK_CALLBACK)) jsrPop(vm);
+
     jsrPushNull(vm);
     return true;
 }
