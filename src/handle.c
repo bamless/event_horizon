@@ -197,7 +197,7 @@ int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot)
     jsrPushValue(vm, callbackSlot);
     if(!jsrCallMethod(vm, "ref", 1)) return -1;
 
-    if(!jsrCheckInt(vm, -1, "Handle._callbacks.ref()")) {
+    if(!jsrCheckInt(vm, -1, "Handle." M_HANDLE_CALLBACKS ".ref()")) {
         jsrPop(vm);
         return -1;
     }
@@ -245,7 +245,7 @@ int Handle_queueData(JStarVM* vm, int dataSlot, int handleSlot) {
     jsrPushValue(vm, dataSlot);
     if(!jsrCallMethod(vm, "ref", 1)) return -1;
 
-    if(!jsrCheckInt(vm, -1, "Handle._queued.ref()")) {
+    if(!jsrCheckInt(vm, -1, "Handle." M_HANDLE_QUEUED_DATA ".ref()")) {
         jsrPop(vm);
         return -1;
     }
