@@ -134,13 +134,15 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
     }
 
     int handleSlot = jsrTop(vm);
+    int slot = 2;  // [loop, handle]
 
     if(!Handle_getCallback(vm, handleMetadata->callbacks[cbType], false, handleSlot)) {
         jsrBufferFree(&data);
         EventLoop_addException(vm, -1);
-        jsrPopN(vm, 3);
+        jsrPopN(vm, slot + 1);  // [loop, handle, exception]
         return;
     }
+    slot++;  // [loop, handle, callback]
 
     if(nread >= 0) {
         jsrBufferPush(&data);
@@ -148,6 +150,7 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
         jsrBufferFree(&data);
         jsrPushNull(vm);
     }
+    slot++;  // [loop, handle, callback, data]
 
     if(pushSockAddr) {
         if(sa != NULL) {
@@ -157,6 +160,7 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
             jsrPushNull(vm);
             jsrPushNull(vm);
         }
+        slot += 2;
     }
 
     if(nread > 0 || nread == UV_EOF) {
@@ -164,12 +168,14 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
     } else {
         jsrPushNumber(vm, nread);
     }
+    slot++;  // status
 
-    if(!jsrCall(vm, pushSockAddr ? 4 : 2)) {
+    if(!jsrCall(vm, slot - 3)) {
         EventLoop_addException(vm, -1);
     }
+    slot = 3;  // [loop, handle, result_or_exception]
 
-    jsrPopN(vm, 3);
+    jsrPopN(vm, slot);
 }
 
 void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
@@ -218,19 +224,28 @@ void walkCallback(uv_handle_t* handle, void* arg) {
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int loopSlot = jsrTop(vm) - 1;
     int handleSlot = jsrTop(vm);
+    int slot = 2;  // [loop, handle]
 
     if(!jsrGetField(vm, loopSlot, M_LOOP_WALK_CALLBACK)) {
-        jsrPopN(vm, 3);
+        jsrPopN(vm, slot + 1);  // [loop, handle, exception]
         return;
     }
+    slot++;  // [loop, handle, walkCallback]
 
     jsrPushValue(vm, handleSlot);
+    slot++;  // [loop, handle, walkCallback, handle_copy]
+
+    // jsrCall pops [walkCallback, handle_copy] and pushes result (or exception on
+    // failure); net change is always -1 regardless of success or failure.
     if(!jsrCall(vm, 1)) {
         jsrPrintStacktrace(vm, -1);
-        jsrPop(vm);
     }
+    slot--;  // [loop, handle, result_or_exception]
 
-    jsrPopN(vm, 2);
+    jsrPop(vm);
+    slot--;  // [loop, handle]
+
+    jsrPopN(vm, slot);
 }
 
 void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
@@ -243,44 +258,58 @@ void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res
         freeaddrinfo(res);
         return;
     }
+    int slot = 1;  // [loop]
 
     if(!dns_getCallback(vm, true, callbackId)) {
         freeaddrinfo(res);
         EventLoop_addException(vm, -1);
-        jsrPopN(vm, 2);
+        jsrPopN(vm, slot + 1);  // [loop, exception]
         return;
     }
+    slot++;  // [loop, callback]
 
     jsrPushList(vm);
+    slot++;  // [loop, callback, list]
 
     struct addrinfo* info = res;
     while(info) {
         if(!pushAddr(vm, info->ai_addr)) {
             freeaddrinfo(res);
             EventLoop_addException(vm, -1);
-            jsrPopN(vm, 3);
+            jsrPopN(vm, slot + 1);  // [loop, callback, list] + exception from pushAddr
             return;
         }
+        slot++;  // [loop, callback, list, addr]
+
         if(!pushPort(vm, info->ai_addr)) {
             freeaddrinfo(res);
             EventLoop_addException(vm, -1);
-            jsrPopN(vm, 4);
+            jsrPopN(vm, slot + 1);  // [loop, callback, list, addr] + exception from pushPort
             return;
         }
+        slot++;  // [loop, callback, list, addr, port]
+
         jsrPushTuple(vm, 2);
+        slot--;  // pops addr+port, pushes tuple; net -1
+
         jsrListAppend(vm, -2);
+
         jsrPop(vm);
+        slot--;  // pops tuple
+
         info = info->ai_next;
     }
     freeaddrinfo(res);
 
     jsrPushNumber(vm, status);
+    slot++;  // [loop, callback, list, status]
 
     if(!jsrCall(vm, 2)) {
         EventLoop_addException(vm, -1);
     }
+    slot -= 2;  // [loop, result]
 
-    jsrPopN(vm, 2);
+    jsrPopN(vm, slot);
 }
 
 extern inline void setRequestCallback(uv_req_t* req, int callbackId);
