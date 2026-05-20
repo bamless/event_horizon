@@ -1,5 +1,6 @@
 #include "callbacks.h"
 
+#include <jstar/buffer.h>
 #include <jstar/jstar.h>
 
 #include "dns.h"
@@ -127,7 +128,11 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
         .data = buf->base,
     };
 
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
+        jsrBufferFree(&data);
+        return;
+    }
+
     int handleSlot = jsrTop(vm);
 
     if(!Handle_getCallback(vm, handleMetadata->callbacks[cbType], false, handleSlot)) {
