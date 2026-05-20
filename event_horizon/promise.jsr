@@ -151,3 +151,11 @@ fun all(promises)
         end
     end)
 end
+
+fun race(promises)
+    return Promise(fun(resolve, reject)
+        for var promise in promises
+            asResolved(promise).then(resolve, reject)
+        end
+    end)
+end

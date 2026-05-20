@@ -1,0 +1,386 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run
+
+import event_horizon as evh
+import event_horizon.promise for Promise, race, asResolved, asRejected, all
+
+@test
+fun raceFirstResolveWins()
+    var resolveA
+    var a = Promise(fun(res, _)
+        resolveA = res
+    end)
+    var resolveB
+    var b = Promise(fun(res, _)
+        resolveB = res
+    end)
+
+    var result = null
+    race((a, b)).then(fun(v)
+        result = v
+    end)
+
+    resolveA("A")
+    assert(result == "A")
+
+    resolveB("B")
+    assert(result == "A", "second resolve should not override first")
+end
+
+@test
+fun raceFirstRejectWins()
+    var rejectA
+    var a = Promise(fun(_, rej)
+        rejectA = rej
+    end)
+    var resolveB
+    var b = Promise(fun(res, _)
+        resolveB = res
+    end)
+
+    var result = null
+    var didReject = false
+    race((a, b)).then(fun(v)
+        result = v
+    end, fun(e)
+        didReject = true
+        result = e
+    end)
+
+    rejectA("err")
+    assert(didReject and result == "err")
+
+    resolveB("B")
+    assert(result == "err", "second settle should be ignored")
+end
+
+@test
+fun raceResolveBeatsReject()
+    var resolveA
+    var a = Promise(fun(res, _)
+        resolveA = res
+    end)
+    var rejectB
+    var b = Promise(fun(_, rej)
+        rejectB = rej
+    end)
+
+    var result = null
+    var didReject = false
+    race((a, b)).then(fun(v)
+        result = v
+    end, fun(_)
+        didReject = true
+    end)
+
+    resolveA("win")
+    rejectB("loss")
+
+    assert(result == "win" and !didReject)
+end
+
+@test
+fun raceImmediateValue()
+    var result = null
+    race((asResolved(42), asResolved(99))).then(fun(v)
+        result = v
+    end)
+    assert(result == 42, "first already-resolved promise should win")
+end
+
+@test
+fun raceEmpty()
+    var settled = false
+    race(()).then(fun(_)
+        settled = true
+    end, fun(_)
+        settled = true
+    end)
+    evh.run()
+    assert(!settled, "empty race should never settle")
+end
+
+@test
+fun resolveValue()
+    var result = null
+    Promise(fun(resolve, _)
+        resolve(42)
+    end).then(fun(v)
+        result = v
+    end)
+    assert(result == 42)
+end
+
+@test
+fun rejectValue()
+    var result = null
+    Promise(fun(_, reject)
+        reject("oops")
+    end).catch(fun(e)
+        result = e
+    end)
+    assert(result == "oops")
+end
+
+@test
+fun thenChaining()
+    var result = null
+    Promise(fun(resolve, _)
+        resolve(1)
+    end).then(fun(v)
+        return v + 1
+    end).then(fun(v)
+        return v * 10
+    end).then(fun(v)
+        result = v
+    end)
+    assert(result == 20)
+end
+
+@test
+fun thenPropagatesRejection()
+    var result = null
+    Promise(fun(_, reject)
+        reject("fail")
+    end).then(fun(v)
+        result = "should not run"
+    end).catch(fun(e)
+        result = e
+    end)
+    assert(result == "fail")
+end
+
+@test
+fun exceptionInThenBecomesRejection()
+    var caught = false
+    Promise(fun(resolve, _)
+        resolve("ok")
+    end).then(fun(_)
+        raise Exception("boom")
+    end).catch(fun(e)
+        caught = e is Exception
+    end)
+    assert(caught, "exception raised in then handler should propagate as rejection")
+end
+
+@test
+fun resolveWithPromiseAdoptsState()
+    var inner = asResolved(99)
+    var result = null
+    Promise(fun(resolve, _)
+        resolve(inner)
+    end).then(fun(v)
+        result = v
+    end)
+    assert(result == 99, "resolving with a promise should adopt its value")
+end
+
+@test
+fun pendingThenFiredOnSettle()
+    var resolve
+    var p = Promise(fun(res, _)
+        resolve = res
+    end)
+
+    var result = null
+    p.then(fun(v)
+        result = v
+    end)
+
+    assert(result == null, "handler should not fire before resolve")
+    resolve("later")
+    assert(result == "later")
+end
+
+@test
+fun asResolvedWrapsValue()
+    var result = null
+    asResolved(7).then(fun(v)
+        result = v
+    end)
+    assert(result == 7)
+end
+
+@test
+fun asResolvedPassesThroughPromise()
+    var p = asResolved(5)
+    assert(asResolved(p) is Promise)
+    // asResolved returns the same object for a promise
+    var result = null
+    asResolved(p).then(fun(v) result = v end)
+    assert(result == 5)
+end
+
+@test
+fun asRejectedWrapsValue()
+    var result = null
+    asRejected("err").catch(fun(e)
+        result = e
+    end)
+    assert(result == "err")
+end
+
+@test
+fun allEmpty()
+    var result = null
+    all(()).then(fun(v)
+        result = v
+    end)
+    assert(result is List and #result == 0)
+end
+
+@test
+fun allResolvesInOrder()
+    var resolveA
+    var a = Promise(fun(res, _) resolveA = res end)
+    var resolveB
+    var b = Promise(fun(res, _) resolveB = res end)
+    var resolveC
+    var c = Promise(fun(res, _) resolveC = res end)
+
+    var result = null
+    all((a, b, c)).then(fun(v)
+        result = v
+    end)
+
+    resolveC("C")
+    resolveA("A")
+    resolveB("B")
+
+    assert(result is List)
+    assert(result[0] == "A" and result[1] == "B" and result[2] == "C")
+end
+
+@test
+fun allRejectsOnFirstFailure()
+    var resolveA
+    var a = Promise(fun(res, _) resolveA = res end)
+    var rejectB
+    var b = Promise(fun(_, rej) rejectB = rej end)
+
+    var result = null
+    var didReject = false
+    all((a, b)).then(fun(v)
+        result = v
+    end, fun(e)
+        didReject = true
+        result = e
+    end)
+
+    rejectB("b failed")
+    resolveA("A")
+
+    assert(didReject and result == "b failed")
+end
+
+@test
+fun allImmediateValues()
+    var result = null
+    all((asResolved(1), asResolved(2), asResolved(3))).then(fun(v)
+        result = v
+    end)
+    assert(result[0] == 1 and result[1] == 2 and result[2] == 3)
+end
+
+@test
+fun raceFirstResolveWins()
+    var resolveA
+    var a = Promise(fun(res, _)
+        resolveA = res
+    end)
+    var resolveB
+    var b = Promise(fun(res, _)
+        resolveB = res
+    end)
+
+    var result = null
+    race((a, b)).then(fun(v)
+        result = v
+    end)
+
+    resolveA("A")
+    assert(result == "A")
+
+    resolveB("B")
+    assert(result == "A", "second resolve should not override first")
+end
+
+@test
+fun raceFirstRejectWins()
+    var rejectA
+    var a = Promise(fun(_, rej)
+        rejectA = rej
+    end)
+    var resolveB
+    var b = Promise(fun(res, _)
+        resolveB = res
+    end)
+
+    var result = null
+    var didReject = false
+    race((a, b)).then(fun(v)
+        result = v
+    end, fun(e)
+        didReject = true
+        result = e
+    end)
+
+    rejectA("err")
+    assert(didReject and result == "err")
+
+    resolveB("B")
+    assert(result == "err", "second settle should be ignored")
+end
+
+@test
+fun raceResolveBeatsReject()
+    var resolveA
+    var a = Promise(fun(res, _)
+        resolveA = res
+    end)
+    var rejectB
+    var b = Promise(fun(_, rej)
+        rejectB = rej
+    end)
+
+    var result = null
+    var didReject = false
+    race((a, b)).then(fun(v)
+        result = v
+    end, fun(_)
+        didReject = true
+    end)
+
+    resolveA("win")
+    rejectB("loss")
+
+    assert(result == "win" and !didReject)
+end
+
+@test
+fun raceImmediateValue()
+    var result = null
+    race((asResolved(42), asResolved(99))).then(fun(v)
+        result = v
+    end)
+    assert(result == 42, "first already-resolved promise should win")
+end
+
+@test
+fun raceEmpty()
+    var settled = false
+    race(()).then(fun(_)
+        settled = true
+    end, fun(_)
+        settled = true
+    end)
+    evh.run()
+    assert(!settled, "empty race should never settle")
+end
+
+if __name__ == '__main__'
+    run()
+end
