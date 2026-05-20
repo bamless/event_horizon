@@ -10,8 +10,11 @@ void EventHorizonException_raise(JStarVM* vm, const char* err) {
 }
 
 void LoopExecutionException_raise(JStarVM* vm, int exceptionsSlot) {
+    // Normalise a negative (top-relative) slot to an absolute index before
+    // any pushes shift the stack top.
+    if(exceptionsSlot < 0) exceptionsSlot = jsrTop(vm) + exceptionsSlot + 1;
+
     if(!jsrGetGlobal(vm, "event_horizon.errors", "LoopExecutionException")) return;
-    if(exceptionsSlot < 0) exceptionsSlot -= 1;
     jsrPushValue(vm, exceptionsSlot);
     if(!jsrCall(vm, 1)) return;
     jsrRaiseException(vm, -1);

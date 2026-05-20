@@ -149,15 +149,13 @@ bool EventLoop_unregisterHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
 }
 
 void EventLoop_addException(JStarVM* vm, int exceptionSlot) {
-    // If the exception slot is relative, we need to correct it to account for next pushes
-    if(exceptionSlot < 0) {
-        exceptionSlot -= 1;
-    }
+    // Normalise a negative (top-relative) slot to an absolute index before
+    // any pushes shift the stack top.
+    if(exceptionSlot < 0) exceptionSlot = jsrTop(vm) + exceptionSlot + 1;
 
     jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_ADD_EXCEPTION);
     jsrPushValue(vm, exceptionSlot);
     jsrCall(vm, 1);
-
     jsrPop(vm);
 }
 // end

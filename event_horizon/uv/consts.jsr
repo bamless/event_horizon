@@ -1,3 +1,5 @@
+import sys
+
 var Family = Enum(
     'AF_UNSPEC',
     'AF_INET',
@@ -9,6 +11,11 @@ var SockType = Enum(
     'SOCK_DGRAM'
 )
 
+// AI_IDN and AI_CANONIDN are GNU extensions available only on Linux.
+// They are included in the Enum at runtime so the names remain visible
+// here for documentation, but must not be used on other platforms.
+static var _gnuAIFlags = ('AI_IDN', 'AI_CANONIDN')
+
 var AIFlags = Enum(
     'AI_PASSIVE',
     'AI_CANONNAME',
@@ -16,9 +23,8 @@ var AIFlags = Enum(
     'AI_V4MAPPED',
     'AI_ALL',
     'AI_ADDRCONFIG',
-    'AI_IDN',
-    'AI_CANONIDN',
-    'AI_NUMERICSERV'
+    'AI_NUMERICSERV',
+    ...(_gnuAIFlags if sys.platform() == "Linux" else ()),
 )
 
 static native _consts_init()

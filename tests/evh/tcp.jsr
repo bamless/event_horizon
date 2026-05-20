@@ -474,6 +474,45 @@ fun readUntilFail()
     evh.run(all([server(), client()]))
 end
 
+@test
+fun readUntilSeparatorSplitAcrossChunks()
+    // Regression test for _drainUntilSep missing separators that straddle a
+    // chunk boundary. The first write ends with "\r\n\r" (three of the four
+    // separator bytes) and the second write, sent after a delay to force a
+    // separate TCP segment, starts with "\n" (the final byte). The old code
+    // searched each chunk in isolation and would hang forever on the first
+    // readUntil because neither chunk contained the complete "\r\n\r\n".
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+
+        yield server.listen(async(fun(client)
+            yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
+            yield wait(1000)
+            yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var data1 = yield client.readUntil("\r\n\r\n")
+        assert(data1 == "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data2 = yield client.readUntil("\r\n\r\n")
+        assert(data2 == "GET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        yield client.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
 if __name__ == '__main__'
     run()
 end

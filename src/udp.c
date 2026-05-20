@@ -157,11 +157,15 @@ bool UDP_trySend(JStarVM* vm) {
     uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);
     if(!udp) return false;
 
-    sockaddr_union sa;
-    int res = initSockaddr(jsrGetString(vm, 2), jsrGetNumber(vm, 3), &sa);
-    if(res < 0) {
-        StatusException_raise(vm, res);
-        return false;
+    const struct sockaddr* sa = NULL;
+    sockaddr_union sun;
+    if(!jsrIsNull(vm, 2)) {
+        int res = initSockaddr(jsrGetString(vm, 2), jsrGetNumber(vm, 3), &sun);
+        if(res < 0) {
+            StatusException_raise(vm, res);
+            return false;
+        }
+        sa = &sun.sa;
     }
 
     uv_buf_t buf = {
@@ -169,7 +173,7 @@ bool UDP_trySend(JStarVM* vm) {
         .len = jsrGetStringSz(vm, 1),
     };
 
-    res = uv_udp_try_send(udp, &buf, 1, &sa.sa);
+    int res = uv_udp_try_send(udp, &buf, 1, sa);
     if(res == UV_EAGAIN) {
         res = 0;
     }

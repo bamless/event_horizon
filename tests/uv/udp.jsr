@@ -109,6 +109,34 @@ fun trySend()
 end
 
 @test
+fun trySendConnected()
+    var send = "Hello, World"
+    var s = UDP()
+    var c = UDP()
+
+    s.bind("0.0.0.0", 8080)
+    c.connect("127.0.0.1", 8080)
+    c.trySend(send)
+
+    var recvCalled = false
+    s.recvStart(fun(data, addr, port, status)
+        s.close()
+        c.close()
+
+        recvCalled = true
+        if status < 0
+            raise StatusException(status)
+        end
+
+        assert(data == send)
+    end)
+
+    uv.loop().run()
+
+    assert(recvCalled, "recv not called")
+end
+
+@test
 fun sendFail()
     var data = "Hello, World!"
     var udp = UDP()

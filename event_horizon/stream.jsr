@@ -30,11 +30,15 @@ class Stream is Handle
 
     fun listen(onConnect, onError=null, backlog=0)
         var self = this
+        var errHandler = onError or (|e| => e.printStacktrace())
         return Promise(fun(resolve, _)
             self._resolveListen = resolve
             self._handle.listen(fun(client, status)
-                handleConnection(self._accept(client), status, onConnect).
-                    catch(onError or (|e| => e.printStacktrace()))
+                if status < 0
+                    errHandler(StatusException(status))
+                    return
+                end
+                handleConnection(self._accept(client), status, onConnect).catch(errHandler)
             end)
         end)
     end
@@ -197,14 +201,43 @@ class Stream is Handle
         var sepEnd = -1
         var chunksSize, numChunks = 0, 0
 
+        var sepLen = #separator
+        var tail = ""
+
         var chunk
         while (chunk = this._buffer.peekFront(numChunks)) and sepEnd == -1
-            var pos = chunk.findSubstr(separator)
-            if pos != -1
-                sepEnd = chunksSize + pos + #separator
+            // Check for a separator that starts inside `tail` (previous data) and
+            // ends inside the head of the current chunk. A separator found at
+            // position `pos` in the junction window `tail + head` is a boundary
+            // hit only when `pos < #tail`; positions >= #tail are entirely within
+            // `chunk` and are caught by the per-chunk search below.
+            if #tail > 0
+                var head = chunk[0, sepLen - 1] if #chunk >= sepLen - 1 else chunk
+                var pos = (tail + head).findSubstr(separator)
+                if pos != -1 and pos < #tail
+                    sepEnd = chunksSize - #tail + pos + sepLen
+                end
             end
+
+            // Check for separator entirely within this chunk.
+            if sepEnd == -1
+                var pos = chunk.findSubstr(separator)
+                if pos != -1
+                    sepEnd = chunksSize + pos + sepLen
+                end
+            end
+
             numChunks += 1
             chunksSize += #chunk
+
+            // Advance the tail to include the current chunk, keeping only the
+            // last (sepLen - 1) bytes so the next boundary check is correct even
+            // when individual chunks are shorter than the separator.
+            if sepLen > 1
+                var combined = tail + chunk
+                var tailLen = sepLen - 1
+                tail = combined[#combined - tailLen, #combined] if #combined >= tailLen else combined
+            end
         end
 
         if sepEnd == -1
