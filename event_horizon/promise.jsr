@@ -93,6 +93,10 @@ class Promise
         end
     end
 
+    // Handlers fire synchronously when the promise is already settled.
+    // This avoids the per-.then latency of deferring to the next event-loop tick,
+    // at the cost of growing the call stack proportionally to chain depth.
+    // TODO: consider deferring for very deep async chains to avoid stack overflow.
     fun _handle(handler)
         if this._state == State.PENDING
             this._handlers.add(handler)
