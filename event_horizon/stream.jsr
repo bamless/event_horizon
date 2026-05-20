@@ -280,10 +280,10 @@ class Stream is Handle
     end
 
     fun _bufferTakeFront(num)
-        var data = this._buffer.take(num).join()
+        var parts = List(num)
         for var i = 0; i < num; i += 1
-            this._bufferPopFront()
+            parts[i] = this._bufferPopFront()
         end
-        return data
+        return parts.join()
     end
 end
