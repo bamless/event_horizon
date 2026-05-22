@@ -1,0 +1,20 @@
+import event_horizon.data_structures.deque for Deque
+
+class StreamBuffer
+    construct()
+        this._chunks = Deque()
+        this._state = null
+        this._initState()
+    end
+
+    fun __len__()
+        return this.size()
+    end
+
+    native _initState()
+    native pushBack(data)
+    native drainN(n)
+    native drainUntilSep(sep)
+    native drainAll()
+    native size()
+end

@@ -1,6 +1,5 @@
 #include "callbacks.h"
 
-#include <jstar/buffer.h>
 #include <jstar/jstar.h>
 
 #include "dns.h"
@@ -79,7 +78,7 @@ void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int dataR
     int handleSlot = jsrTop(vm);
 
     if(dataRef != -1) {
-        if(!Handle_dequeueData(vm, dataRef, handleSlot)) {
+        if(!Handle_popPending(vm, dataRef, handleSlot)) {
             EventLoop_addException(vm, -1);
             jsrPop(vm);
         }
@@ -221,12 +220,15 @@ void walkCallback(uv_handle_t* handle, void* arg) {
     LoopMetadata* loopMetadata = loop->data;
     JStarVM* vm = loopMetadata->vm;
 
+    static JStarSymbol* sym_walk_callback;
+    if(!sym_walk_callback) sym_walk_callback = jsrNewSymbol(vm);
+
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int loopSlot = jsrTop(vm) - 1;
     int handleSlot = jsrTop(vm);
     int slot = 2;  // [loop, handle]
 
-    if(!jsrGetField(vm, loopSlot, M_LOOP_WALK_CALLBACK)) {
+    if(!jsrGetFieldCached(vm, loopSlot, M_LOOP_WALK_CALLBACK, sym_walk_callback)) {
         jsrPopN(vm, slot + 1);  // [loop, handle, exception]
         return;
     }

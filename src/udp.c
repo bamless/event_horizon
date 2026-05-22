@@ -124,7 +124,7 @@ bool UDP_send(JStarVM* vm) {
     const char* data = jsrGetString(vm, 1);
     size_t dataSz = jsrGetStringSz(vm, 1);
 
-    int dataRef = Handle_queueData(vm, 1, 0);
+    int dataRef = Handle_pushPending(vm, 1, 0);
     if(dataRef == -1) return false;
 
     SendReq* req = malloc(sizeof(*req));
@@ -136,7 +136,7 @@ bool UDP_send(JStarVM* vm) {
     if(res < 0) {
         free(req);
         if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
-        if(!Handle_dequeueData(vm, dataRef, 0)) return false;
+        if(!Handle_popPending(vm, dataRef, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }

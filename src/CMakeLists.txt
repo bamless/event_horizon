@@ -18,6 +18,8 @@ add_library(event_horizon SHARED
     pipe.c
     stream.h
     stream.c
+    stream_buffer.h
+    stream_buffer.c
     tcp.c
     tcp.h
     udp.h

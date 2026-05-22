@@ -1,0 +1,228 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import event_horizon.uv.stream_buffer for StreamBuffer
+
+import test for test, run
+
+// ---------------------------------------------------------------------------
+// pushBack / size / __len__
+// ---------------------------------------------------------------------------
+
+@test
+fun pushBackAndSize()
+    var b = StreamBuffer()
+    assert(#b == 0)
+    b.pushBack("hello")
+    assert(#b == 5)
+    b.pushBack(" world")
+    assert(#b == 11)
+end
+
+// ---------------------------------------------------------------------------
+// drainAll
+// ---------------------------------------------------------------------------
+
+@test
+fun drainAllEmpty()
+    var b = StreamBuffer()
+    assert(b.drainAll() == null)
+end
+
+@test
+fun drainAllSingleChunk()
+    var b = StreamBuffer()
+    b.pushBack("hello")
+    assert(b.drainAll() == "hello")
+    assert(#b == 0)
+end
+
+@test
+fun drainAllMultipleChunks()
+    var b = StreamBuffer()
+    b.pushBack("foo")
+    b.pushBack("bar")
+    b.pushBack("baz")
+    assert(b.drainAll() == "foobarbaz")
+    assert(#b == 0)
+end
+
+@test
+fun drainAllResetsBuffer()
+    var b = StreamBuffer()
+    b.pushBack("data")
+    b.drainAll()
+    assert(b.drainAll() == null)
+    b.pushBack("new")
+    assert(b.drainAll() == "new")
+end
+
+// ---------------------------------------------------------------------------
+// drainN
+// ---------------------------------------------------------------------------
+
+@test
+fun drainNNotEnoughData()
+    var b = StreamBuffer()
+    b.pushBack("hi")
+    assert(b.drainN(10) == null)
+    assert(#b == 2)  // nothing was consumed
+end
+
+@test
+fun drainNExact()
+    var b = StreamBuffer()
+    b.pushBack("hello")
+    assert(b.drainN(5) == "hello")
+    assert(#b == 0)
+end
+
+@test
+fun drainNPartial()
+    var b = StreamBuffer()
+    b.pushBack("hello world")
+    assert(b.drainN(5) == "hello")
+    assert(#b == 6)
+    assert(b.drainN(6) == " world")
+    assert(#b == 0)
+end
+
+@test
+fun drainNAcrossChunks()
+    var b = StreamBuffer()
+    b.pushBack("foo")
+    b.pushBack("bar")
+    assert(b.drainN(4) == "foob")
+    assert(#b == 2)
+    assert(b.drainN(2) == "ar")
+    assert(#b == 0)
+end
+
+@test
+fun drainNThenDrainAll()
+    var b = StreamBuffer()
+    b.pushBack("abcdef")
+    b.drainN(3)
+    assert(b.drainAll() == "def")
+end
+
+// ---------------------------------------------------------------------------
+// drainUntilSep
+// ---------------------------------------------------------------------------
+
+@test
+fun drainUntilSepNotFound()
+    var b = StreamBuffer()
+    b.pushBack("hello world")
+    assert(b.drainUntilSep("\n") == null)
+    assert(#b == 11)  // nothing was consumed
+end
+
+@test
+fun drainUntilSepWithinChunk()
+    var b = StreamBuffer()
+    b.pushBack("hello\nworld")
+    assert(b.drainUntilSep("\n") == "hello\n")
+    assert(#b == 5)
+    assert(b.drainAll() == "world")
+end
+
+@test
+fun drainUntilSepAtStart()
+    var b = StreamBuffer()
+    b.pushBack("\nhello")
+    assert(b.drainUntilSep("\n") == "\n")
+    assert(b.drainAll() == "hello")
+end
+
+@test
+fun drainUntilSepAtEnd()
+    var b = StreamBuffer()
+    b.pushBack("hello\n")
+    assert(b.drainUntilSep("\n") == "hello\n")
+    assert(b.drainAll() == null)
+end
+
+@test
+fun drainUntilSepAtChunkBoundary()
+    var b = StreamBuffer()
+    b.pushBack("hello\n")
+    b.pushBack("world")
+    assert(b.drainUntilSep("\n") == "hello\n")
+    assert(b.drainAll() == "world")
+end
+
+@test
+fun drainUntilSepStraddlesBoundary()
+    var b = StreamBuffer()
+    b.pushBack("hel")
+    b.pushBack("lo\nworld")
+    assert(b.drainUntilSep("\n") == "hello\n")
+    assert(b.drainAll() == "world")
+end
+
+@test
+fun drainUntilSepMultiChar()
+    var b = StreamBuffer()
+    b.pushBack("hello\r\nworld")
+    assert(b.drainUntilSep("\r\n") == "hello\r\n")
+    assert(b.drainAll() == "world")
+end
+
+@test
+fun drainUntilSepMultiCharStraddlesBoundary()
+    // "\r\n" split so that "\r" ends one chunk and "\n" starts the next
+    var b = StreamBuffer()
+    b.pushBack("hello\r")
+    b.pushBack("\nworld")
+    assert(b.drainUntilSep("\r\n") == "hello\r\n")
+    assert(b.drainAll() == "world")
+end
+
+@test
+fun drainUntilSepSplitAcrossThreeChunks()
+    // Multi-char separator spanning three tiny chunks
+    var b = StreamBuffer()
+    b.pushBack("a")
+    b.pushBack("\r")
+    b.pushBack("\nb")
+    assert(b.drainUntilSep("\r\n") == "a\r\n")
+    assert(b.drainAll() == "b")
+end
+
+@test
+fun drainUntilSepEmptySep()
+    var b = StreamBuffer()
+    b.pushBack("hello")
+    assert(b.drainUntilSep("") == "")
+    assert(#b == 5)  // nothing consumed
+end
+
+@test
+fun drainUntilSepTooLong()
+    var b = StreamBuffer()
+    b.pushBack("hello")
+    var sep = "x" * 65  // exceeds MAX_SEP_LEN (64)
+    var threw = false
+    try
+        b.drainUntilSep(sep)
+    except InvalidArgException e
+        threw = true
+    end
+    assert(threw)
+end
+
+@test
+fun drainUntilSepMultipleTimes()
+    var b = StreamBuffer()
+    b.pushBack("line1\nline2\nline3\n")
+    assert(b.drainUntilSep("\n") == "line1\n")
+    assert(b.drainUntilSep("\n") == "line2\n")
+    assert(b.drainUntilSep("\n") == "line3\n")
+    assert(b.drainUntilSep("\n") == null)
+end
+
+if __name__ == '__main__'
+    run()
+end

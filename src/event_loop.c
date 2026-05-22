@@ -5,6 +5,13 @@
 #include "callbacks.h"
 #include "errors.h"
 
+static JStarSymbol* sym_loop;
+static JStarSymbol* sym_id;
+static JStarSymbol* sym_handles;
+static JStarSymbol* sym_ref;
+static JStarSymbol* sym_get;
+static JStarSymbol* sym_unref;
+
 // class EventLoop
 #define G_ADD_EXCEPTION    "_addException"
 #define G_CLEAR_EXCEPTIONS "_clearExceptions"
@@ -86,6 +93,15 @@ static void closeLibuvLoop(void* data) {
 }
 
 bool EventLoop_init(JStarVM* vm) {
+    if(!sym_loop) {
+        sym_loop    = jsrNewSymbol(vm);
+        sym_id      = jsrNewSymbol(vm);
+        sym_handles = jsrNewSymbol(vm);
+        sym_ref     = jsrNewSymbol(vm);
+        sym_get     = jsrNewSymbol(vm);
+        sym_unref   = jsrNewSymbol(vm);
+    }
+
     // Instantiate the libuv loop
     int loopId = EventLoop_getId(vm, 0);
     if(loopId == -1) return false;
@@ -108,7 +124,7 @@ bool EventLoop_init(JStarVM* vm) {
 }
 
 uv_loop_t* EventLoop_getUVLoop(JStarVM* vm, int eventLoopSlot) {
-    if(!jsrGetField(vm, eventLoopSlot, M_LOOP_LOOP)) return NULL;
+    if(!jsrGetFieldCached(vm, eventLoopSlot, M_LOOP_LOOP, sym_loop)) return NULL;
     if(!jsrCheckUserdata(vm, -1, "EventLoop." M_LOOP_LOOP)) return NULL;
     uv_loop_t* loop = jsrGetUserdata(vm, -1);
     jsrPop(vm);
@@ -116,7 +132,7 @@ uv_loop_t* EventLoop_getUVLoop(JStarVM* vm, int eventLoopSlot) {
 }
 
 int EventLoop_getId(JStarVM* vm, int eventLoopSlot) {
-    if(!jsrGetField(vm, eventLoopSlot, M_LOOP_ID)) return -1;
+    if(!jsrGetFieldCached(vm, eventLoopSlot, M_LOOP_ID, sym_id)) return -1;
     if(!jsrCheckNumber(vm, -1, "EventLoop." M_LOOP_ID)) return -1;
     int loopId = jsrGetNumber(vm, -1);
     jsrPop(vm);
@@ -125,10 +141,10 @@ int EventLoop_getId(JStarVM* vm, int eventLoopSlot) {
 
 int EventLoop_registerHandle(JStarVM* vm, int handleSlot, int eventLoopSlot) {
     jsrPushValue(vm, eventLoopSlot);
-    if(!jsrGetField(vm, -1, M_LOOP_HANDLES)) return -1;
+    if(!jsrGetFieldCached(vm, -1, M_LOOP_HANDLES, sym_handles)) return -1;
 
     jsrPushValue(vm, handleSlot);
-    if(!jsrCallMethod(vm, "ref", 1)) return -1;
+    if(!jsrCallMethodCached(vm, "ref", 1, sym_ref)) return -1;
 
     JSR_CHECK(Int, -1, "loop._handles.ref()");
     int handleId = jsrGetNumber(vm, -1);
@@ -138,17 +154,17 @@ int EventLoop_registerHandle(JStarVM* vm, int handleSlot, int eventLoopSlot) {
 }
 
 bool EventLoop_getHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
-    if(!jsrGetField(vm, eventLoopSlot, M_LOOP_HANDLES)) return false;
+    if(!jsrGetFieldCached(vm, eventLoopSlot, M_LOOP_HANDLES, sym_handles)) return false;
     jsrPushNumber(vm, handleId);
-    if(!jsrCallMethod(vm, "get", 1)) return false;
+    if(!jsrCallMethodCached(vm, "get", 1, sym_get)) return false;
     return true;
 }
 
 bool EventLoop_unregisterHandle(JStarVM* vm, int handleId, int eventLoopSlot) {
     jsrPushValue(vm, eventLoopSlot);
-    if(!jsrGetField(vm, -1, M_LOOP_HANDLES)) return false;
+    if(!jsrGetFieldCached(vm, -1, M_LOOP_HANDLES, sym_handles)) return false;
     jsrPushNumber(vm, handleId);
-    if(!jsrCallMethod(vm, "unref", 1)) return false;
+    if(!jsrCallMethodCached(vm, "unref", 1, sym_unref)) return false;
     jsrPop(vm);
     return true;
 }

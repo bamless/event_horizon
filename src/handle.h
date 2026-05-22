@@ -17,7 +17,7 @@ uv_handle_t* pushLibUVHandle(JStarVM* vm, size_t size);
 #define M_HANDLE_LOOP        "_loop"
 #define M_HANDLE_HANDLE      "_handle"
 #define M_HANDLE_CALLBACKS   "_callbacks"
-#define M_HANDLE_QUEUED_DATA "_queuedData"
+#define M_HANDLE_PENDING_DATA "_pendingData"
 
 // Native methods
 bool Handle_init(JStarVM* vm);
@@ -39,8 +39,8 @@ int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot)
 bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handleSlot);
 bool Handle_unregisterCallback(JStarVM* vm, CallbackType type, int handleSlot);
 bool Handle_unregisterCallbackById(JStarVM* vm, int callbackId, int handleSlot);
-int Handle_queueData(JStarVM* vm, int dataSlot, int handleSlot);
-bool Handle_dequeueData(JStarVM* vm, int dataRef, int handleSlot);
+int Handle_pushPending(JStarVM* vm, int dataSlot, int handleSlot);
+bool Handle_popPending(JStarVM* vm, int dataRef, int handleSlot);
 bool Handle_checkClosing(JStarVM* vm, int handleSlot);
 // end
 
