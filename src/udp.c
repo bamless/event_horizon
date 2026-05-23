@@ -70,17 +70,36 @@ bool UDP_connect(JStarVM* vm) {
     return true;
 }
 
-typedef struct {
+typedef struct SendReq {
     uv_udp_send_t req;
     int dataRef;
+    struct SendReq* nextFree;
 } SendReq;
+
+// Global pool of recycled SendReqs. Safe without locking: the J* VM is
+// single-threaded and libuv callbacks fire on the same thread.
+static SendReq* sendReqPool;
+
+static SendReq* sendReqAcquire(void) {
+    if(sendReqPool) {
+        SendReq* req = sendReqPool;
+        sendReqPool = req->nextFree;
+        return req;
+    }
+    return malloc(sizeof(SendReq));
+}
+
+static void sendReqRelease(SendReq* req) {
+    req->nextFree = sendReqPool;
+    sendReqPool = req;
+}
 
 void sendCallback(uv_udp_send_t* req, int status) {
     SendReq* sendReq = (SendReq*)req;
     int dataRef = sendReq->dataRef;
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
-    free(req);
+    sendReqRelease(sendReq);
     reqCallback(handle, callbackId, true, dataRef, status);
 }
 
@@ -127,14 +146,14 @@ bool UDP_send(JStarVM* vm) {
     int dataRef = Handle_pushPending(vm, 1, 0);
     if(dataRef == -1) return false;
 
-    SendReq* req = malloc(sizeof(*req));
+    SendReq* req = sendReqAcquire();
     req->dataRef = dataRef;
     setRequestCallback((uv_req_t*)req, callbackId);
 
     uv_buf_t buf = {(char*)data, dataSz};
     int res = uv_udp_send(&req->req, udp, &buf, 1, sa, &sendCallback);
     if(res < 0) {
-        free(req);
+        sendReqRelease(req);
         if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
         if(!Handle_popPending(vm, dataRef, 0)) return false;
         StatusException_raise(vm, res);
