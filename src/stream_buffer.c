@@ -198,7 +198,7 @@ bool StreamBuffer_drainUntilSep(JStarVM* vm) {
     ptrdiff_t sepEnd = -1;
     size_t logicalPos = 0;
     char tail[MAX_SEP_LEN];
-    size_t tail_len = 0;
+    size_t tailLen = 0;
 
     for(size_t i = 0;; i++) {
         jsrPushValue(vm, dequeSlot);
@@ -226,20 +226,20 @@ bool StreamBuffer_drainUntilSep(JStarVM* vm) {
         // (captured in tail) and the start of this chunk. A match is a boundary hit only
         // when it starts within the tail region (pos_in_window < tail_len). If it starts
         // inside this chunk's bytes the within-chunk search below will find it instead.
-        if(tail_len > 0 && chunkLen > 0) {
+        if(tailLen > 0 && chunkLen > 0) {
             size_t headLen = (chunkLen < sepLen - 1) ? chunkLen : sepLen - 1;
             // window = tail + first headLen bytes of chunk; at most 2*(MAX_SEP_LEN-1) bytes.
             char window[MAX_SEP_LEN * 2 - 1];
-            memcpy(window, tail, tail_len);
-            memcpy(window + tail_len, chunk, headLen);
-            size_t windowLen = tail_len + headLen;
+            memcpy(window, tail, tailLen);
+            memcpy(window + tailLen, chunk, headLen);
+            size_t windowLen = tailLen + headLen;
 
             const char* found = findBytes(window, windowLen, sep, sepLen);
             if(found != NULL) {
                 ptrdiff_t posInWindow = found - window;
                 JSR_ASSERT(posInWindow >= 0, "findBytes returns a pointer within window");
-                if((size_t)posInWindow < tail_len) {
-                    sepEnd = (ptrdiff_t)(logicalPos - tail_len) + posInWindow + (ptrdiff_t)sepLen;
+                if((size_t)posInWindow < tailLen) {
+                    sepEnd = (ptrdiff_t)(logicalPos - tailLen) + posInWindow + (ptrdiff_t)sepLen;
                     break;
                 }
             }
@@ -260,19 +260,19 @@ bool StreamBuffer_drainUntilSep(JStarVM* vm) {
         // separator split across three or more small chunks is still detected correctly.
         if(sepLen > 1) {
             size_t need = sepLen - 1;
-            size_t combined = tail_len + chunkLen;
-            size_t new_tail_len = (combined < need) ? combined : need;
+            size_t combined = tailLen + chunkLen;
+            size_t newTailLen = (combined < need) ? combined : need;
 
-            if(new_tail_len <= chunkLen) {
+            if(newTailLen <= chunkLen) {
                 // New tail comes entirely from this chunk.
-                memcpy(tail, chunk + chunkLen - new_tail_len, new_tail_len);
+                memcpy(tail, chunk + chunkLen - newTailLen, newTailLen);
             } else {
                 // New tail is a suffix of old tail followed by all of this chunk.
-                size_t from_tail = new_tail_len - chunkLen;
-                memmove(tail, tail + tail_len - from_tail, from_tail);
-                memcpy(tail + from_tail, chunk, chunkLen);
+                size_t fromTail = newTailLen - chunkLen;
+                memmove(tail, tail + tailLen - fromTail, fromTail);
+                memcpy(tail + fromTail, chunk, chunkLen);
             }
-            tail_len = new_tail_len;
+            tailLen = newTailLen;
         }
     }
 
