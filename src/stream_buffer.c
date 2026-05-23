@@ -351,7 +351,7 @@ bool StreamBuffer_drainAll(JStarVM* vm) {
     return true;
 }
 
-bool StreamBuffer_size(JStarVM* vm) {
+bool StreamBuffer_len(JStarVM* vm) {
     StreamBufState* state = getState(vm, 0);
     if(!state) return false;
     jsrPushNumber(vm, state->totalBytes);

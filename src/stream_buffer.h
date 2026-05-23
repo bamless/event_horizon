@@ -15,7 +15,7 @@ bool StreamBuffer_pushBack(JStarVM* vm);
 bool StreamBuffer_drainN(JStarVM* vm);
 bool StreamBuffer_drainUntilSep(JStarVM* vm);
 bool StreamBuffer_drainAll(JStarVM* vm);
-bool StreamBuffer_size(JStarVM* vm);
+bool StreamBuffer_len(JStarVM* vm);
 // end
 
 #endif
