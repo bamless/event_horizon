@@ -13,7 +13,6 @@ static JStarSymbol* sym_pending_data;
 static JStarSymbol* sym_ref;
 static JStarSymbol* sym_get;
 static JStarSymbol* sym_unref;
-static JStarSymbol* sym_is_closing;
 
 static void freeHandle(void* data) {
     uv_handle_t* handle = data;
@@ -40,7 +39,6 @@ bool Handle_init(JStarVM* vm) {
         sym_ref = jsrNewSymbol(vm);
         sym_get = jsrNewSymbol(vm);
         sym_unref = jsrNewSymbol(vm);
-        sym_is_closing = jsrNewSymbol(vm);
     }
 
     JSR_CHECK(Userdata, 2, "handle");
@@ -284,14 +282,10 @@ bool Handle_popPending(JStarVM* vm, int dataRef, int handleSlot) {
 }
 
 bool Handle_checkClosing(JStarVM* vm, int handleSlot) {
-    jsrPushValue(vm, handleSlot);
-    if(!jsrCallMethodCached(vm, "isClosing", 0, sym_is_closing)) return false;
-    JSR_CHECK(Boolean, -1, "Handle.isClosing()");
+    uv_handle_t* handle = Handle_getHandle(vm, handleSlot);
+    if(!handle) return false;
 
-    bool isClosing = jsrGetBoolean(vm, -1);
-    jsrPop(vm);
-
-    if(isClosing) {
+    if(uv_is_closing(handle)) {
         EventHorizonException_raise(vm, "Handle is already closed");
         return false;
     }
