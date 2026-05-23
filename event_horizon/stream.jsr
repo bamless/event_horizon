@@ -1,9 +1,9 @@
 import event_horizon.utils.abc for abstract, abstractMethod
 import event_horizon.async for async
-import event_horizon.data_structures.deque for Deque
 import event_horizon.errors for EventHorizonException, StatusException
 import event_horizon.handle for Handle
 import event_horizon.promise for Promise
+import event_horizon.uv.stream_buffer for StreamBuffer
 
 @async
 static fun handleConnection(client, status, onConnect)
@@ -17,8 +17,7 @@ class Stream is Handle
     @abstract(Stream) construct(handle)
         super(handle)
         this._resolveListen = null
-        this._buffer = Deque()
-        this._bufferedBytes = 0
+        this._buffer = StreamBuffer()
     end
 
     fun close()
@@ -44,9 +43,18 @@ class Stream is Handle
     end
 
     fun write(data)
+        // Try a synchronous write first
+        var written = this._handle.tryWrite(data)
+        if written == #data
+            return
+        end
+
+        // Partial write (kernel buffer nearly full) or EAGAIN: hand the
+        // remainder off to the full async path.
         var self = this
+        var pending = data[written, #data] if written > 0 else data
         return Promise(fun(resolve, reject)
-            self._handle.write(data, fun(status)
+            self._handle.write(pending, fun(status)
                 if status < 0
                     reject(StatusException(status))
                 else
@@ -56,9 +64,10 @@ class Stream is Handle
         end)
     end
 
+    @async
     fun writeln(data)
-        var self = this
-        return this.write(data).then(|_| => self.write("\n"))
+        yield this.write(data)
+        yield this.write("\n")
     end
 
     fun tryWrite(data)
@@ -66,7 +75,7 @@ class Stream is Handle
     end
 
     fun read(count=0)
-        var data = this._drainAll() if count == 0 else this._drainUntil(count)
+        var data = this._buffer.drainAll() if count == 0 else this._buffer.drainN(count)
         if data
             return data
         end
@@ -88,12 +97,12 @@ class Stream is Handle
 
                 if !data  // EOF
                     self._handle.readStop()
-                    resolve(self._drainAll())
+                    resolve(self._buffer.drainAll())
                     return
                 end
 
-                self._bufferPushBack(data)
-                var dataChunk = self._drainUntil(count)
+                self._buffer.pushBack(data)
+                var dataChunk = self._buffer.drainN(count)
 
                 if dataChunk
                     self._handle.readStop()
@@ -114,7 +123,7 @@ class Stream is Handle
     end
 
     fun readUntil(separator)
-        var data = this._drainUntilSep(separator)
+        var data = this._buffer.drainUntilSep(separator)
         if data
             return data
         end
@@ -130,12 +139,12 @@ class Stream is Handle
 
                 if !data  // EOF
                     self._handle.readStop()
-                    resolve(self._drainAll())
+                    resolve(self._buffer.drainAll())
                     return
                 end
 
-                self._bufferPushBack(data)
-                var dataChunk = self._drainUntilSep(separator)
+                self._buffer.pushBack(data)
+                var dataChunk = self._buffer.drainUntilSep(separator)
 
                 if dataChunk
                     self._handle.readStop()
@@ -176,114 +185,4 @@ class Stream is Handle
 
     @abstractMethod
     fun _accept(client) end
-
-    fun _drainUntil(count)
-        var numChunks, chunksSize = 0, 0
-        while chunksSize < count
-            var chunk = this._buffer.peekFront(numChunks)
-            if !chunk
-                return null
-            end
-            chunksSize += #chunk
-            numChunks += 1
-        end
-
-        var data = this._bufferTakeFront(numChunks)
-        if chunksSize > count
-            this._bufferPushFront(data[count, chunksSize])
-            return data[0, count]
-        else
-            return data
-        end
-    end
-
-    fun _drainUntilSep(separator)
-        var sepEnd = -1
-        var chunksSize, numChunks = 0, 0
-
-        var sepLen = #separator
-        var tail = ""
-
-        var chunk
-        while (chunk = this._buffer.peekFront(numChunks)) and sepEnd == -1
-            // Check for a separator that starts inside `tail` (previous data) and
-            // ends inside the head of the current chunk. A separator found at
-            // position `pos` in the junction window `tail + head` is a boundary
-            // hit only when `pos < #tail`; positions >= #tail are entirely within
-            // `chunk` and are caught by the per-chunk search below.
-            if #tail > 0
-                var head = chunk[0, sepLen - 1] if #chunk >= sepLen - 1 else chunk
-                var pos = (tail + head).findSubstr(separator)
-                if pos != -1 and pos < #tail
-                    sepEnd = chunksSize - #tail + pos + sepLen
-                end
-            end
-
-            // Check for separator entirely within this chunk.
-            if sepEnd == -1
-                var pos = chunk.findSubstr(separator)
-                if pos != -1
-                    sepEnd = chunksSize + pos + sepLen
-                end
-            end
-
-            numChunks += 1
-            chunksSize += #chunk
-
-            // Advance the tail to include the current chunk, keeping only the
-            // last (sepLen - 1) bytes so the next boundary check is correct even
-            // when individual chunks are shorter than the separator.
-            if sepLen > 1
-                var combined = tail + chunk
-                var tailLen = sepLen - 1
-                tail = combined[#combined - tailLen, #combined] if #combined >= tailLen else combined
-            end
-        end
-
-        if sepEnd == -1
-            return null
-        end
-
-        var data = this._bufferTakeFront(numChunks)
-        if chunksSize > sepEnd
-            this._bufferPushFront(data[sepEnd, chunksSize])
-            return data[0, sepEnd]
-        else
-            return data
-        end
-    end
-
-    fun _drainAll()
-        if this._bufferedBytes == 0
-            return null
-        end
-        var data = this._buffer.join()
-        this._bufferedBytes = 0
-        this._buffer.clear()
-        return data
-    end
-
-    fun _bufferPushBack(data)
-        this._buffer.pushBack(data)
-        this._bufferedBytes += #data
-    end
-
-    fun _bufferPushFront(data)
-        this._buffer.pushFront(data)
-        this._bufferedBytes += #data
-    end
-
-    fun _bufferPopFront()
-        var data = this._buffer.popFront()
-        this._bufferedBytes -= #data
-        return data
-    end
-
-    fun _bufferTakeFront(num)
-        var parts = List(num)
-        for var i = 0; i < num; i += 1
-            parts[i] = this._bufferPopFront()
-        end
-        return parts.join()
-    end
 end

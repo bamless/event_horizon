@@ -27,7 +27,7 @@ class Handle
         this._loop = loop
         this._handle = handle
         this._callbacks = Registry()
-        this._queuedData = Registry()
+        this._pendingData = Registry()
         this._init(loop, handle)
     end
 

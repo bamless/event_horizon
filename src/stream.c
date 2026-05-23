@@ -7,17 +7,36 @@
 #include "errors.h"
 #include "handle.h"
 
-typedef struct {
+typedef struct WriteReq {
     uv_write_t req;
     int dataRef;
+    struct WriteReq* nextFree;
 } WriteReq;
+
+// Global pool of recycled WriteReqs. Safe without locking: the J* VM is
+// single-threaded and libuv callbacks fire on the same thread.
+static WriteReq* writeReqPool;
+
+static WriteReq* writeReqAcquire(void) {
+    if(writeReqPool) {
+        WriteReq* req = writeReqPool;
+        writeReqPool = req->nextFree;
+        return req;
+    }
+    return malloc(sizeof(WriteReq));
+}
+
+static void writeReqRelease(WriteReq* req) {
+    req->nextFree = writeReqPool;
+    writeReqPool = req;
+}
 
 void writeCallback(uv_write_t* req, int status) {
     WriteReq* writeReq = (WriteReq*)req;
     int dataRef = writeReq->dataRef;
     int callbackId = getRequestCallback((uv_req_t*)req);
     uv_handle_t* handle = (uv_handle_t*)req->handle;
-    free(req);
+    writeReqRelease(writeReq);
     reqCallback(handle, callbackId, true, dataRef, status);
 }
 
@@ -43,19 +62,19 @@ bool Stream_write(JStarVM* vm) {
     const char* data = jsrGetString(vm, 1);
     size_t dataSz = jsrGetStringSz(vm, 1);
 
-    int dataRef = Handle_queueData(vm, 1, 0);
+    int dataRef = Handle_pushPending(vm, 1, 0);
     if(dataRef == -1) return false;
 
-    WriteReq* req = malloc(sizeof(*req));
+    WriteReq* req = writeReqAcquire();
     req->dataRef = dataRef;
     setRequestCallback((uv_req_t*)req, callbackId);
 
     uv_buf_t buf = {(char*)data, dataSz};
     int res = uv_write(&req->req, stream, &buf, 1, &writeCallback);
     if(res < 0) {
-        free(req);
+        writeReqRelease(req);
         if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
-        if(!Handle_dequeueData(vm, dataRef, 0)) return false;
+        if(!Handle_popPending(vm, dataRef, 0)) return false;
         StatusException_raise(vm, res);
         return false;
     }

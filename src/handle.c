@@ -7,6 +7,14 @@
 #include "errors.h"
 #include "event_loop.h"
 
+static JStarSymbol* sym_handle;
+static JStarSymbol* sym_callbacks;
+static JStarSymbol* sym_pending_data;
+static JStarSymbol* sym_ref;
+static JStarSymbol* sym_get;
+static JStarSymbol* sym_unref;
+static JStarSymbol* sym_is_closing;
+
 static void freeHandle(void* data) {
     uv_handle_t* handle = data;
     HandleMetadata* metadata = handle->data;
@@ -25,6 +33,16 @@ uv_handle_t* pushLibUVHandle(JStarVM* vm, size_t size) {
 }
 
 bool Handle_init(JStarVM* vm) {
+    if(!sym_handle) {
+        sym_handle = jsrNewSymbol(vm);
+        sym_callbacks = jsrNewSymbol(vm);
+        sym_pending_data = jsrNewSymbol(vm);
+        sym_ref = jsrNewSymbol(vm);
+        sym_get = jsrNewSymbol(vm);
+        sym_unref = jsrNewSymbol(vm);
+        sym_is_closing = jsrNewSymbol(vm);
+    }
+
     JSR_CHECK(Userdata, 2, "handle");
     uv_handle_t* handle = jsrGetUserdata(vm, 2);
 
@@ -174,7 +192,7 @@ bool Handle_getEventLoop(JStarVM* vm, int handleSlot) {
 }
 
 uv_handle_t* Handle_getHandle(JStarVM* vm, int handleSlot) {
-    if(!jsrGetField(vm, handleSlot, M_HANDLE_HANDLE)) return NULL;
+    if(!jsrGetFieldCached(vm, handleSlot, M_HANDLE_HANDLE, sym_handle)) return NULL;
     if(!jsrCheckUserdata(vm, -1, "Handle." M_HANDLE_HANDLE)) return NULL;
     uv_handle_t* handle = jsrGetUserdata(vm, -1);
     jsrPop(vm);
@@ -192,10 +210,10 @@ bool Handle_registerCallback(JStarVM* vm, int callbackSlot, CallbackType type, i
 }
 
 int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot) {
-    if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return -1;
+    if(!jsrGetFieldCached(vm, handleSlot, M_HANDLE_CALLBACKS, sym_callbacks)) return -1;
 
     jsrPushValue(vm, callbackSlot);
-    if(!jsrCallMethod(vm, "ref", 1)) return -1;
+    if(!jsrCallMethodCached(vm, "ref", 1, sym_ref)) return -1;
 
     if(!jsrCheckInt(vm, -1, "Handle." M_HANDLE_CALLBACKS ".ref()")) {
         jsrPop(vm);
@@ -209,9 +227,9 @@ int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot)
 }
 
 bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handleSlot) {
-    if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return false;
+    if(!jsrGetFieldCached(vm, handleSlot, M_HANDLE_CALLBACKS, sym_callbacks)) return false;
     jsrPushNumber(vm, callbackId);
-    if(!jsrCallMethod(vm, "get", 1)) return false;
+    if(!jsrCallMethodCached(vm, "get", 1, sym_get)) return false;
 
     if(unregister && !Handle_unregisterCallbackById(vm, callbackId, handleSlot)) {
         jsrPop(vm);
@@ -232,20 +250,20 @@ bool Handle_unregisterCallback(JStarVM* vm, CallbackType type, int handleSlot) {
 
 bool Handle_unregisterCallbackById(JStarVM* vm, int callbackId, int handleSlot) {
     if(callbackId == -1) return true;
-    if(!jsrGetField(vm, handleSlot, M_HANDLE_CALLBACKS)) return false;
+    if(!jsrGetFieldCached(vm, handleSlot, M_HANDLE_CALLBACKS, sym_callbacks)) return false;
     jsrPushNumber(vm, callbackId);
-    if(!jsrCallMethod(vm, "unref", 1)) return false;
+    if(!jsrCallMethodCached(vm, "unref", 1, sym_unref)) return false;
     jsrPop(vm);
     return true;
 }
 
-int Handle_queueData(JStarVM* vm, int dataSlot, int handleSlot) {
-    if(!jsrGetField(vm, handleSlot, M_HANDLE_QUEUED_DATA)) return -1;
+int Handle_pushPending(JStarVM* vm, int dataSlot, int handleSlot) {
+    if(!jsrGetFieldCached(vm, handleSlot, M_HANDLE_PENDING_DATA, sym_pending_data)) return -1;
 
     jsrPushValue(vm, dataSlot);
-    if(!jsrCallMethod(vm, "ref", 1)) return -1;
+    if(!jsrCallMethodCached(vm, "ref", 1, sym_ref)) return -1;
 
-    if(!jsrCheckInt(vm, -1, "Handle." M_HANDLE_QUEUED_DATA ".ref()")) {
+    if(!jsrCheckInt(vm, -1, "Handle." M_HANDLE_PENDING_DATA ".ref()")) {
         jsrPop(vm);
         return -1;
     }
@@ -256,18 +274,18 @@ int Handle_queueData(JStarVM* vm, int dataSlot, int handleSlot) {
     return dataRef;
 }
 
-bool Handle_dequeueData(JStarVM* vm, int dataRef, int handleSlot) {
+bool Handle_popPending(JStarVM* vm, int dataRef, int handleSlot) {
     if(dataRef == -1) return true;
-    if(!jsrGetField(vm, handleSlot, M_HANDLE_QUEUED_DATA)) return false;
+    if(!jsrGetFieldCached(vm, handleSlot, M_HANDLE_PENDING_DATA, sym_pending_data)) return false;
     jsrPushNumber(vm, dataRef);
-    if(!jsrCallMethod(vm, "unref", 1)) return false;
+    if(!jsrCallMethodCached(vm, "unref", 1, sym_unref)) return false;
     jsrPop(vm);
     return true;
 }
 
 bool Handle_checkClosing(JStarVM* vm, int handleSlot) {
     jsrPushValue(vm, handleSlot);
-    if(!jsrCallMethod(vm, "isClosing", 0)) return false;
+    if(!jsrCallMethodCached(vm, "isClosing", 0, sym_is_closing)) return false;
     JSR_CHECK(Boolean, -1, "Handle.isClosing()");
 
     bool isClosing = jsrGetBoolean(vm, -1);

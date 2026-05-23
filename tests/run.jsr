@@ -5,6 +5,7 @@ import test
 import utils.ip
 
 import data_structures.deque
+import data_structures.stream_buffer
 
 import uv.loop
 import uv.handle
