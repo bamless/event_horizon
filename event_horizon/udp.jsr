@@ -1,3 +1,4 @@
+import event_horizon.async for async
 import event_horizon.dns for getAddrInfo
 import event_horizon.errors for StatusException
 import event_horizon.handle for Handle
@@ -20,25 +21,28 @@ class UDPSocket is Handle
         this._handle.connect(addr, port)
     end
 
+    @async
     fun send(data, addr=null, port=null)
-        var resolveAddr
-        if !addr or getIPType(addr) != IPType.ERROR    
-            resolveAddr = asResolved(addr)
-        else
-            resolveAddr = getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_DGRAM)
+        if addr and getIPType(addr) == IPType.ERROR
+            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_DGRAM)
+            addr = result[0][0]
         end
 
+        // Fast path: UDP datagrams are atomic, so trySend either sends
+        // everything or returns 0 (EAGAIN), no partial-write case.
+        if this._handle.trySend(data, addr, port) > 0
+            return
+        end
+
+        // Kernel buffer full, fall back to the async send.
         var self = this
-        return resolveAddr.then(fun(ip)
-            var addr = ip if !ip or ip is String else ip[0][0]
-            return Promise(fun(resolve, reject)
-                self._handle.send(data, addr, port, fun(status)
-                    if status < 0
-                        reject(StatusException(status))
-                    else
-                        resolve()
-                    end
-                end)
+        return Promise(fun(resolve, reject)
+            self._handle.send(data, addr, port, fun(status)
+                if status < 0
+                    reject(StatusException(status))
+                else
+                    resolve()
+                end
             end)
         end)
     end
