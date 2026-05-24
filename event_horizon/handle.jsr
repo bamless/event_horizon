@@ -12,7 +12,7 @@ class Handle
             self._handle.close(fun()
                 resolve()
             end)
-        end)
+        end, this._handle.loop())
     end
     
     fun isActive()

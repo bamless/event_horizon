@@ -1,5 +1,6 @@
 #include "event_loop.h"
 
+#include <jstar/jstar.h>
 #include <string.h>
 
 #include "callbacks.h"
@@ -94,12 +95,12 @@ static void closeLibuvLoop(void* data) {
 
 bool EventLoop_init(JStarVM* vm) {
     if(!sym_loop) {
-        sym_loop    = jsrNewSymbol(vm);
-        sym_id      = jsrNewSymbol(vm);
+        sym_loop = jsrNewSymbol(vm);
+        sym_id = jsrNewSymbol(vm);
         sym_handles = jsrNewSymbol(vm);
-        sym_ref     = jsrNewSymbol(vm);
-        sym_get     = jsrNewSymbol(vm);
-        sym_unref   = jsrNewSymbol(vm);
+        sym_ref = jsrNewSymbol(vm);
+        sym_get = jsrNewSymbol(vm);
+        sym_unref = jsrNewSymbol(vm);
     }
 
     // Instantiate the libuv loop
@@ -182,7 +183,11 @@ void EventLoop_addException(JStarVM* vm, int exceptionSlot) {
 // end
 
 bool getEventLoopFromId(JStarVM* vm, int loopId) {
-    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", "getEventLoop")) return false;
+    static JStarSymbol* sym_getEventLoop;
+    if(!sym_getEventLoop) sym_getEventLoop = jsrNewSymbol(vm);
+    if(!jsrGetGlobalCached(vm, "event_horizon.uv.event_loop", "getEventLoop", sym_getEventLoop)) {
+        return false;
+    }
     jsrPushNumber(vm, loopId);
     if(!jsrCall(vm, 1)) return false;
     return true;

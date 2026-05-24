@@ -6,7 +6,7 @@
 // class UDP is Handle
 bool UDP_bind(JStarVM* vm);
 bool UDP_connect(JStarVM* vm);
-bool UDP_send(JStarVM* vm);
+bool UDP_rawSend(JStarVM* vm);
 bool UDP_trySend(JStarVM* vm);
 bool UDP_recvStart(JStarVM* vm);
 bool UDP_recvStop(JStarVM* vm);

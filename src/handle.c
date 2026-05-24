@@ -13,6 +13,7 @@ static JStarSymbol* sym_pending_data;
 static JStarSymbol* sym_ref;
 static JStarSymbol* sym_get;
 static JStarSymbol* sym_unref;
+static JStarSymbol* sym_get_and_unref;
 
 static void freeHandle(void* data) {
     uv_handle_t* handle = data;
@@ -39,6 +40,7 @@ bool Handle_init(JStarVM* vm) {
         sym_ref = jsrNewSymbol(vm);
         sym_get = jsrNewSymbol(vm);
         sym_unref = jsrNewSymbol(vm);
+        sym_get_and_unref = jsrNewSymbol(vm);
     }
 
     JSR_CHECK(Userdata, 2, "handle");
@@ -227,11 +229,11 @@ int Handle_registerCallbackWithId(JStarVM* vm, int callbackSlot, int handleSlot)
 bool Handle_getCallback(JStarVM* vm, int callbackId, bool unregister, int handleSlot) {
     if(!jsrGetFieldCached(vm, handleSlot, M_HANDLE_CALLBACKS, sym_callbacks)) return false;
     jsrPushNumber(vm, callbackId);
-    if(!jsrCallMethodCached(vm, "get", 1, sym_get)) return false;
 
-    if(unregister && !Handle_unregisterCallbackById(vm, callbackId, handleSlot)) {
-        jsrPop(vm);
-        return false;
+    if(unregister) {
+        if(!jsrCallMethodCached(vm, "getAndUnref", 1, sym_get_and_unref)) return false;
+    } else {
+        if(!jsrCallMethodCached(vm, "get", 1, sym_get)) return false;
     }
 
     return true;

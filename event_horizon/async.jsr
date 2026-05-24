@@ -1,6 +1,6 @@
 import event_horizon.promise for Promise, asResolved
 
-static fun step(gen, arg, exc, resolve, reject)
+static fun step(gen, arg, exc, resolve, reject, loop)
     var value
     try
         value = gen(arg) if !exc else gen.throw(exc)
@@ -12,24 +12,24 @@ static fun step(gen, arg, exc, resolve, reject)
     if gen.isDone()
         resolve(value)
     else
-        return asResolved(value).then(fun(value)
-            step(gen, value, null, resolve, reject)
+        return asResolved(value, loop).then(fun(value)
+            step(gen, value, null, resolve, reject, loop)
         end, fun(exc)
-            step(gen, null, exc, resolve, reject)
+            step(gen, null, exc, resolve, reject, loop)
         end)
     end
 end
 
-fun async(fn)
+fun async(fn, loop=null)
     return fun(...args)
         var gen = fn.bind(this)(...args)
 
         if !(gen is Generator)
-            return asResolved(gen)
+            return asResolved(gen, loop)
         end
 
         return Promise(fun(resolve, reject)
-            step(gen, null, null, resolve, reject)
-        end)
+            step(gen, null, null, resolve, reject, loop)
+        end, loop)
     end
 end

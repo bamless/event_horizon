@@ -18,7 +18,23 @@ class Stream is Handle
         end, backlog)
     end
 
-    native write(data, callback=null)
+    // Attempts a synchronous write via tryWrite. If the kernel buffer has space,
+    // `callback` is invoked immediately (before `write` returns) with status 0.
+    // If the buffer is full, the remainder is queued via `_rawWrite` and `callback`
+    // fires asynchronously from the event loop. Callers that rely on the callback
+    // firing only during `uv.loop().run()` should use `_rawWrite` directly.
+    fun write(data, callback=null)
+        var written = this.tryWrite(data)
+        if written == #data
+            if callback
+                callback(0)
+            end
+            return
+        end
+        var pending = data[written,] if written > 0 else data
+        this._rawWrite(pending, callback)
+    end
+
     native tryWrite(data)
     native readStart(callback)
     native readStop()
@@ -30,6 +46,7 @@ class Stream is Handle
     @abstractMethod
     fun accept() end
 
+    native _rawWrite(data, callback=null)
     native _rawListen(callback, backlog)
     native _rawAccept(client)
 end

@@ -51,9 +51,23 @@ class UDP is Handle
         super(loop, uvUDP(loop))
     end
 
+    // Attempts a synchronous send via trySend. If the kernel buffer has space,
+    // `callback` is invoked immediately (before `send` returns) with status 0.
+    // If the buffer is full, the send is queued via `_rawSend` and `callback`
+    // fires asynchronously from the event loop. Callers that rely on the callback
+    // firing only during `uv.loop().run()` should use `_rawSend` directly.
+    fun send(data, addr=null, port=null, callback=null)
+        if this.trySend(data, addr, port) > 0
+            if callback
+                callback(0)
+            end
+            return
+        end
+        this._rawSend(data, addr, port, callback)
+    end
+
     native bind(addr, port, flags=0)
     native connect(addr, port=null)
-    native send(data, addr=null, port=null, callback=null)
     native trySend(data, addr=null, port=null)
     native recvStart(callback)
     native recvStop()
@@ -67,4 +81,5 @@ class UDP is Handle
     native setMulticastTTL(ttl)
     native setMulticastInterface(interfaceAddr)
     native setBroadcast(on)
+    native _rawSend(data, addr=null, port=null, callback=null)
 end

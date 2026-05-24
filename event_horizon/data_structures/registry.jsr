@@ -30,6 +30,14 @@ class Registry
         return this._registry[index]
     end
 
+    fun getAndUnref(index)
+        this._size -= 1
+        var value = this._registry[index]
+        this._registry[index] = this._freeIndex
+        this._freeIndex = index
+        return value
+    end
+
     fun set(index, value)
         var oldVal = this._registry[index]
         this._registry[index] = value

@@ -40,7 +40,7 @@ void writeCallback(uv_write_t* req, int status) {
     reqCallback(handle, callbackId, true, dataRef, status);
 }
 
-bool Stream_write(JStarVM* vm) {
+bool Stream_rawWrite(JStarVM* vm) {
     JSR_CHECK(String, 1, "data");
     if(!jsrIsNull(vm, 2)) {
         JSR_CHECK(Function, 2, "callback");
@@ -85,6 +85,10 @@ bool Stream_write(JStarVM* vm) {
 
 bool Stream_tryWrite(JStarVM* vm) {
     JSR_CHECK(String, 1, "data");
+
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
+    }
 
     uv_stream_t* stream = (uv_stream_t*)Handle_getHandle(vm, 0);
     if(!stream) return false;

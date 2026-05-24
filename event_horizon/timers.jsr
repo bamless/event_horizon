@@ -60,7 +60,7 @@ fun waitOneTick(loop=null)
             idle.close()
             resolve()
         end)
-    end)
+    end, loop)
 end
 
 fun wait(ms, loop=null)
@@ -70,5 +70,5 @@ fun wait(ms, loop=null)
             timer.close()
             resolve()
         end)
-    end)
+    end, loop)
 end

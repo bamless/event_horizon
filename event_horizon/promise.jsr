@@ -1,3 +1,5 @@
+import event_horizon.uv as uv
+
 var State = Enum(
     "PENDING",
     "FULFILLED",
@@ -5,10 +7,11 @@ var State = Enum(
 )
 
 class Promise
-    construct(fn)
+    construct(fn, loop=null)
         this._state = State.PENDING
         this._value = null
         this._handlers = []
+        this._loop = loop or uv.loop()
         this._doResolve(fn)
     end
 
@@ -30,7 +33,7 @@ class Promise
         this._handlers = null
     end
 
-    fun resolve(result=null) 
+    fun resolve(result=null)
         try
             if result is Promise
                 this._doResolve(result.then)
@@ -66,7 +69,7 @@ class Promise
                     reject(exc)
                 end
             end))
-        end)
+        end, this._loop)
     end
 
     fun catch(onRejected)
@@ -93,54 +96,55 @@ class Promise
         end
     end
 
-    // Handlers fire synchronously when the promise is already settled.
-    // This avoids the per-.then latency of deferring to the next event-loop tick,
-    // at the cost of growing the call stack proportionally to chain depth.
-    // TODO: consider deferring for very deep async chains to avoid stack overflow.
     fun _handle(handler)
         if this._state == State.PENDING
             this._handlers.add(handler)
         else
+            var state = this._state
+            var value = this._value
             var onFulfilled, onRejected = handler
-            if this._state == State.FULFILLED and onFulfilled is Function
-                onFulfilled(this._value)
-            end
-            if this._state == State.REJECTED and onRejected is Function
-                onRejected(this._value)
-            end
+
+            this._loop._enqueueMicrotask(fun()
+                if state == State.FULFILLED and onFulfilled is Function
+                    onFulfilled(value)
+                end
+                if state == State.REJECTED and onRejected is Function
+                    onRejected(value)
+                end
+            end)
         end
     end
 end
 
-fun asResolved(val)
+fun asResolved(val, loop=null)
     if val is Promise
         return val
     end
     return Promise(fun(resolve, _)
         resolve(val)
-    end)
+    end, loop)
 end
 
-fun asRejected(val)
+fun asRejected(val, loop=null)
     if val is Promise
         return val
     end
     return Promise(fun(_, reject)
         reject(val)
-    end)
+    end, loop)
 end
 
-fun all(promises)
+fun all(promises, loop=null)
     var count = promises.count()
     var results = List(count)
     if count == 0
-        return asResolved(results)
+        return asResolved(results, loop)
     end
 
     var numResolved = 0
     return Promise(fun(resolve, reject)
         for var idx, promise in promises.enumerate()
-            asResolved(promise).then(fun(res)
+            asResolved(promise, loop).then(fun(res)
                 results[idx] = res
                 if (numResolved += 1) == count
                     resolve(results)
@@ -149,13 +153,13 @@ fun all(promises)
                 reject(exc)
             end)
         end
-    end)
+    end, loop)
 end
 
-fun race(promises)
+fun race(promises, loop=null)
     return Promise(fun(resolve, reject)
         for var promise in promises
-            asResolved(promise).then(resolve, reject)
+            asResolved(promise, loop).then(resolve, reject)
         end
-    end)
+    end, loop)
 end
