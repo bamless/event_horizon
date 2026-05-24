@@ -5,9 +5,18 @@
 #include <stdbool.h>
 #include <uv.h>
 
+// Buffer size for the per-loop read staging area. Matches libuv's typical
+// suggestedSize so we never truncate incoming data.
+#define LOOP_READ_BUF_SIZE 65536
+
+// A single read buffer per loop is safe because libuv is single-threaded and
+// always calls alloc_cb + read_cb in strict sequence. We copy the data out
+// into a fresh J* string before invoking the user callback, so a reentrant
+// alloc_cb cannot clobber in-flight data.
 typedef struct LoopMetadata {
     JStarVM* vm;
     int loopId;
+    char readBuf[LOOP_READ_BUF_SIZE];
 } LoopMetadata;
 
 // class EventLoop

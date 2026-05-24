@@ -28,7 +28,7 @@ class TCPStream is Stream
                     resolve()
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     fun bind(addr, port, ipv6Only=false)

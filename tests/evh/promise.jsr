@@ -24,9 +24,11 @@ fun raceFirstResolveWins()
     end)
 
     resolveA("A")
+    evh.run()
     assert(result == "A")
 
     resolveB("B")
+    evh.run()
     assert(result == "A", "second resolve should not override first")
 end
 
@@ -51,9 +53,11 @@ fun raceFirstRejectWins()
     end)
 
     rejectA("err")
+    evh.run()
     assert(didReject and result == "err")
 
     resolveB("B")
+    evh.run()
     assert(result == "err", "second settle should be ignored")
 end
 
@@ -78,6 +82,7 @@ fun raceResolveBeatsReject()
 
     resolveA("win")
     rejectB("loss")
+    evh.run()
 
     assert(result == "win" and !didReject)
 end
@@ -88,6 +93,7 @@ fun raceImmediateValue()
     race((asResolved(42), asResolved(99))).then(fun(v)
         result = v
     end)
+    evh.run()
     assert(result == 42, "first already-resolved promise should win")
 end
 
@@ -111,6 +117,7 @@ fun resolveValue()
     end).then(fun(v)
         result = v
     end)
+    evh.run()
     assert(result == 42)
 end
 
@@ -122,6 +129,7 @@ fun rejectValue()
     end).catch(fun(e)
         result = e
     end)
+    evh.run()
     assert(result == "oops")
 end
 
@@ -137,6 +145,7 @@ fun thenChaining()
     end).then(fun(v)
         result = v
     end)
+    evh.run()
     assert(result == 20)
 end
 
@@ -150,6 +159,7 @@ fun thenPropagatesRejection()
     end).catch(fun(e)
         result = e
     end)
+    evh.run()
     assert(result == "fail")
 end
 
@@ -163,6 +173,7 @@ fun exceptionInThenBecomesRejection()
     end).catch(fun(e)
         caught = e is Exception
     end)
+    evh.run()
     assert(caught, "exception raised in then handler should propagate as rejection")
 end
 
@@ -175,6 +186,7 @@ fun resolveWithPromiseAdoptsState()
     end).then(fun(v)
         result = v
     end)
+    evh.run()
     assert(result == 99, "resolving with a promise should adopt its value")
 end
 
@@ -192,6 +204,7 @@ fun pendingThenFiredOnSettle()
 
     assert(result == null, "handler should not fire before resolve")
     resolve("later")
+    evh.run()
     assert(result == "later")
 end
 
@@ -201,6 +214,7 @@ fun asResolvedWrapsValue()
     asResolved(7).then(fun(v)
         result = v
     end)
+    evh.run()
     assert(result == 7)
 end
 
@@ -211,6 +225,7 @@ fun asResolvedPassesThroughPromise()
     // asResolved returns the same object for a promise
     var result = null
     asResolved(p).then(fun(v) result = v end)
+    evh.run()
     assert(result == 5)
 end
 
@@ -220,6 +235,7 @@ fun asRejectedWrapsValue()
     asRejected("err").catch(fun(e)
         result = e
     end)
+    evh.run()
     assert(result == "err")
 end
 
@@ -229,6 +245,7 @@ fun allEmpty()
     all(()).then(fun(v)
         result = v
     end)
+    evh.run()
     assert(result is List and #result == 0)
 end
 
@@ -249,6 +266,7 @@ fun allResolvesInOrder()
     resolveC("C")
     resolveA("A")
     resolveB("B")
+    evh.run()
 
     assert(result is List)
     assert(result[0] == "A" and result[1] == "B" and result[2] == "C")
@@ -272,6 +290,7 @@ fun allRejectsOnFirstFailure()
 
     rejectB("b failed")
     resolveA("A")
+    evh.run()
 
     assert(didReject and result == "b failed")
 end
@@ -282,103 +301,8 @@ fun allImmediateValues()
     all((asResolved(1), asResolved(2), asResolved(3))).then(fun(v)
         result = v
     end)
-    assert(result[0] == 1 and result[1] == 2 and result[2] == 3)
-end
-
-@test
-fun raceFirstResolveWins()
-    var resolveA
-    var a = Promise(fun(res, _)
-        resolveA = res
-    end)
-    var resolveB
-    var b = Promise(fun(res, _)
-        resolveB = res
-    end)
-
-    var result = null
-    race((a, b)).then(fun(v)
-        result = v
-    end)
-
-    resolveA("A")
-    assert(result == "A")
-
-    resolveB("B")
-    assert(result == "A", "second resolve should not override first")
-end
-
-@test
-fun raceFirstRejectWins()
-    var rejectA
-    var a = Promise(fun(_, rej)
-        rejectA = rej
-    end)
-    var resolveB
-    var b = Promise(fun(res, _)
-        resolveB = res
-    end)
-
-    var result = null
-    var didReject = false
-    race((a, b)).then(fun(v)
-        result = v
-    end, fun(e)
-        didReject = true
-        result = e
-    end)
-
-    rejectA("err")
-    assert(didReject and result == "err")
-
-    resolveB("B")
-    assert(result == "err", "second settle should be ignored")
-end
-
-@test
-fun raceResolveBeatsReject()
-    var resolveA
-    var a = Promise(fun(res, _)
-        resolveA = res
-    end)
-    var rejectB
-    var b = Promise(fun(_, rej)
-        rejectB = rej
-    end)
-
-    var result = null
-    var didReject = false
-    race((a, b)).then(fun(v)
-        result = v
-    end, fun(_)
-        didReject = true
-    end)
-
-    resolveA("win")
-    rejectB("loss")
-
-    assert(result == "win" and !didReject)
-end
-
-@test
-fun raceImmediateValue()
-    var result = null
-    race((asResolved(42), asResolved(99))).then(fun(v)
-        result = v
-    end)
-    assert(result == 42, "first already-resolved promise should win")
-end
-
-@test
-fun raceEmpty()
-    var settled = false
-    race(()).then(fun(_)
-        settled = true
-    end, fun(_)
-        settled = true
-    end)
     evh.run()
-    assert(!settled, "empty race should never settle")
+    assert(result[0] == 1 and result[1] == 2 and result[2] == 3)
 end
 
 if __name__ == '__main__'

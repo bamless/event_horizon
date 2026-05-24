@@ -141,17 +141,19 @@ fun sendFail()
     var data = "Hello, World!"
     var udp = UDP()
 
-    udp.send(data, "127.0.0.1", 8080, fun(status)
-        udp.close()
-        if status < 0
-            raise StatusException(status)
-        end
-        udp.send(data, "127.0.0.1", 8080)
-    end)
-    
     var didThrow = false
     try
+        udp.send(data, "127.0.0.1", 8080, fun(status)
+            udp.close()
+            if status < 0
+                raise StatusException(status)
+            end
+            udp.send(data, "127.0.0.1", 8080)
+        end)
         uv.loop().run()
+    except EventHorizonException e
+        didThrow = true
+        assert(e.err() == "Handle is already closed")
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException and e.cause().err() == "Handle is already closed")

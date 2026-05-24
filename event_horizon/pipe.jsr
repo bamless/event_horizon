@@ -22,7 +22,7 @@ class PipeStream is Stream
                     resolve()
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     fun open(fd)

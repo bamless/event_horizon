@@ -11,5 +11,5 @@ fun getAddrInfo(node, service=null, flags=0, family=0, sockType=0, protocol=0, l
                 resolve(res)
             end
         end, node, service, flags, family, sockType, protocol, loop)
-    end)
+    end, loop)
 end

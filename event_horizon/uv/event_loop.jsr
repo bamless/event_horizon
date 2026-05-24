@@ -1,6 +1,6 @@
 import event_horizon.data_structures.registry for Registry
+import event_horizon.uv.idle for Idle
 
-// private - registry holding all active event loops
 static var eventLoops = Registry()
 
 /// @return {event_horizon.loop.EventLoop} The `EventLoop` associated with `loopId`
@@ -20,6 +20,9 @@ class EventLoop
     construct()
         this._id = eventLoops.ref(this)
         this._handles = Registry()
+        this._microtasks = []
+        this._drainBuffer = []
+        this._microtaskDrainer = null
         this._init()
     end
 
@@ -31,27 +34,72 @@ class EventLoop
     native stop()
     native alive()
     native walk(callback)
+
+    fun _enqueueMicrotask(fn)
+        this._microtasks.add(fn)
+        if this._microtaskDrainer
+            return
+        end
+
+        var idle = Idle(this)
+        this._microtaskDrainer = idle
+
+        var self = this
+        idle.start(fun()
+            idle.close()
+
+            // Drain iteratively. Tasks added by running tasks are picked up by
+            // the while-loop rather than scheduling a new idle. _microtaskDrainer
+            // stays non-null so _enqueueMicrotask won't create a second drainer.
+            //
+            // We ping-pong between _microtasks and _drainBuffer to avoid
+            // allocating a new list on each iteration: swap the two references,
+            // process the batch now in _drainBuffer, then clear it for reuse.
+            // Any tasks enqueued during the drain land in the freshly-emptied
+            // _microtasks and are picked up by the next while iteration.
+            while #self._microtasks > 0
+                var tmp = self._drainBuffer
+                self._drainBuffer = self._microtasks
+                self._microtasks = tmp
+
+                for var task in self._drainBuffer
+                    try
+                        task()
+                    except Exception e
+                        _addException(e)
+                    end
+                end
+                self._drainBuffer.clear()
+            end
+
+            self._microtaskDrainer = null
+        end)
+    end
+
     native _init()
 end
 
-// private -- exceptions raised during event loop exceution
+// --------------------------------------------------------------------------------
+// Private implementation
+// --------------------------------------------------------------------------------
+
+// Exceptions raised during event loop exceution
 static var exceptions = []
 
-// private -- adds an exception to the list of exceptions raised during event loop execution
-// these will be raised when the loop finishes executing (i.e. right after EventLoop.run())
+// Adds an exception to the list of exceptions raised during event loop execution these will be
+// raised when the loop finishes executing (i.e. right after EventLoop.run())
 fun _addException(exc)
     if exc is Exception
         exceptions.add(exc)
     end
 end
 
-// private -- clears the list of exceptions raised during event loop execution
+// Clears the list of exceptions raised during event loop execution
 fun _clearExceptions()
     exceptions.clear()
 end
 
-// private -- returns a copy the list of exceptions raised during event loop execution
+// Returns a copy the list of exceptions raised during event loop execution
 fun _getExceptions()
-    var copy = List(exceptions)
-    return copy
+    return List(exceptions)
 end

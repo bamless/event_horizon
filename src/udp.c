@@ -103,7 +103,7 @@ void sendCallback(uv_udp_send_t* req, int status) {
     reqCallback(handle, callbackId, true, dataRef, status);
 }
 
-bool UDP_send(JStarVM* vm) {
+bool UDP_rawSend(JStarVM* vm) {
     JSR_CHECK(String, 1, "data");
     if(!jsrIsNull(vm, 2)) {
         JSR_CHECK(String, 2, "addr");
@@ -171,6 +171,10 @@ bool UDP_trySend(JStarVM* vm) {
     }
     if(!jsrIsNull(vm, 3)) {
         JSR_CHECK(Int, 3, "port");
+    }
+
+    if(!Handle_checkClosing(vm, 0)) {
+        return false;
     }
 
     uv_udp_t* udp = (uv_udp_t*)Handle_getHandle(vm, 0);

@@ -44,7 +44,7 @@ class UDPSocket is Handle
                     resolve()
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     fun trySend(data, addr=null, port=null)
@@ -62,7 +62,7 @@ class UDPSocket is Handle
                     resolve((data, addr, port))
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     fun sockName()

@@ -1,6 +1,7 @@
 #include "callbacks.h"
 
 #include <jstar/jstar.h>
+#include <string.h>
 
 #include "dns.h"
 #include "event_loop.h"
@@ -104,14 +105,13 @@ void connectCallback(uv_connect_t* req, int status) {
 }
 
 void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
+    // Hand libuv our per-loop staging buffer instead of allocating on every read.
+    // The buffer is copied into a fresh J* string in sockReadCallback before the
+    // user callback fires, so the slot is always free for the next alloc_cb call.
+    (void)suggestedSize;
     LoopMetadata* metadata = handle->loop->data;
-    JStarVM* vm = metadata->vm;
-
-    JStarBuffer alloc;
-    jsrBufferInitCapacity(vm, &alloc, suggestedSize);
-
-    buf->base = alloc.data;
-    buf->len = alloc.capacity;
+    buf->base = metadata->readBuf;
+    buf->len = LOOP_READ_BUF_SIZE;
 }
 
 static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t* buf,
@@ -120,15 +120,9 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
     HandleMetadata* handleMetadata = handle->data;
     JStarVM* vm = loopMetadata->vm;
 
-    JStarBuffer data = (JStarBuffer){
-        .vm = vm,
-        .size = nread < 0 ? 0 : nread,
-        .capacity = buf->len,
-        .data = buf->base,
-    };
-
+    // buf->base points to loopMetadata->readBuf — no heap allocation to free on
+    // error paths below.
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        jsrBufferFree(&data);
         return;
     }
 
@@ -136,7 +130,6 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
     int slot = 2;  // [loop, handle]
 
     if(!Handle_getCallback(vm, handleMetadata->callbacks[cbType], false, handleSlot)) {
-        jsrBufferFree(&data);
         EventLoop_addException(vm, -1);
         jsrPopN(vm, slot + 1);  // [loop, handle, exception]
         return;
@@ -144,9 +137,12 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
     slot++;  // [loop, handle, callback]
 
     if(nread >= 0) {
+        JStarBuffer data;
+        jsrBufferInitCapacity(vm, &data, nread > 0 ? nread : 1);
+        memcpy(data.data, buf->base, nread);
+        data.size = nread;
         jsrBufferPush(&data);
     } else {
-        jsrBufferFree(&data);
         jsrPushNull(vm);
     }
     slot++;  // [loop, handle, callback, data]

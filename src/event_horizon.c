@@ -36,7 +36,6 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Handle, fileno, Handle_fileno)
     JSR_REGMETH(Handle, handleType, Handle_handleType)
 
-    JSR_REGMETH(Stream, write, Stream_write)
     JSR_REGMETH(Stream, tryWrite, Stream_tryWrite)
     JSR_REGMETH(Stream, readStart, Stream_readStart)
     JSR_REGMETH(Stream, readStop, Stream_readStop)
@@ -44,6 +43,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Stream, isReadable, Stream_isReadable)
     JSR_REGMETH(Stream, isWritable, Stream_isWritable)
     JSR_REGMETH(Stream, getWriteQueueSize, Stream_getWriteQueueSize)
+    JSR_REGMETH(Stream, _rawWrite, Stream_rawWrite)
     JSR_REGMETH(Stream, _rawListen, Stream_rawListen)
     JSR_REGMETH(Stream, _rawAccept, Stream_rawAccept)
 
@@ -62,7 +62,6 @@ static JStarNativeReg registry[] = {
 
     JSR_REGMETH(UDP, bind, UDP_bind)
     JSR_REGMETH(UDP, connect, UDP_connect)
-    JSR_REGMETH(UDP, send, UDP_send)
     JSR_REGMETH(UDP, trySend, UDP_trySend)
     JSR_REGMETH(UDP, recvStart, UDP_recvStart)
     JSR_REGMETH(UDP, recvStop, UDP_recvStop)
@@ -76,6 +75,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(UDP, setMulticastTTL, UDP_setMulticastTTL)
     JSR_REGMETH(UDP, setMulticastInterface, UDP_setMulticastInterface)
     JSR_REGMETH(UDP, setBroadcast, UDP_setBroadcast)
+    JSR_REGMETH(UDP, _rawSend, UDP_rawSend)
     JSR_REGFUNC(uvUDP, uvUDP)
 
     JSR_REGMETH(Idle, start, Idle_start)

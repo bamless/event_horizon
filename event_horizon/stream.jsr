@@ -39,7 +39,7 @@ class Stream is Handle
                 end
                 handleConnection(self._accept(client), status, onConnect).catch(errHandler)
             end)
-        end)
+        end, this._handle.loop())
     end
 
     fun write(data)
@@ -61,7 +61,7 @@ class Stream is Handle
                     resolve()
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     @async
@@ -109,7 +109,7 @@ class Stream is Handle
                     resolve(dataChunk)
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     @async
@@ -151,7 +151,7 @@ class Stream is Handle
                     resolve(dataChunk)
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     fun readLine()
@@ -168,7 +168,7 @@ class Stream is Handle
                     resolve()
                 end
             end)
-        end)
+        end, this._handle.loop())
     end
 
     fun isReadable()

@@ -1,0 +1,117 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run
+
+import event_horizon.uv as uv
+import event_horizon.errors for LoopExecutionException
+
+@test
+fun microtaskFires()
+    var called = false
+    uv.loop()._enqueueMicrotask(fun()
+        called = true
+    end)
+
+    assert(!called, "microtask must not fire synchronously")
+    uv.loop().run()
+    assert(called)
+end
+
+@test
+fun microtasksInOrder()
+    var order = []
+    uv.loop()._enqueueMicrotask(fun() order.add(1) end)
+    uv.loop()._enqueueMicrotask(fun() order.add(2) end)
+    uv.loop()._enqueueMicrotask(fun() order.add(3) end)
+
+    uv.loop().run()
+
+    assert(order[0] == 1 and order[1] == 2 and order[2] == 3)
+end
+
+@test
+fun microtaskCascade()
+    // A task enqueued by a running task must be processed in the same
+    // drain cycle — no second run() should be required.
+    var order = []
+    uv.loop()._enqueueMicrotask(fun()
+        order.add(1)
+        uv.loop()._enqueueMicrotask(fun()
+            order.add(2)
+            uv.loop()._enqueueMicrotask(fun()
+                order.add(3)
+            end)
+        end)
+    end)
+
+    uv.loop().run()
+
+    assert(#order == 3 and order[0] == 1 and order[1] == 2 and order[2] == 3)
+end
+
+@test
+fun microtaskExceptionSurfaces()
+    // An exception thrown inside a microtask must surface as a
+    // LoopExecutionException after run() — not silently swallowed.
+    uv.loop()._enqueueMicrotask(fun()
+        raise Exception("boom")
+    end)
+
+    var caught = false
+    try
+        uv.loop().run()
+    except LoopExecutionException e
+        caught = true
+        assert(e.cause() is Exception and e.cause().err() == "boom")
+    end
+
+    assert(caught, "LoopExecutionException not raised")
+end
+
+@test
+fun microtaskExceptionContinuesDrain()
+    // An exception in one microtask must not prevent subsequent microtasks
+    // in the same batch from running.
+    var reached = false
+    uv.loop()._enqueueMicrotask(fun()
+        raise Exception("first")
+    end)
+    uv.loop()._enqueueMicrotask(fun()
+        reached = true
+    end)
+
+    try
+        uv.loop().run()
+    except LoopExecutionException _
+    end
+
+    assert(reached, "second microtask was skipped after exception in first")
+end
+
+@test
+fun microtaskMultipleExceptions()
+    // All exceptions from a single drain must be bundled into one
+    // LoopExecutionException with exceptions() returning every cause.
+    uv.loop()._enqueueMicrotask(fun() raise Exception("one") end)
+    uv.loop()._enqueueMicrotask(fun() raise Exception("two") end)
+    uv.loop()._enqueueMicrotask(fun() raise Exception("three") end)
+
+    var caught = false
+    try
+        uv.loop().run()
+    except LoopExecutionException e
+        caught = true
+        assert(#e.exceptions() == 3)
+        assert(e.exceptions()[0].err() == "one")
+        assert(e.exceptions()[1].err() == "two")
+        assert(e.exceptions()[2].err() == "three")
+    end
+
+    assert(caught, "LoopExecutionException not raised")
+end
+
+if __name__ == '__main__'
+    run()
+end

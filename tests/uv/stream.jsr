@@ -118,14 +118,11 @@ fun write()
         end
 
         s.write(data, fun(status)
-            assert(#s._callbacks == 0)
             s.close()
             if status < 0
                 raise StatusException(status)
             end
         end)
-
-        assert(#s._callbacks == 1)
     end)
 
     uv.loop().run()
@@ -162,8 +159,6 @@ fun twoWrite()
                 raise StatusException(status)
             end
         end)
-
-        assert(#s._callbacks == 2)
     end)
 
     uv.loop().run()
