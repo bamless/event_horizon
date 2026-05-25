@@ -10,12 +10,12 @@ typedef struct {
     size_t totalBytes;  // total buffered bytes across all chunks
 } StreamBufState;
 
-bool StreamBuffer_initState(JStarVM* vm);
 bool StreamBuffer_pushBack(JStarVM* vm);
 bool StreamBuffer_drainN(JStarVM* vm);
 bool StreamBuffer_drainUntilSep(JStarVM* vm);
 bool StreamBuffer_drainAll(JStarVM* vm);
 bool StreamBuffer_len(JStarVM* vm);
+bool StreamBuffer_init(JStarVM* vm);
 // end
 
 #endif

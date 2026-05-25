@@ -4,13 +4,13 @@ class StreamBuffer
     construct()
         this._chunks = Deque()
         this._state = null
-        this._initState()
+        this._init()
     end
 
-    native _initState()
     native pushBack(data)
     native drainN(n)
     native drainUntilSep(sep)
     native drainAll()
     native __len__()
+    native _init()
 end

@@ -47,12 +47,12 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Stream, _rawListen, Stream_rawListen)
     JSR_REGMETH(Stream, _rawAccept, Stream_rawAccept)
 
-    JSR_REGMETH(StreamBuffer, _initState,    StreamBuffer_initState)
-    JSR_REGMETH(StreamBuffer, pushBack,      StreamBuffer_pushBack)
-    JSR_REGMETH(StreamBuffer, drainN,        StreamBuffer_drainN)
+    JSR_REGMETH(StreamBuffer, _init, StreamBuffer_init)
+    JSR_REGMETH(StreamBuffer, pushBack, StreamBuffer_pushBack)
+    JSR_REGMETH(StreamBuffer, drainN, StreamBuffer_drainN)
     JSR_REGMETH(StreamBuffer, drainUntilSep, StreamBuffer_drainUntilSep)
-    JSR_REGMETH(StreamBuffer, drainAll,      StreamBuffer_drainAll)
-    JSR_REGMETH(StreamBuffer, __len__,       StreamBuffer_len)
+    JSR_REGMETH(StreamBuffer, drainAll, StreamBuffer_drainAll)
+    JSR_REGMETH(StreamBuffer, __len__, StreamBuffer_len)
 
     JSR_REGMETH(TCP, connect, TCP_connect)
     JSR_REGMETH(TCP, bind, TCP_bind)

@@ -91,26 +91,6 @@ static bool drainBytes(JStarVM* vm, int dequeSlot, StreamBufState* state, JStarB
     return true;
 }
 
-bool StreamBuffer_initState(JStarVM* vm) {
-    if(!sym_state) {
-        sym_state = jsrNewSymbol(vm);
-        sym_chunks = jsrNewSymbol(vm);
-        sym_peek = jsrNewSymbol(vm);
-        sym_pop = jsrNewSymbol(vm);
-        sym_push = jsrNewSymbol(vm);
-    }
-
-    jsrPushUserdata(vm, sizeof(StreamBufState), NULL);
-    StreamBufState* s = jsrGetUserdata(vm, -1);
-    s->headOffset = 0;
-    s->totalBytes = 0;
-
-    jsrSetFieldCached(vm, 0, M_STATE, sym_state);
-    jsrPop(vm);
-    jsrPushNull(vm);
-    return true;
-}
-
 bool StreamBuffer_pushBack(JStarVM* vm) {
     JSR_CHECK(String, 1, "data");
 
@@ -355,5 +335,25 @@ bool StreamBuffer_len(JStarVM* vm) {
     StreamBufState* state = getState(vm, 0);
     if(!state) return false;
     jsrPushNumber(vm, state->totalBytes);
+    return true;
+}
+
+bool StreamBuffer_init(JStarVM* vm) {
+    if(!sym_state) {
+        sym_state = jsrNewSymbol(vm);
+        sym_chunks = jsrNewSymbol(vm);
+        sym_peek = jsrNewSymbol(vm);
+        sym_pop = jsrNewSymbol(vm);
+        sym_push = jsrNewSymbol(vm);
+    }
+
+    jsrPushUserdata(vm, sizeof(StreamBufState), NULL);
+    StreamBufState* s = jsrGetUserdata(vm, -1);
+    s->headOffset = 0;
+    s->totalBytes = 0;
+
+    jsrSetFieldCached(vm, 0, M_STATE, sym_state);
+    jsrPop(vm);
+    jsrPushNull(vm);
     return true;
 }
