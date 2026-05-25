@@ -13,13 +13,21 @@ static fun handleConnection(client, status, onConnect)
     return onConnect(client)
 end
 
+/// High-level asynchronous byte stream.
+///
+/// Async methods return Promise values and should be yielded. I/O failures are
+/// reported by rejecting with StatusException unless a subclass overrides the
+/// error mapping, such as TLSStream producing TLSException for TLS protocol
+/// failures.
 class Stream is Handle
+    /// Construct from a raw event_horizon.uv stream handle.
     @abstract(Stream) construct(handle)
         super(handle)
         this._resolveListen = null
         this._buffer = StreamBuffer()
     end
 
+    /// Async: close the stream and resolve when the handle is closed.
     fun close()
         if this._resolveListen
             this._resolveListen()
@@ -27,6 +35,10 @@ class Stream is Handle
         return super()
     end
 
+    /// Async: listen for incoming connections until the stream is closed.
+    ///
+    /// onConnect receives an accepted Stream. Accept/listen failures and
+    /// exceptions raised by onConnect go to onError, or are printed by default.
     fun listen(onConnect, onError=null, backlog=0)
         var self = this
         var errHandler = onError or (|e| => e.printStacktrace())
@@ -34,7 +46,7 @@ class Stream is Handle
             self._resolveListen = resolve
             self._handle.listen(fun(client, status)
                 if status < 0
-                    errHandler(StatusException(status))
+                    errHandler(self._makeError(status, client))
                     return
                 end
                 handleConnection(self._accept(client), status, onConnect).catch(errHandler)
@@ -42,6 +54,10 @@ class Stream is Handle
         end, this._handle.loop())
     end
 
+    /// Async: write data and resolve when the queued write completes.
+    ///
+    /// Rejects with StatusException if libuv rejects the write or the stream is
+    /// no longer writable.
     fun write(data)
         // Try a synchronous write first
         var written = this._handle.tryWrite(data)
@@ -56,7 +72,7 @@ class Stream is Handle
         return Promise(fun(resolve, reject)
             self._handle.write(pending, fun(status)
                 if status < 0
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                 else
                     resolve()
                 end
@@ -64,16 +80,26 @@ class Stream is Handle
         end, this._handle.loop())
     end
 
+    /// Async: write data followed by a newline.
     @async
     fun writeln(data)
         yield this.write(data)
         yield this.write("\n")
     end
 
+    /// Attempt a synchronous write and return the number of bytes written.
+    ///
+    /// Raises StatusException for non-retryable write failures.
     fun tryWrite(data)
         return this._handle.tryWrite(data)
     end
 
+    /// Async: read bytes from the stream.
+    ///
+    /// With count == 0, resolves with the next chunk or null on EOF. With a
+    /// positive count, resolves when that many bytes are available, or with the
+    /// remaining buffered bytes on EOF. Rejects with StatusException on read
+    /// errors.
     fun read(count=0)
         var data = this._buffer.drainAll() if count == 0 else this._buffer.drainN(count)
         if data
@@ -85,7 +111,7 @@ class Stream is Handle
             self._handle.readStart(fun(data, status)
                 if status < 0
                     self._handle.readStop()
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                     return
                 end
 
@@ -112,6 +138,7 @@ class Stream is Handle
         end, this._handle.loop())
     end
 
+    /// Async: read until EOF and return all chunks joined together.
     @async
     fun readAll()
         var chunks = []
@@ -122,6 +149,10 @@ class Stream is Handle
         return chunks.join()
     end
 
+    /// Async: read through separator and include it in the returned data.
+    ///
+    /// Resolves with remaining buffered bytes on EOF. Rejects with
+    /// StatusException on read errors.
     fun readUntil(separator)
         var data = this._buffer.drainUntilSep(separator)
         if data
@@ -133,7 +164,7 @@ class Stream is Handle
             self._handle.readStart(fun(data, status)
                 if status < 0
                     self._handle.readStop()
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                     return
                 end
 
@@ -154,16 +185,20 @@ class Stream is Handle
         end, this._handle.loop())
     end
 
+    /// Async: read through the next newline.
     fun readLine()
         return this.readUntil("\n")
     end
 
+    /// Async: half-close the writable side and resolve when shutdown completes.
+    ///
+    /// Rejects with StatusException when libuv rejects or fails the shutdown.
     fun shutdown()
         var self = this
         return Promise(fun(resolve, reject)
             self._handle.shutdown(fun(status)
                 if status < 0
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                 else
                     resolve()
                 end
@@ -171,18 +206,30 @@ class Stream is Handle
         end, this._handle.loop())
     end
 
+    /// Return whether the stream is currently readable.
     fun isReadable()
         return this._handle.isReadable()
     end
 
+    /// Return whether the stream is currently writable.
     fun isWritable()
         return this._handle.isWritable()
     end
 
+    /// Return the number of bytes currently queued in libuv for writing.
     fun getWriteQueueSize()
         return this._handle.getWriteQueueSize()
     end
 
+    // Construct an error object from a libuv status code. Subclasses may
+    // override this to raise a richer exception type (e.g. TLSException)
+    // when the status code alone does not carry enough diagnostic context.
+    fun _makeError(status, handle=null)
+        return StatusException(status)
+    end
+
+    // Factory method called during `Stream.listen` for accepting new connections.
+    // Should return a correctly set-up handle to the subclass-specific uv wrapper.
     @abstractMethod
     fun _accept(client) end
 end

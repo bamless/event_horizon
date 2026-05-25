@@ -20,6 +20,12 @@ static fun step(gen, arg, exc, resolve, reject, loop)
     end
 end
 
+/// Wrap fn so it always returns a Promise.
+///
+/// If fn returns a Generator, yielded values are awaited via asResolved() and
+/// thrown promise rejections are injected back into the generator. If fn returns
+/// a non-generator value, the wrapper returns a fulfilled Promise for that
+/// value. Exceptions reject the returned Promise.
 fun async(fn, loop=null)
     return fun(...args)
         var gen = fn.bind(this)(...args)

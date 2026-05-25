@@ -3,20 +3,23 @@ import event_horizon.uv.idle for Idle
 
 static var eventLoops = Registry()
 
-/// @return {event_horizon.loop.EventLoop} The `EventLoop` associated with `loopId`
+/// Return the EventLoop associated with loopId.
 fun getEventLoop(loopId)
     return eventLoops.get(loopId)
 end
 
-/// Mode used to run the loop with EventLoop.run()
+/// Mode used to run the loop with EventLoop.run().
 var RunMode = Enum{
     .DEFAULT : 0,
     .ONCE    : 1,
     .NOWAIT  : 2
 }
 
-/// EventLoop encapsulates a libuv event loop
+/// Raw libuv event loop with a small promise microtask queue.
+///
+/// Exceptions raised by callbacks are collected and surfaced after run().
 class EventLoop
+    /// Construct a new independent libuv event loop.
     construct()
         this._id = eventLoops.ref(this)
         this._handles = Registry()
@@ -26,13 +29,18 @@ class EventLoop
         this._init()
     end
 
+    /// Return this loop's registry id.
     fun id()
         return this._id
     end
 
+    /// Run the loop with RunMode.DEFAULT, ONCE, or NOWAIT.
     native run(mode=0)
+    /// Request that the loop stop soon.
     native stop()
+    /// Return whether the loop has active handles or requests.
     native alive()
+    /// Visit active handles with callback(handle).
     native walk(callback)
 
     fun _enqueueMicrotask(fn)

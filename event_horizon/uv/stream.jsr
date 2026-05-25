@@ -1,11 +1,17 @@
 import event_horizon.utils.abc for abstract, abstractMethod
 import event_horizon.uv.handle for Handle
 
+/// Raw libuv stream wrapper.
+///
+/// Methods with callbacks pass status as their final argument. Negative status
+/// values indicate libuv errors; read callbacks receive null data for EOF.
 class Stream is Handle
+    /// Construct from a native libuv stream handle userdata owned by loop.
     @abstract(Stream) construct(loop, stream)
         super(loop, stream)
     end
     
+    /// Start listening and invoke callback(client, status) through subclasses.
     fun listen(callback, backlog=0)
         var stream = this
         this._rawListen(fun(status)
@@ -18,11 +24,13 @@ class Stream is Handle
         end, backlog)
     end
 
-    // Attempts a synchronous write via tryWrite. If the kernel buffer has space,
-    // `callback` is invoked immediately (before `write` returns) with status 0.
-    // If the buffer is full, the remainder is queued via `_rawWrite` and `callback`
-    // fires asynchronously from the event loop. Callers that rely on the callback
-    // firing only during `uv.loop().run()` should use `_rawWrite` directly.
+    /// Write data and invoke callback(status) when the write is accepted/done.
+    ///
+    /// Attempts a synchronous write via tryWrite. If the kernel buffer has
+    /// space, callback(0) is invoked before write() returns. If the buffer is
+    /// full, the remainder is queued and callback fires asynchronously from the
+    /// event loop. Synchronous failures raise StatusException; asynchronous
+    /// failures are passed as a negative status to callback.
     fun write(data, callback=null)
         var written = this.tryWrite(data)
         if written == #data
@@ -35,14 +43,23 @@ class Stream is Handle
         this._rawWrite(pending, callback)
     end
 
+    /// Try a synchronous write and return bytes written, or raise StatusException.
     native tryWrite(data)
+    /// Start reading; callback(data, status) receives chunks, EOF, or errors.
     native readStart(callback)
+    /// Stop reading.
     native readStop()
+    /// Half-close the writable side; callback(status) runs on completion.
     native shutdown(callback=null)
+    /// Return whether the stream is readable.
     native isReadable()
+    /// Return whether the stream is writable.
     native isWritable()
+    /// Return bytes queued in libuv's write queue.
     native getWriteQueueSize()
 
+    // Factory method called during `Stream.listen` for accepting new connections.
+    // Should return a correctly set-up handle to the subclass-specific uv wrapper.
     @abstractMethod
     fun accept() end
 

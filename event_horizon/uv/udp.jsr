@@ -45,17 +45,24 @@ var Membership = Enum(
 
 static native uvUDP(loop)
 
+/// Raw libuv UDP socket.
+///
+/// Immediate native failures raise StatusException. Send callbacks receive
+/// callback(status); recvStart callbacks receive callback(data, addr, port,
+/// status), where negative status values are libuv receive errors.
 class UDP is Handle
+    /// Construct a UDP socket on loop, or the global loop when omitted.
     construct(loop=null)
         loop = loop or uv.loop()
         super(loop, uvUDP(loop))
     end
 
-    // Attempts a synchronous send via trySend. If the kernel buffer has space,
-    // `callback` is invoked immediately (before `send` returns) with status 0.
-    // If the buffer is full, the send is queued via `_rawSend` and `callback`
-    // fires asynchronously from the event loop. Callers that rely on the callback
-    // firing only during `uv.loop().run()` should use `_rawSend` directly.
+    /// Send one datagram.
+    ///
+    /// Attempts a synchronous send via trySend. If the kernel buffer has space,
+    /// callback is invoked immediately, before send() returns, with status 0.
+    /// If the buffer is full, the send is queued via the native async path and
+    /// callback fires asynchronously from the event loop.
     fun send(data, addr=null, port=null, callback=null)
         if this.trySend(data, addr, port) > 0
             if callback
@@ -66,20 +73,35 @@ class UDP is Handle
         this._rawSend(data, addr, port, callback)
     end
 
+    /// Bind the socket to addr:port with optional Flags.
     native bind(addr, port, flags=0)
+    /// Connect to a default peer, or disconnect with null port.
     native connect(addr, port=null)
+    /// Try to send one datagram synchronously; returns bytes sent or 0.
     native trySend(data, addr=null, port=null)
+    /// Start receiving datagrams with callback(data, addr, port, status).
     native recvStart(callback)
+    /// Stop receiving datagrams.
     native recvStop()
+    /// Return (address, port) for the local socket.
     native sockName()
+    /// Return (address, port) for the connected peer.
     native peerName()
+    /// Return bytes currently queued for UDP sends.
     native sendQueueSize()
+    /// Return the number of queued UDP send requests.
     native sendQueueCount()
+    /// Join or leave a multicast group.
     native setMembership(multicastAddr, interfaceAddr, membership)
+    /// Join or leave a source-specific multicast group.
     native setSourceMembership(multicastAddr, interfaceAddr, sourceAddr, membership)
+    /// Enable or disable multicast loopback.
     native setMulticastLoop(on)
+    /// Set multicast TTL.
     native setMulticastTTL(ttl)
+    /// Set the outbound multicast interface.
     native setMulticastInterface(interfaceAddr)
+    /// Enable or disable broadcast sends.
     native setBroadcast(on)
     native _rawSend(data, addr=null, port=null, callback=null)
 end

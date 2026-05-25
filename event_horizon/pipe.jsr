@@ -3,15 +3,24 @@ import event_horizon.promise for Promise
 import event_horizon.stream for Stream
 import event_horizon.uv.pipe as uv_pipe
 
+/// High-level named pipe stream.
 class PipeStream is Stream
-    construct(ipc=false, loop=null, pipe=null)
-        super(pipe or uv_pipe.Pipe(ipc, loop))
+    /// Construct a pipe stream.
+    ///
+    /// ipc enables libuv IPC mode. loop defaults to the global loop. _pipe is
+    /// used internally when accepting an already-created raw pipe handle.
+    construct(ipc=false, loop=null, _pipe=null)
+        super(_pipe or uv_pipe.Pipe(ipc, loop))
     end
 
+    /// Bind this pipe to name, or raise StatusException.
     fun bind(name)
         this._handle.bind(name)
     end
 
+    /// Async: connect to a named pipe.
+    ///
+    /// Rejects with StatusException if libuv fails the connection.
     fun connect(name)
         var self = this
         return Promise(fun(resolve, reject)
@@ -25,14 +34,17 @@ class PipeStream is Stream
         end, this._handle.loop())
     end
 
+    /// Open an existing file descriptor as a pipe, or raise StatusException.
     fun open(fd)
         this._handle.open(fd)
     end
 
+    /// Return the local pipe name, or raise StatusException.
     fun sockName()
         return this._handle.sockName()
     end
 
+    /// Return the peer pipe name, or raise StatusException.
     fun peerName()
         return this._handle.peerName()
     end

@@ -3,20 +3,30 @@ import event_horizon.uv.stream for Stream
 
 static native uvTCP(loop)
 
+/// Raw libuv TCP stream.
+///
+/// Native methods raise StatusException for immediate libuv failures.
+/// connect() reports asynchronous completion through callback(status).
 class TCP is Stream
+    /// Construct a TCP handle on loop, or the global loop when omitted.
     construct(loop=null)
         loop = loop or uv.loop()
         super(loop, uvTCP(loop))
     end
 
+    /// Accept the next pending connection and return a TCP client handle.
     fun accept()
         var client = TCP(this._loop)
         this._rawAccept(client.handle())
         return client
     end
 
+    /// Connect to addr:port and invoke callback(status) on completion.
     native connect(addr, port, callback=null)
+    /// Bind to a local address and port.
     native bind(addr, port, ipv6Only=false)
+    /// Return (address, port) for the local socket.
     native sockName()
+    /// Return (address, port) for the peer socket.
     native peerName()
 end

@@ -6,4 +6,4 @@ build/
 *.dylib
 bench/
 tmp/
-TODO.md
+docs/*

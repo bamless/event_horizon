@@ -1,31 +1,44 @@
 import event_horizon.handle for Handle
 import event_horizon.uv.timer as uv_timer
 
+/// High-level timer handle.
+///
+/// Timer callbacks run from the event loop. Native timer operations raise
+/// StatusException if libuv rejects them.
 class TimerHandle is Handle
+    /// Construct a timer handle.
+    ///
+    /// The loop parameter is currently ignored by this wrapper; see SESSION.md.
     construct(loop=null)
         super(uv_timer.Timer())
     end
 
+    /// Start the timer after timeout milliseconds, repeating every repeat ms.
     fun start(timeout, repeat, callback)
         this._handle.start(timeout, repeat, callback)
     end
 
+    /// Stop the timer.
     fun stop()
         this._handle.stop()
     end
 
+    /// Restart a repeating timer using its previous repeat value.
     fun again()
         this._handle.again()
     end
 
+    /// Set the repeat interval in milliseconds.
     fun setRepeat(repeat)
         this._handle.setRepeat(repeat)
     end
 
+    /// Return the repeat interval in milliseconds.
     fun repeat()
         return this._handle.repeat()
     end
 
+    /// Return milliseconds until the timer is due.
     fun dueIn()
         return this._handle.dueIn()
     end

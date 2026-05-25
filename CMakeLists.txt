@@ -5,7 +5,8 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
-option(EVH_VENDOR_LIBUV "Build libuv from source and statically link to it" OFF)
+option(EVH_VENDOR_LIBUV   "Build libuv from source and statically link to it"   OFF)
+option(EVH_VENDOR_MBEDTLS "Build mbedTLS from source and statically link to it" OFF)
 
 # Set default build type if not specified
 get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -26,6 +27,7 @@ endif()
 # Find libraries on system
 find_package(JStar 1 REQUIRED)
 include(${CMAKE_SOURCE_DIR}/cmake/Findlibuv.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/FindMbedTLS.cmake)
 
 # include external dependencies
 add_subdirectory(extern)

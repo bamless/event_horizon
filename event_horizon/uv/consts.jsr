@@ -1,11 +1,13 @@
 import sys
 
+/// Address families accepted by socket and DNS APIs.
 var Family = Enum(
     'AF_UNSPEC',
     'AF_INET',
     'AF_INET6'
 )
 
+/// Socket types accepted by DNS APIs.
 var SockType = Enum(
     'SOCK_STREAM',
     'SOCK_DGRAM'
@@ -16,6 +18,7 @@ var SockType = Enum(
 // here for documentation, but must not be used on other platforms.
 static var _gnuAIFlags = ('AI_IDN', 'AI_CANONIDN')
 
+/// getaddrinfo flags accepted by DNS APIs.
 var AIFlags = Enum(
     'AI_PASSIVE',
     'AI_CANONNAME',

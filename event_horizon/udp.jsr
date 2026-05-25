@@ -8,19 +8,31 @@ import event_horizon.uv.consts for SockType
 import event_horizon.uv.udp as uv_udp
 import event_horizon.uv.udp for Flags, Membership
 
+/// High-level UDP socket.
+///
+/// Async methods return Promise values and should be yielded. UDP send/receive
+/// failures reject with StatusException. Native configuration methods raise
+/// StatusException when libuv rejects them.
 class UDPSocket is Handle
+    /// Construct a UDP socket on loop, or the global loop when omitted.
     construct(loop=null)
         super(uv_udp.UDP(loop))
     end
 
+    /// Bind the UDP socket to a local address and port.
     fun bind(addr, port, flags=0)
         this._handle.bind(addr, port, flags)
     end
 
+    /// Connect the UDP socket to a default peer, or disconnect with null port.
     fun connect(addr, port=null)
         this._handle.connect(addr, port)
     end
 
+    /// Async: send one datagram.
+    ///
+    /// Hostname destinations are resolved before sending. Rejects with
+    /// StatusException if resolution or sending fails.
     @async
     fun send(data, addr=null, port=null)
         if addr and getIPType(addr) == IPType.ERROR
@@ -47,10 +59,16 @@ class UDPSocket is Handle
         end, this._handle.loop())
     end
 
+    /// Try to send one datagram synchronously and return bytes sent or 0.
+    ///
+    /// Raises StatusException for non-retryable send failures.
     fun trySend(data, addr=null, port=null)
         return this._handle.trySend(data, addr, port)
     end
 
+    /// Async: receive one datagram and resolve with (data, addr, port).
+    ///
+    /// Rejects with StatusException for receive errors.
     fun recv()
         var self = this
         return Promise(fun(resolve, reject)
@@ -65,42 +83,52 @@ class UDPSocket is Handle
         end, this._handle.loop())
     end
 
+    /// Return (address, port) for the local socket, or raise StatusException.
     fun sockName()
         return this._handle.sockName()
     end
 
+    /// Return (address, port) for the connected peer, or raise StatusException.
     fun peerName()
         return this._handle.peerName()
     end
 
+    /// Return bytes currently queued for UDP sends.
     fun sendQueueSize()
         return this._handle.sendQueueSize()
     end
 
+    /// Return the number of queued UDP send requests.
     fun sendQueueCount()
         return this._handle.sendQueueCount()
     end
 
+    /// Join or leave a multicast group, or raise StatusException.
     fun setMembership(multicastAddr, interfaceAddr, membership)
         this._handle.setMembership(multicastAddr, interfaceAddr, membership)
     end
 
+    /// Join or leave a source-specific multicast group, or raise StatusException.
     fun setSourceMembership(multicastAddr, interfaceAddr, sourceAddr, membership)
         this._handle.setSourceMembership(multicastAddr, interfaceAddr, sourceAddr, membership)
     end
 
+    /// Enable or disable multicast loopback, or raise StatusException.
     fun setMulticastLoop(on)
         this._handle.setMulticastLoop(on)
     end
 
+    /// Set multicast TTL, or raise StatusException.
     fun setMulticastTTL(ttl)
         this._handle.setMulticastTTL(ttl)
     end
 
+    /// Set the outbound multicast interface, or raise StatusException.
     fun setMulticastInterface(interfaceAddr)
         this._handle.setMulticastInterface(interfaceAddr)
     end
 
+    /// Enable or disable broadcast sends, or raise StatusException.
     fun setBroadcast(on)
         this._handle.setBroadcast(on)
     end

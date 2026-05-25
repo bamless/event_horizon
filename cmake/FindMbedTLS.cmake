@@ -1,0 +1,28 @@
+# Standard FIND_PACKAGE module for mbedTLS, sets the following variables:
+#   - MBEDTLS_FOUND
+#   - MBEDTLS_INCLUDE_DIRS (only if MBEDTLS_FOUND)
+#   - MBEDTLS_LIBRARIES    (only if MBEDTLS_FOUND) — all three components
+
+# Try to find the primary header
+FIND_PATH(MBEDTLS_INCLUDE_DIR NAMES mbedtls/ssl.h)
+
+# mbedTLS ships as three separate libraries that must be linked together
+FIND_LIBRARY(MBEDTLS_LIBRARY  NAMES mbedtls)
+FIND_LIBRARY(MBEDX509_LIBRARY NAMES mbedx509)
+FIND_LIBRARY(MBEDCRYPTO_LIBRARY NAMES mbedcrypto)
+
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(MbedTLS
+    REQUIRED_VARS
+        MBEDTLS_LIBRARY
+        MBEDX509_LIBRARY
+        MBEDCRYPTO_LIBRARY
+        MBEDTLS_INCLUDE_DIR)
+
+MARK_AS_ADVANCED(MBEDTLS_INCLUDE_DIR MBEDTLS_LIBRARY MBEDX509_LIBRARY MBEDCRYPTO_LIBRARY)
+
+IF(MBEDTLS_FOUND)
+    SET(MBEDTLS_INCLUDE_DIRS "${MBEDTLS_INCLUDE_DIR}")
+    # Order matters: mbedtls depends on mbedx509 which depends on mbedcrypto
+    SET(MBEDTLS_LIBRARIES "${MBEDTLS_LIBRARY}" "${MBEDX509_LIBRARY}" "${MBEDCRYPTO_LIBRARY}")
+ENDIF()

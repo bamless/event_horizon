@@ -1,11 +1,18 @@
 import event_horizon.utils.abc for abstract
 import event_horizon.promise for Promise
 
+/// High-level wrapper around a libuv handle.
+///
+/// Methods that call native libuv setters/getters raise StatusException when
+/// libuv rejects the operation. close() is async: yield it to wait until the
+/// native handle has actually closed.
 class Handle
+    /// Construct from a raw event_horizon.uv handle.
     @abstract(Handle) construct(handle)
         this._handle = handle
     end
 
+    /// Async: close the handle and resolve when libuv runs the close callback.
     fun close()
         var self = this
         return Promise(fun(resolve, _)
@@ -15,30 +22,37 @@ class Handle
         end, this._handle.loop())
     end
     
+    /// Return whether libuv currently considers the handle active.
     fun isActive()
         return this._handle.isActive()
     end
 
+    /// Return whether close() has been requested for this handle.
     fun isClosing()
         return this._handle.isClosing()
     end
 
+    /// Return the OS send buffer size, or raise StatusException.
     fun sendBufferSize()
         return this._handle.sendBufferSize()
     end
 
+    /// Request a new OS send buffer size, or raise StatusException.
     fun setSendBufferSize(size)
         this._handle.setSendBufferSize(size)
     end
 
+    /// Return the OS receive buffer size, or raise StatusException.
     fun recvBufferSize()
         return this._handle.recvBufferSize()
     end
 
+    /// Request a new OS receive buffer size, or raise StatusException.
     fun setRecvBufferSize(size)
         this._handle.setRecvBufferSize(size)
     end
 
+    /// Return the underlying event_horizon.uv handle.
     fun handle()
         return this._handle
     end

@@ -17,6 +17,7 @@ import uv.udp
 import uv.timer
 import uv.dns
 import uv.pipe
+import uv.tls
 
 import evh.promise
 import evh.tcp
@@ -24,5 +25,6 @@ import evh.pipe
 import evh.udp
 import evh.timers
 import evh.dns
+import evh.tls
 
 test.run()

@@ -22,7 +22,13 @@ var HandleType = Enum(
     'FILE',
 )
 
+/// Raw libuv handle wrapper.
+///
+/// Native methods raise StatusException when libuv rejects an immediate
+/// operation. Callback-taking methods pass a libuv status code to the callback
+/// when the operation completes.
 class Handle
+    /// Construct from a native libuv handle userdata owned by loop.
     @abstract(Handle) construct(loop, handle)
         this._loop = loop
         this._handle = handle
@@ -31,26 +37,38 @@ class Handle
         this._init(loop, handle)
     end
 
+    /// Return the libuv handle type as a HandleType enum name.
     fun handleTypeName()
         return HandleType.name(this.handleType())
     end
 
+    /// Return the native userdata backing this handle.
     fun handle()
         return this._handle
     end
 
+    /// Return the EventLoop that owns this handle.
     fun loop()
         return this._loop
     end
 
+    /// Close the handle; callback runs with no arguments after uv_close.
     native close(callback=null)
+    /// Return whether libuv considers the handle active.
     native isActive()
+    /// Return whether close() has already been requested.
     native isClosing()
+    /// Return the OS send buffer size, or raise StatusException.
     native sendBufferSize()
+    /// Request a new OS send buffer size, or raise StatusException.
     native setSendBufferSize(size)
+    /// Return the OS receive buffer size, or raise StatusException.
     native recvBufferSize()
+    /// Request a new OS receive buffer size, or raise StatusException.
     native setRecvBufferSize(size)
+    /// Return the underlying file descriptor, or raise StatusException.
     native fileno()
+    /// Return the numeric libuv handle type.
     native handleType()
     native _init(loop, handle)
 end

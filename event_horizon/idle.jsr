@@ -1,15 +1,24 @@
 import event_horizon.handle for Handle
 import event_horizon.uv.idle as uv_idle
 
+/// High-level idle handle.
+///
+/// A started idle handle runs its callback once per loop iteration, before
+/// prepare handles. While any idle handle is active, libuv polls with a zero
+/// timeout instead of blocking for I/O. Native operations raise StatusException
+/// if libuv rejects them.
 class IdleHandle is Handle
+    /// Construct an idle handle on loop, or the global loop when omitted.
     construct(loop=null)
         super(uv_idle.Idle(loop))
     end
 
+    /// Start invoking callback once per loop iteration.
     fun start(callback)
         this._handle.start(callback)
     end
 
+    /// Stop invoking the idle callback.
     fun stop()
         this._handle.stop()
     end

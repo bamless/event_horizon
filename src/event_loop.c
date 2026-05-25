@@ -86,11 +86,12 @@ bool EventLoop_walk(JStarVM* vm) {
 static void closeLibuvLoop(void* data) {
     uv_loop_t* loop = data;
     LoopMetadata* metadata = loop->data;
-    free(metadata);
+    // TODO: should we close this automatically?
     int res = uv_loop_close(loop);
     if(res == UV_EBUSY) {
         fprintf(stderr, "Pending handles during call to `uv_loop_cose`.\n");
     }
+    free(metadata);
 }
 
 bool EventLoop_init(JStarVM* vm) {

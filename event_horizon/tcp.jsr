@@ -7,11 +7,19 @@ import event_horizon.utils.ip for getIPType, IPType
 import event_horizon.uv.consts for SockType
 import event_horizon.uv.tcp as uv_tcp
 
+/// High-level TCP stream with DNS-aware connect().
 class TCPStream is Stream
-    construct(loop=null, tcp=null)
-        super(tcp or uv_tcp.TCP(loop))
+    /// Construct a TCP stream on loop, or the global loop when omitted.
+    ///
+    /// _tcp is used internally when accepting an already-created raw TCP handle.
+    construct(loop=null, _tcp=null)
+        super(_tcp or uv_tcp.TCP(loop))
     end
 
+    /// Async: connect to addr:port.
+    ///
+    /// Hostnames are resolved with getAddrInfo before connecting. Rejects with
+    /// StatusException for DNS, address parsing, and connect failures.
     @async
     fun connect(addr, port)
         if getIPType(addr) == IPType.ERROR
@@ -31,14 +39,19 @@ class TCPStream is Stream
         end, this._handle.loop())
     end
 
+    /// Bind the stream to a local address and port.
+    ///
+    /// Raises StatusException if the address is invalid or libuv cannot bind.
     fun bind(addr, port, ipv6Only=false)
         this._handle.bind(addr, port, ipv6Only)
     end
 
+    /// Return (address, port) for the local socket, or raise StatusException.
     fun sockName()
         return this._handle.sockName()
     end
 
+    /// Return (address, port) for the peer socket, or raise StatusException.
     fun peerName()
         return this._handle.peerName()
     end

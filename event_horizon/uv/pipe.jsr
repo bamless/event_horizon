@@ -3,21 +3,34 @@ import event_horizon.uv.stream for Stream
 
 static native uvPipe(loop, ipc)
 
+/// Raw libuv named pipe stream.
+///
+/// Native methods raise StatusException for immediate libuv failures.
+/// connect() reports asynchronous completion through callback(status).
 class Pipe is Stream
+    /// Construct a pipe handle on loop, or the global loop when omitted.
+    ///
+    /// ipc enables libuv IPC mode.
     construct(ipc=false, loop=null)
         loop = loop or uv.loop()
         super(loop or uv.loop(), uvPipe(loop, ipc))
     end
 
+    /// Accept the next pending pipe connection and return a Pipe client handle.
     fun accept()
         var client = Pipe(false, this._loop)
         this._rawAccept(client.handle())
         return client
     end
 
+    /// Open an existing file descriptor as a pipe.
     native open(fd)
+    /// Bind this pipe to name.
     native bind(name)
+    /// Connect to name and invoke callback(status) on completion.
     native connect(name, callback=null)
+    /// Return the local pipe name.
     native sockName()
+    /// Return the peer pipe name.
     native peerName()
 end

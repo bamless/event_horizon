@@ -3,7 +3,12 @@ import event_horizon.uv.handle for Handle
 
 static native uvIdle(loop)
 
+/// Raw libuv idle handle.
+///
+/// start(callback) invokes callback once per loop iteration, before prepare
+/// handles. Active idle handles keep the loop from blocking in the I/O poll.
 class Idle is Handle
+    /// Construct an idle handle on loop, or the global loop when omitted.
     construct(loop=null)
         loop = loop or uv.loop()
         super(loop, uvIdle(loop))

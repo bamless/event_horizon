@@ -6,7 +6,14 @@ var State = Enum(
     "REJECTED"
 )
 
+/// Minimal Promise implementation integrated with the event_horizon event loop.
+///
+/// Handlers are scheduled as microtasks on the promise loop. Rejections carry
+/// Exception values and can be observed with then(..., onRejected) or catch().
 class Promise
+    /// Construct a Promise and immediately call fn(resolve, reject).
+    ///
+    /// If fn throws, the promise is rejected with that exception.
     construct(fn, loop=null)
         this._state = State.PENDING
         this._value = null
@@ -15,6 +22,7 @@ class Promise
         this._doResolve(fn)
     end
 
+    /// Fulfill the promise with result.
     fun fulfill(result)
         this._state = State.FULFILLED
         this._value = result
@@ -24,6 +32,7 @@ class Promise
         this._handlers = null
     end
 
+    /// Reject the promise with exception.
     fun reject(exception)
         this._state = State.REJECTED
         this._value = exception
@@ -33,6 +42,7 @@ class Promise
         this._handlers = null
     end
 
+    /// Resolve with a value, flattening nested Promise values.
     fun resolve(result=null)
         try
             if result is Promise
@@ -45,6 +55,7 @@ class Promise
         end
     end
 
+    /// Return a Promise chained from this promise.
     fun then(onFulfilled, onRejected=null)
         var self = this
         return Promise(fun(resolve, reject)
@@ -72,6 +83,7 @@ class Promise
         end, this._loop)
     end
 
+    /// Return a Promise that handles only rejection.
     fun catch(onRejected)
         return this.then(null, onRejected)
     end
@@ -116,6 +128,7 @@ class Promise
     end
 end
 
+/// Return val unchanged if it is already a Promise, otherwise a fulfilled Promise.
 fun asResolved(val, loop=null)
     if val is Promise
         return val
@@ -125,6 +138,7 @@ fun asResolved(val, loop=null)
     end, loop)
 end
 
+/// Return val unchanged if it is already a Promise, otherwise a rejected Promise.
 fun asRejected(val, loop=null)
     if val is Promise
         return val
@@ -134,6 +148,7 @@ fun asRejected(val, loop=null)
     end, loop)
 end
 
+/// Async: resolve when all promises resolve, or reject on the first rejection.
 fun all(promises, loop=null)
     var count = promises.count()
     var results = List(count)
@@ -156,6 +171,7 @@ fun all(promises, loop=null)
     end, loop)
 end
 
+/// Async: settle with the first promise that resolves or rejects.
 fun race(promises, loop=null)
     return Promise(fun(resolve, reject)
         for var promise in promises

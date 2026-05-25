@@ -2,6 +2,10 @@ import event_horizon.uv as uv
 
 var VERSION = (0, 0, 1)
 
+/// Run the event loop, optionally attaching a stacktrace printer to promise.
+///
+/// Exceptions raised from callbacks during loop execution are surfaced by the
+/// event loop as LoopExecutionException.
 fun run(promise=null, loop=null)
     if promise
         promise.catch(|e| => e.printStacktrace())

@@ -3,16 +3,27 @@ import event_horizon.uv.handle for Handle
 
 static native uvTimer(loop)
 
+/// Raw libuv timer handle.
+///
+/// start() invokes callback from the event loop. Native methods raise
+/// StatusException when libuv rejects the operation.
 class Timer is Handle
+    /// Construct a timer handle on loop, or the global loop when omitted.
     construct(loop=null)
         loop = loop or uv.loop()
         super(loop, uvTimer(loop))
     end
 
+    /// Start after timeout milliseconds, repeating every repeat ms.
     native start(timeout, repeat, callback)
+    /// Stop the timer.
     native stop()
+    /// Restart a repeating timer using the previous repeat value.
     native again()
+    /// Set the repeat interval in milliseconds.
     native setRepeat(repeat)
+    /// Return the repeat interval in milliseconds.
     native repeat()
+    /// Return milliseconds until the timer is due.
     native dueIn()
 end

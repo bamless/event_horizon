@@ -2,6 +2,10 @@ import event_horizon.promise for Promise
 import event_horizon.idle for IdleHandle
 import event_horizon.timer for TimerHandle
 
+/// Schedule callback with an idle handle on the next event-loop iteration.
+///
+/// Returns cancel(). If forever is true, callback receives cancel and runs once
+/// per loop iteration until canceled. Exceptions thrown by callback are printed.
 fun nextTick(callback, forever=false, loop=null)
     var idle = IdleHandle(loop)
     fun cancel()
@@ -22,6 +26,9 @@ fun nextTick(callback, forever=false, loop=null)
     return cancel
 end
 
+/// Schedule callback once after ms milliseconds and return cancel().
+///
+/// Exceptions thrown by callback are printed.
 fun setTimeout(callback, ms, loop=null)
     var timer = TimerHandle(loop)
     fun cancel()
@@ -38,6 +45,9 @@ fun setTimeout(callback, ms, loop=null)
     return cancel
 end
 
+/// Schedule callback every ms milliseconds and return cancel().
+///
+/// callback receives cancel. Exceptions thrown by callback are printed.
 fun setInterval(callback, ms, loop=null)
     var timer = TimerHandle(loop)
     fun cancel()
@@ -53,6 +63,7 @@ fun setInterval(callback, ms, loop=null)
     return cancel
 end
 
+/// Async: resolve on the next loop iteration.
 fun waitOneTick(loop=null)
     var idle = IdleHandle(loop)
     return Promise(fun(resolve, _)
@@ -63,6 +74,7 @@ fun waitOneTick(loop=null)
     end, loop)
 end
 
+/// Async: resolve after ms milliseconds.
 fun wait(ms, loop=null)
     var timer = TimerHandle(loop)
     return Promise(fun(resolve, _)

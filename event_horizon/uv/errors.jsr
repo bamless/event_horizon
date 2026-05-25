@@ -1,5 +1,11 @@
+/// Return a human-readable libuv error string for status.
 native strerror(status)
 
+/// libuv errno/status constants exposed as numeric enum values.
+///
+/// APIs pass these values to callbacks or wrap them in StatusException. The
+/// enum intentionally mirrors libuv broadly; callers usually handle only the
+/// statuses relevant to their operation, such as EAGAIN or EOF.
 var Errno = Enum(
   'E2BIG',
   'EACCES',
@@ -84,4 +90,9 @@ var Errno = Enum(
   'EILSEQ',
   'ESOCKTNOSUPPORT',
   'ENODATA',
+  'EUNATCH',
+  'ENOEXEC',
 )
+
+static native _errorsInit()
+_errorsInit()

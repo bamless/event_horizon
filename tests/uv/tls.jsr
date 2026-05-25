@@ -1,0 +1,379 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run
+
+import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
+import event_horizon.uv as uv
+import event_horizon.uv.tls for TLS
+
+// Paths are relative to the project root (where tests/run.jsr is invoked)
+static var CERT = "tests/certs/cert.pem"
+static var KEY  = "tests/certs/key.pem"
+static var PORT = 8088   // use a non-standard port to avoid conflicts
+
+static fun repeatedBlock(block, count)
+    var chunks = []
+    while count > 0
+        chunks.add(block)
+        count = count - 1
+    end
+    return chunks.join()
+end
+
+// Start a self-signed TLS server on PORT that accepts one connection, runs
+// `onClient(client)`, then closes both the client and the server.
+static fun withTLSServer(port, onClient)
+    var server = TLS({"cert": CERT, "key": KEY})
+    server.bind("0.0.0.0", port)
+    server.listen(fun(client, status)
+        if status < 0
+            server.close()
+            return
+        end
+        onClient(client)
+        server.close()
+    end)
+end
+
+@test
+fun handshake()
+    // Verify that client and server complete the TLS handshake without error
+    var handshakeDone = false
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    var c = TLS()   // client with no CA — VERIFY_NONE
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0, "Handshake failed with status: {0}" % status)
+        handshakeDone = true
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(handshakeDone, "Handshake callback never fired")
+end
+
+@test
+fun serverRequiresCertificatePair()
+    var missingBoth = false
+    try
+        TLS(null, null, true)
+    except InvalidArgException e
+        missingBoth = true
+    end
+    assert(missingBoth, "server TLS without cert/key did not throw")
+
+    var missingKey = false
+    try
+        TLS({"cert": CERT}, null, true)
+    except InvalidArgException e
+        missingKey = true
+    end
+    assert(missingKey, "server TLS without key did not throw")
+end
+
+@test
+fun clientCertificateRequiresKeyPair()
+    var missingKey = false
+    try
+        TLS({"cert": CERT})
+    except InvalidArgException e
+        missingKey = true
+    end
+    assert(missingKey, "client TLS with only cert did not throw")
+
+    var missingCert = false
+    try
+        TLS({"key": KEY})
+    except InvalidArgException e
+        missingCert = true
+    end
+    assert(missingCert, "client TLS with only key did not throw")
+end
+
+@test
+fun handshakeWithCA()
+    // Verify handshake succeeds when the client supplies the correct CA cert
+    var verified = false
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    var c = TLS({"ca": CERT})
+    c.connect("127.0.0.1", PORT, "localhost", fun(status)
+        assert(status == 0, "Verified handshake failed: {0}" % status)
+        verified = true
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(verified)
+end
+
+@test
+fun handshakeBadCA()
+    // A wrong CA should cause the handshake to fail (status < 0)
+    var failStatus = null
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    // Generate a different CA by reusing the same cert but with a wrong CN;
+    // in this test we just use the server cert itself as a "bad" CA for a
+    // different expected hostname so verification fails.
+    var c = TLS({"ca": CERT})
+    c.connect("127.0.0.1", PORT, "wrong.hostname", fun(status)
+        // mbedTLS CN mismatch → handshake fails → status == UV_EPROTO
+        failStatus = status
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(failStatus != null and failStatus < 0, "Expected handshake failure")
+end
+
+@test
+fun writeRead()
+    // Full echo round-trip: server reads a message and writes it back
+    var received = null
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0
+                client.close()
+                return
+            end
+            // Echo back
+            client.write(data, fun(wStatus)
+                client.close()
+            end)
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.write("hello TLS", fun(wStatus)
+            assert(wStatus == 0)
+        end)
+        c.readStart(fun(data, rStatus)
+            received = data
+            c.readStop()
+            c.close()
+        end)
+    end)
+
+    uv.loop().run()
+    assert(received == "hello TLS", "Expected 'hello TLS', got: {0}" % received)
+end
+
+@test
+fun largeWriteQueuesWithoutSynchronousEAGAIN()
+    var block = repeatedBlock("x", 4096)
+    var large = repeatedBlock(block, 256)
+    var didThrow = false
+    var writeCallbackFired = false
+    var serverRead = 0
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0
+                client.close()
+                return
+            end
+            if !data
+                client.close()
+                return
+            end
+            serverRead += #data
+            if serverRead >= #large
+                client.close()
+            end
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        try
+            c.write(large, fun(writeStatus)
+                assert(writeStatus == 0)
+                writeCallbackFired = true
+                c.close()
+            end)
+        except StatusException e
+            didThrow = true
+        end
+    end)
+
+    uv.loop().run()
+    assert(!didThrow, "large TLS write unexpectedly threw")
+    assert(writeCallbackFired, "large TLS write callback did not fire")
+    assert(serverRead == #large, "server did not read the full large write")
+end
+
+@test
+fun closeWhileWriteInFlightDrainsAndCloses()
+    // Closing right after a large write (while its ciphertext is still draining
+    // through libuv) must defer the close, finish the drain, then run the close
+    // callback. Regression guard for the closePendingDrain path.
+    var block = repeatedBlock("z", 4096)
+    var large = repeatedBlock(block, 256)
+    var closeCallbackFired = false
+    var serverRead = 0
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0 or !data
+                client.close()
+                return
+            end
+            serverRead += #data
+            if serverRead >= #large
+                client.close()
+            end
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.write(large)
+        // Close immediately; the write is almost certainly still in flight.
+        c.close(fun()
+            closeCallbackFired = true
+        end)
+    end)
+
+    uv.loop().run()
+    assert(closeCallbackFired, "close callback did not fire after in-flight write drained")
+end
+
+@test
+fun shutdownWithPendingWriteThrows()
+    var block = repeatedBlock("y", 4096)
+    var large = repeatedBlock(block, 256)
+    var didThrow = false
+    var writeCallbackFired = false
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0 or !data
+                client.close()
+            end
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.write(large, fun(writeStatus)
+            writeCallbackFired = true
+            c.close()
+        end)
+        try
+            c.shutdown()
+        except EventHorizonException e
+            didThrow = true
+            assert(e.err() == "TLS shutdown requires all pending writes to complete")
+        end
+    end)
+
+    uv.loop().run()
+    assert(didThrow, "shutdown with pending TLS writes did not throw")
+    assert(writeCallbackFired, "pending TLS write did not complete after rejected shutdown")
+end
+
+@test
+fun writeAfterShutdownFailsSynchronously()
+    var server = TLS({"cert": CERT, "key": KEY})
+    server.bind("0.0.0.0", PORT)
+    server.listen(fun(client, status)
+        assert(status == 0)
+        client.close()
+        server.close()
+    end)
+
+    var didThrow = false
+    var writeCallbackFired = false
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.shutdown(fun(shutdownStatus)
+            assert(shutdownStatus == 0)
+            try
+                c.write("after shutdown", fun(writeStatus)
+                    writeCallbackFired = true
+                end)
+            except StatusException e
+                didThrow = true
+                assert(e.status() < 0)
+            ensure
+                c.close()
+            end
+        end)
+    end)
+
+    uv.loop().run()
+    assert(didThrow, "write after shutdown did not throw")
+    assert(!writeCallbackFired, "write callback fired after synchronous uv_write failure")
+    assert(#c._callbacks == 0, "write callback leaked after synchronous uv_write failure")
+end
+
+@test
+fun sockName()
+    var server = TLS({"cert": CERT, "key": KEY})
+    server.bind("0.0.0.0", PORT)
+
+    var addr, port = server.sockName()
+    assert(addr == "0.0.0.0")
+    assert(port == PORT)
+
+    server.close()
+    uv.loop().run()
+end
+
+@test
+fun peerName()
+    var peerAddr = null
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        peerAddr = c.peerName()[0]
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(peerAddr == "127.0.0.1", "Unexpected peer address: {0}" % peerAddr)
+end
+
+@test
+fun connectFail()
+    // Connect to a port with nothing listening — should get a connection refused
+    var failStatus = null
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        failStatus = status
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(failStatus != null and failStatus < 0)
+end
+
+if __name__ == '__main__'
+    run()
+end
