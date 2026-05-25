@@ -1,4 +1,4 @@
-add_library(event_horizon SHARED 
+add_library(event_horizon SHARED
     callbacks.h
     callbacks.c
     consts.h
@@ -22,6 +22,8 @@ add_library(event_horizon SHARED
     stream_buffer.c
     tcp.c
     tcp.h
+    tls.h
+    tls.c
     udp.h
     udp.c
     timer.h
@@ -33,7 +35,7 @@ add_library(event_horizon SHARED
 set_target_properties(event_horizon PROPERTIES C_VISIBILITY_PRESET hidden)
 set_target_properties(event_horizon PROPERTIES OUTPUT_NAME "__package__")
 
-target_link_libraries(event_horizon PUBLIC jstar::jstar libuv)
+target_link_libraries(event_horizon PUBLIC jstar::jstar libuv libmbedtls)
 target_compile_definitions(event_horizon PRIVATE jstar_EXPORTS)
 target_compile_options(event_horizon
     PRIVATE
@@ -41,6 +43,12 @@ target_compile_options(event_horizon
         $<$<C_COMPILER_ID:Clang>:-Wall -Wextra>
         $<$<C_COMPILER_ID:GNU>:-Wall -Wextra>
 )
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(event_horizon PRIVATE
+        $<$<CONFIG:Release>:-s>
+    )
+endif()
 
 if(LTO)
     set_target_properties(event_horizon PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)

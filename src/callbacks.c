@@ -114,17 +114,13 @@ void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
     buf->len = LOOP_READ_BUF_SIZE;
 }
 
-static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t* buf,
-                             bool pushSockAddr, const struct sockaddr* sa, CallbackType cbType) {
-    LoopMetadata* loopMetadata = handle->loop->data;
+static void dispatchRead(uv_handle_t* handle, const unsigned char* data, int nread,
+                         CallbackType cbType, bool wantAddr, const struct sockaddr* sa) {
     HandleMetadata* handleMetadata = handle->data;
+    LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
-    // buf->base points to loopMetadata->readBuf — no heap allocation to free on
-    // error paths below.
-    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) {
-        return;
-    }
+    if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
 
     int handleSlot = jsrTop(vm);
     int slot = 2;  // [loop, handle]
@@ -136,33 +132,31 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
     }
     slot++;  // [loop, handle, callback]
 
-    if(nread >= 0) {
-        JStarBuffer data;
-        jsrBufferInitCapacity(vm, &data, nread > 0 ? nread : 1);
-        memcpy(data.data, buf->base, nread);
-        data.size = nread;
-        jsrBufferPush(&data);
+    if(nread > 0) {
+        JStarBuffer buf;
+        jsrBufferInitCapacity(vm, &buf, nread);
+        memcpy(buf.data, data, (size_t)nread);
+        buf.size = (size_t)nread;
+        jsrBufferPush(&buf);
     } else {
         jsrPushNull(vm);
     }
-    slot++;  // [loop, handle, callback, data]
+    slot++;  // [loop, handle, callback, data_or_null]
 
-    if(pushSockAddr) {
-        if(sa != NULL) {
+    if(wantAddr) {
+        if(sa) {
             pushAddr(vm, sa);
             pushPort(vm, sa);
         } else {
             jsrPushNull(vm);
             jsrPushNull(vm);
         }
-        slot += 2;
+        slot += 2;  // [loop, handle, callback, data_or_null, addr, port]
     }
 
-    if(nread > 0 || nread == UV_EOF) {
-        jsrPushNumber(vm, 0);
-    } else {
-        jsrPushNumber(vm, nread);
-    }
+    // Normalize status: success (nread > 0) and UV_EOF map to 0. Negative codes other than UV_EOF
+    // carry the raw error through.
+    jsrPushNumber(vm, (nread >= 0 || nread == UV_EOF) ? 0 : nread);
     slot++;  // status
 
     if(!jsrCall(vm, slot - 3)) {
@@ -173,14 +167,18 @@ static void sockReadCallback(uv_handle_t* handle, ssize_t nread, const uv_buf_t*
     jsrPopN(vm, slot);
 }
 
+void deliverRead(uv_handle_t* handle, const unsigned char* data, int nread) {
+    dispatchRead(handle, data, nread, READ_CB, false, NULL);
+}
+
 void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
-    sockReadCallback((uv_handle_t*)stream, nread, buf, false, NULL, READ_CB);
+    deliverRead((uv_handle_t*)stream, (const unsigned char*)buf->base, (int)nread);
 }
 
 void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* sa,
                   unsigned int flags) {
     (void)flags;
-    sockReadCallback((uv_handle_t*)udp, nread, buf, true, sa, RECV_CB);
+    dispatchRead((uv_handle_t*)udp, (const unsigned char*)buf->base, (int)nread, RECV_CB, true, sa);
 }
 
 static void voidHandleCallback(uv_handle_t* handle, CallbackType cbType) {

@@ -1,0 +1,137 @@
+#!/usr/bin/env jstar
+
+// HTTPS GET example using TLSStream.
+//
+// Usage:
+//   jstar examples/https-get.jsr <url> <output-file> [ca-bundle]
+//
+// Arguments:
+//   url         - https://hostname/path  (http:// URLs are rejected)
+//   output-file - path where the response body is written
+//   ca-bundle   - PEM CA bundle for certificate verification; defaults to the
+//                 system bundle at /etc/ssl/certs/ca-certificates.crt.
+//                 Pass "none" to disable verification (insecure).
+//
+// Example:
+//   jstar examples/https-get.jsr https://example.com/ /tmp/out.html
+
+import io
+import re
+import sys
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.tls for TLSStream
+
+// Default system CA bundle paths (first existing file wins at startup)
+static var DEFAULT_CA_PATHS = [
+    "/etc/ssl/certs/ca-certificates.crt", // Debian / Ubuntu / Fedora
+    "/etc/pki/tls/certs/ca-bundle.crt",   // RHEL / CentOS
+    "/etc/ssl/cert.pem",                  // macOS / Alpine
+]
+
+static fun findSystemCA()
+    for var path in DEFAULT_CA_PATHS
+        try
+            io.File(path, "r").close()
+            return path
+        except io.FileNotException _
+            // file not found - try the next candidate
+        end
+    end
+    return null
+end
+
+// Perform an HTTPS GET and return the response body as a string.
+// `host`        - hostname (used for SNI and the Host header)
+// `path`        - request path, e.g. "/" or "/index.html"
+// `ca`          - CA bundle path, or null to skip certificate verification
+// `printHeader` - if true, prints the response status line + headers to stdout
+@async
+fun get(host, path, ca, printHeader)
+    var opts = {}
+    if ca
+        opts["ca"] = ca
+    end
+
+    var s = TLSStream(opts)
+    try
+        yield s.connect(host, 443)
+
+        // HTTP/1.0 keeps things simple: no chunked encoding, connection closes
+        // after the response so readAll() terminates naturally.
+        yield s.write("GET {0} HTTP/1.0\r\nHost: {1}\r\nConnection: close\r\n\r\n" % (path, host))
+
+        var header = yield s.readUntil("\r\n\r\n")
+        if printHeader
+            print("Header:")
+            for var line in header.strip().split("\r\n")
+                print("   " + line)
+            end
+            print("")
+        end
+
+        return yield s.readAll()
+    ensure
+        yield s.close()
+    end
+end
+
+@async
+fun main()
+    if #argv < 2
+        io.stderr.writeln("Usage: https-get.jsr <url> <output-file> [ca-bundle|none]")
+        io.stderr.writeln("  e.g. https-get.jsr https://example.com/ /tmp/out.html")
+        sys.exit(1)
+    end
+
+    var url  = argv[0]
+    var out  = argv[1]
+    var caArg = argv[2] if #argv >= 3 else null
+
+    // Parse scheme, host, path from the URL
+    var scheme, rest = re.match(url, "^(https?)://(.*)$")
+    if scheme == null
+        // No scheme - treat as bare hostname, default to https
+        scheme = "https"
+        rest = url
+    end
+
+    if scheme != "https"
+        io.stderr.writeln("Error: only https:// URLs are supported (got '{0}')" % scheme)
+        sys.exit(1)
+    end
+
+    var host, path = re.match(rest, "^([^/:?#]*)(/?.*)$")
+    if host == null or host == ""
+        io.stderr.writeln("Cannot parse hostname from: {0}" % url)
+        sys.exit(1)
+    end
+    if path == ""
+        path = "/"
+    end
+
+    // Determine the CA bundle to use for certificate verification
+    var ca = null
+    if caArg == "none"
+        io.stderr.writeln("Warning: certificate verification disabled")
+    elif caArg
+        ca = caArg
+    else
+        ca = findSystemCA()
+        if ca == null
+            io.stderr.writeln("Warning: no system CA bundle found; " +
+                              "verification disabled. Pass a CA path as " +
+                              "the third argument to enable it.")
+        end
+    end
+
+    var body = yield get(host, path, ca, true)
+
+    with io.File(out, "w") f
+        f.write(body)
+    end
+    print("Wrote {0} bytes to {1}" % (#body, out))
+end
+
+evh.run(main())

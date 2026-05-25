@@ -34,7 +34,7 @@ class Stream is Handle
             self._resolveListen = resolve
             self._handle.listen(fun(client, status)
                 if status < 0
-                    errHandler(StatusException(status))
+                    errHandler(self._makeError(status, client))
                     return
                 end
                 handleConnection(self._accept(client), status, onConnect).catch(errHandler)
@@ -56,7 +56,7 @@ class Stream is Handle
         return Promise(fun(resolve, reject)
             self._handle.write(pending, fun(status)
                 if status < 0
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                 else
                     resolve()
                 end
@@ -85,7 +85,7 @@ class Stream is Handle
             self._handle.readStart(fun(data, status)
                 if status < 0
                     self._handle.readStop()
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                     return
                 end
 
@@ -133,7 +133,7 @@ class Stream is Handle
             self._handle.readStart(fun(data, status)
                 if status < 0
                     self._handle.readStop()
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                     return
                 end
 
@@ -163,7 +163,7 @@ class Stream is Handle
         return Promise(fun(resolve, reject)
             self._handle.shutdown(fun(status)
                 if status < 0
-                    reject(StatusException(status))
+                    reject(self._makeError(status))
                 else
                     resolve()
                 end
@@ -181,6 +181,13 @@ class Stream is Handle
 
     fun getWriteQueueSize()
         return this._handle.getWriteQueueSize()
+    end
+
+    // Construct an error object from a libuv status code. Subclasses may
+    // override this to raise a richer exception type (e.g. TLSException)
+    // when the status code alone does not carry enough diagnostic context.
+    fun _makeError(status, handle=null)
+        return StatusException(status)
     end
 
     @abstractMethod

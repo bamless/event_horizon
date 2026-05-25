@@ -57,3 +57,10 @@ class StatusException is EventHorizonException
         return this._status
     end
 end
+
+// Raised when the mbedTLS layer reports a protocol-level error: a failed
+// handshake (e.g. certificate verification), a bad record, or an alert
+// received from the peer. The message is the human-readable mbedTLS error
+// string produced by mbedtls_strerror.
+class TLSException is EventHorizonException
+end

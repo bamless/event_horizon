@@ -245,6 +245,11 @@ bool Handle_unregisterCallback(JStarVM* vm, CallbackType type, int handleSlot) {
     HandleMetadata* metadata = handle->data;
     int callbackId = metadata->callbacks[type];
     if(callbackId == -1) return true;
+    // Clear the slot BEFORE unreffing so that any re-entrant code (e.g. the TLS
+    // decode loop checking callbacks[READ_CB]) sees -1 immediately, not the now-
+    // freed registry index whose slot holds a free-list number rather than a
+    // callable — which would cause a TypeException if mistakenly called.
+    metadata->callbacks[type] = -1;
     return Handle_unregisterCallbackById(vm, callbackId, handleSlot);
 }
 

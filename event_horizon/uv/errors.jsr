@@ -84,4 +84,9 @@ var Errno = Enum(
   'EILSEQ',
   'ESOCKTNOSUPPORT',
   'ENODATA',
+  'EUNATCH',
+  'ENOEXEC',
 )
+
+static native _errorsInit()
+_errorsInit()

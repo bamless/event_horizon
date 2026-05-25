@@ -8,8 +8,8 @@ import event_horizon.uv.consts for SockType
 import event_horizon.uv.tcp as uv_tcp
 
 class TCPStream is Stream
-    construct(loop=null, tcp=null)
-        super(tcp or uv_tcp.TCP(loop))
+    construct(loop=null, _tcp=null)
+        super(_tcp or uv_tcp.TCP(loop))
     end
 
     @async

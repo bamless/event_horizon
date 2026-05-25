@@ -1,0 +1,62 @@
+import event_horizon.uv as uv
+import event_horizon.uv.stream for Stream
+
+// C native that allocates a TLSHandle, initialises mbedTLS, and wires up the memory BIO callbacks.
+static native uvTLS(loop, ca, cert, key, isServer)
+
+class TLS is Stream
+    // options dict keys:
+    //   "ca"         - path to CA certificate for peer verification
+    //   "cert"       - path to own certificate (required for servers)
+    //   "key"        - path to own private key (required for servers)
+    //   "serverName" - SNI hostname override for client connections
+    construct(options=null, loop=null, _isServer=false)
+        var opts = options or {}
+        this._options = opts
+        loop = loop or uv.loop()
+        super(loop, uvTLS(loop, opts["ca"], opts["cert"], opts["key"], _isServer))
+    end
+
+    fun listen(callback, backlog=0)
+        var stream = this
+        this._rawListen(fun(status)
+            if status < 0
+                callback(null, status)
+                return
+            end
+
+            var client = TLS(stream._options, stream._loop, true)
+            stream._rawAccept(client.handle())
+
+            // Kick off the server-side handshake; The callback fires when done.
+            // On failure, auto-close the accepted handle if the user callback
+            // did not do so, otherwise the uv_tcp_t leaks into the event loop.
+            client._startServerHandshake(fun(hsStatus)
+                callback(client, hsStatus)
+                if hsStatus < 0 and !client.isClosing()
+                    client.close()
+                end
+            end)
+        end, backlog)
+    end
+
+    // TLS cannot write synchronously.
+    // Always return 0 to signal no data sent.
+    fun tryWrite(data)
+        return 0
+    end
+
+    // TCP connect then TLS handshake.
+    // serverName is the SNI hostname sent in the ClientHello.
+    native connect(addr, port, serverName, callback=null)
+    native bind(addr, port, ipv6Only=false)
+    native sockName()
+    native peerName()
+    native readStart(callback)
+    native readStop()
+    native shutdown(callback=null)
+
+    native _rawWrite(data, callback=null)
+    native _startServerHandshake(callback)
+    native _tlsError()
+end

@@ -1,0 +1,178 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run
+
+import event_horizon.errors for LoopExecutionException, StatusException
+import event_horizon.uv as uv
+import event_horizon.uv.tls for TLS
+
+// Paths are relative to the project root (where tests/run.jsr is invoked)
+static var CERT = "tests/certs/cert.pem"
+static var KEY  = "tests/certs/key.pem"
+static var PORT = 8088   // use a non-standard port to avoid conflicts
+
+// Start a self-signed TLS server on PORT that accepts one connection, runs
+// `onClient(client)`, then closes both the client and the server.
+static fun withTLSServer(port, onClient)
+    var server = TLS({"cert": CERT, "key": KEY})
+    server.bind("0.0.0.0", port)
+    server.listen(fun(client, status)
+        if status < 0
+            server.close()
+            return
+        end
+        onClient(client)
+        server.close()
+    end)
+end
+
+@test
+fun handshake()
+    // Verify that client and server complete the TLS handshake without error
+    var handshakeDone = false
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    var c = TLS()   // client with no CA — VERIFY_NONE
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0, "Handshake failed with status: {0}" % status)
+        handshakeDone = true
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(handshakeDone, "Handshake callback never fired")
+end
+
+@test
+fun handshakeWithCA()
+    // Verify handshake succeeds when the client supplies the correct CA cert
+    var verified = false
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    var c = TLS({"ca": CERT})
+    c.connect("127.0.0.1", PORT, "localhost", fun(status)
+        assert(status == 0, "Verified handshake failed: {0}" % status)
+        verified = true
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(verified)
+end
+
+@test
+fun handshakeBadCA()
+    // A wrong CA should cause the handshake to fail (status < 0)
+    var failStatus = null
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    // Generate a different CA by reusing the same cert but with a wrong CN;
+    // in this test we just use the server cert itself as a "bad" CA for a
+    // different expected hostname so verification fails.
+    var c = TLS({"ca": CERT})
+    c.connect("127.0.0.1", PORT, "wrong.hostname", fun(status)
+        // mbedTLS CN mismatch → handshake fails → status == UV_EPROTO
+        failStatus = status
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(failStatus != null and failStatus < 0, "Expected handshake failure")
+end
+
+@test
+fun writeRead()
+    // Full echo round-trip: server reads a message and writes it back
+    var received = null
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0
+                client.close()
+                return
+            end
+            // Echo back
+            client.write(data, fun(wStatus)
+                client.close()
+            end)
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.write("hello TLS", fun(wStatus)
+            assert(wStatus == 0)
+        end)
+        c.readStart(fun(data, rStatus)
+            received = data
+            c.readStop()
+            c.close()
+        end)
+    end)
+
+    uv.loop().run()
+    assert(received == "hello TLS", "Expected 'hello TLS', got: {0}" % received)
+end
+
+@test
+fun sockName()
+    var server = TLS({"cert": CERT, "key": KEY})
+    server.bind("0.0.0.0", PORT)
+
+    var addr, port = server.sockName()
+    assert(addr == "0.0.0.0")
+    assert(port == PORT)
+
+    server.close()
+    uv.loop().run()
+end
+
+@test
+fun peerName()
+    var peerAddr = null
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        peerAddr = c.peerName()[0]
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(peerAddr == "127.0.0.1", "Unexpected peer address: {0}" % peerAddr)
+end
+
+@test
+fun connectFail()
+    // Connect to a port with nothing listening — should get a connection refused
+    var failStatus = null
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        failStatus = status
+        c.close()
+    end)
+
+    uv.loop().run()
+    assert(failStatus != null and failStatus < 0)
+end
+
+if __name__ == '__main__'
+    run()
+end

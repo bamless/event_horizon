@@ -11,6 +11,7 @@ when data is available.
 - **`async/await`**: coroutine-based concurrency via the `@async` decorator and `yield`
 - **Promises**: `Promise`, `Promise.all()`, `asResolved()`, `asRejected()`
 - **TCP**: `TCPStream` for clients and servers, with automatic DNS resolution
+- **TLS**: `TLSStream` for encrypted TCP connections (client and server), backed by [mbedTLS](https://github.com/Mbed-TLS/mbedtls)
 - **UDP**: `UDPSocket`, including multicast support
 - **Pipes**: `PipeStream` for cross-platform pipes (Unix domain sockets on Unix, named pipes on Windows)
 - **Timers**: `wait()`, `setTimeout()`, `setInterval()`, `nextTick()`
@@ -36,6 +37,7 @@ blocks until all pending asynchronous operations have completed.
 | `event_horizon.async` | `async` |
 | `event_horizon.promise` | `Promise`, `asResolved`, `asRejected`, `all` |
 | `event_horizon.tcp` | `TCPStream` |
+| `event_horizon.tls` | `TLSStream` |
 | `event_horizon.udp` | `UDPSocket` |
 | `event_horizon.pipe` | `PipeStream` |
 | `event_horizon.timers` | `wait`, `waitOneTick`, `setTimeout`, `setInterval`, `nextTick` |
@@ -88,6 +90,7 @@ direct control over the event loop is needed.
 - [J*](https://github.com/bamless/jstar) ≥ 1.0
 - [CMake](https://cmake.org) ≥ 3.10
 - [libuv](https://libuv.org) (or use the bundled build described below)
+- [mbedTLS](https://github.com/Mbed-TLS/mbedtls) ≥ 3.0 (or use the bundled build described below)
 
 ### Building
 
@@ -103,13 +106,16 @@ Then import the library in your J* code:
 import event_horizon as evh
 ```
 
-### Bundling libuv
+### Bundling dependencies
 
-Set the `EVH_VENDOR_LIBUV` CMake option to `ON` to download and compile libuv as part of the build,
-without requiring it to be installed on your system:
+Both libuv and mbedTLS can be downloaded and compiled as part of the build,
+without requiring them to be installed on your system:
 
 ```bash
-cmake -B build -DEVH_VENDOR_LIBUV=ON
+cmake -B build -DEVH_VENDOR_LIBUV=ON -DEVH_VENDOR_MBEDTLS=ON
 cmake --build build -j
 sudo cmake --install build
 ```
+
+The options are independent - you can vendor either library individually if the
+other is already available system-wide.

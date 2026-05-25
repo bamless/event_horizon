@@ -1,0 +1,322 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.errors for StatusException
+import event_horizon.promise for Promise, all
+import event_horizon.timers for wait
+import event_horizon.tls for TLSStream
+
+static var CERT = "tests/certs/cert.pem"
+static var KEY  = "tests/certs/key.pem"
+static var PORT = 8089
+
+static var SERVER_OPTS = {"cert": CERT, "key": KEY}
+static var CLIENT_OPTS = {"ca": CERT}
+
+@test
+fun listenConnect()
+    var clientConnected = false
+    var serverConnected = false
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            serverConnected = true
+            yield client.close()
+            yield s.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        clientConnected = true
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+    assert(clientConnected and serverConnected)
+end
+
+@test
+fun listenConnectVerified()
+    // Client supplies the correct CA, handshake should succeed
+    var connected = false
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            yield client.close()
+            yield s.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream({"ca": CERT, "serverName": "localhost"})
+        yield c.connect("127.0.0.1", PORT)
+        connected = true
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+    assert(connected)
+end
+
+@test
+fun writeRead()
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                var data = yield client.read()
+                yield client.write(data)
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        yield c.write("hello evh TLS")
+        var data = yield c.read()
+        assert(data == "hello evh TLS", "unexpected echo: {0}" % data)
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun readLine()
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                yield client.writeln("line one")
+                yield client.writeln("line two")
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        var l1 = yield c.readLine()
+        var l2 = yield c.readLine()
+        assert(l1 == "line one\n", "unexpected line 1: '{0}'" % l1)
+        assert(l2 == "line two\n", "unexpected line 2: '{0}'" % l2)
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun readUntil()
+    // Verify that StreamBuffer separator logic works correctly over TLS chunks
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                yield client.write("part1|part2|part3")
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        var chunk = yield c.readUntil("|")
+        assert(chunk == "part1|", "unexpected chunk: '{0}'" % chunk)
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun writeReadCountDelayed()
+    // Server writes data in two batches separated by a timer gap, forcing the
+    // client to accumulate bytes across two distinct TLS records. Exercises
+    // read(N) spanning multiple tlsRawReadCallback invocations.
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                yield client.write("01234")
+                yield wait(1000)
+                yield client.write("56789")
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+
+        var data1 = yield c.read(8)
+        assert(data1 == "01234567", "unexpected: '{0}'" % data1)
+
+        var data2 = yield c.read()
+        assert(data2 == "89", "unexpected: '{0}'" % data2)
+
+        var data3 = yield c.read()
+        assert(!data3)
+
+        assert(#c._buffer == 0)
+
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun writeReadUntilDelayed()
+    // Server sends a two-message HTTP-like payload split across two TLS records
+    // with a timer gap between them. Exercises readUntil when the buffer must
+    // accumulate across multiple network reads before the separator is found.
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                yield client.write(
+                    "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
+                )
+                yield wait(1000)
+                yield client.write("t: test.com\r\n\r\n")
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+
+        var data1 = yield c.readUntil("\r\n\r\n")
+        assert(data1 == "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data2 = yield c.readUntil("\r\n\r\n")
+        assert(data2 == "GET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data3 = yield c.read(500)
+        assert(!data3)
+
+        var data4 = yield c.readUntil("\r\n\r\n")
+        assert(!data4)
+
+        assert(#c._buffer == 0)
+
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun readUntilSeparatorSplitAcrossChunks()
+    // Regression: the separator "\r\n\r\n" straddles two TLS records. The first
+    // write ends with "\r\n\r" and the second (after a delay) begins with "\n".
+    // StreamBuffer must search across the join point, not per-chunk.
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
+                yield wait(1000)
+                yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+
+        var data1 = yield c.readUntil("\r\n\r\n")
+        assert(data1 == "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        var data2 = yield c.readUntil("\r\n\r\n")
+        assert(data2 == "GET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+@test
+fun sockNamePeerName()
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            yield client.close()
+            yield s.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        var peer = c.peerName()
+        assert(peer[0] == "127.0.0.1")
+        assert(peer[1] == PORT)
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+end
+
+if __name__ == '__main__'
+    run()
+end

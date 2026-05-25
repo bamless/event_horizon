@@ -1,0 +1,80 @@
+import event_horizon.async for async
+import event_horizon.dns for getAddrInfo
+import event_horizon.errors for StatusException, TLSException
+import event_horizon.promise for Promise
+import event_horizon.stream for Stream
+import event_horizon.utils.ip for getIPType, IPType
+import event_horizon.uv.consts for SockType
+import event_horizon.uv.errors for Errno
+import event_horizon.uv.tls as uv_tls
+
+class TLSStream is Stream
+    // options dict keys:
+    //   "ca"         - path to CA certificate for peer verification
+    //   "cert"       - path to own certificate (required for servers)
+    //   "key"        - path to own private key (required for servers)
+    //   "serverName" - SNI hostname override for client connections
+    construct(options=null, loop=null, _tls=null)
+        var opts = options or {}
+        super(_tls or uv_tls.TLS(opts, loop))
+        this._options = opts
+    end
+
+    @async
+    fun connect(addr, port)
+        var hostname = addr
+
+        // Resolve hostnames that are not already IP addresses
+        if getIPType(addr) == IPType.ERROR
+            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_STREAM)
+            addr = result[0][0]
+        end
+
+        // Use the explicit serverName option if provided, otherwise fall back
+        // to the original hostname so SNI still works after DNS resolution.
+        var serverName = this._options["serverName"] if this._options.contains("serverName") else hostname
+
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._handle.connect(addr, port, serverName, fun(status)
+                if status < 0
+                    reject(self._makeError(status))
+                else
+                    resolve()
+                end
+            end)
+        end, this._handle.loop())
+    end
+
+    fun bind(addr, port, ipv6Only=false)
+        this._handle.bind(addr, port, ipv6Only)
+    end
+
+    fun sockName()
+        return this._handle.sockName()
+    end
+
+    fun peerName()
+        return this._handle.peerName()
+    end
+
+    // Upgrade a UV_EPROTO failure to TLSException when the TLS layer has a
+    // detailed mbedTLS error string available. UV_EPROTO is the sentinel we
+    // always use when squashing mbedTLS errors into a libuv status code, so
+    // checking both conditions guards against misclassifying plain network
+    // errors that happen to arrive while lastTlsErr is set.
+    fun _makeError(status, handle=null)
+        if status == Errno.EPROTO
+            var h = handle or this._handle
+            var tlsMsg = h._tlsError()
+            if tlsMsg
+                return TLSException(tlsMsg)
+            end
+        end
+        return StatusException(status)
+    end
+
+    fun _accept(client)
+        return TLSStream(this._options, this._handle.loop(), client)
+    end
+end

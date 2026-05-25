@@ -4,8 +4,8 @@ import event_horizon.stream for Stream
 import event_horizon.uv.pipe as uv_pipe
 
 class PipeStream is Stream
-    construct(ipc=false, loop=null, pipe=null)
-        super(pipe or uv_pipe.Pipe(ipc, loop))
+    construct(ipc=false, loop=null, _pipe=null)
+        super(_pipe or uv_pipe.Pipe(ipc, loop))
     end
 
     fun bind(name)
