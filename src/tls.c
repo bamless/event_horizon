@@ -85,7 +85,7 @@ typedef struct uv_tls_s {
     bool rawReadActive;
     bool writeInFlight;
     bool peerClosed;
-    bool closing;
+    bool closeRequested;
     bool closePendingDrain;
     bool drainArmed;
 } uv_tls_t;
@@ -285,6 +285,7 @@ static int flushCiphertext(uv_tls_t* tls) {
         stopOnFatalStatus(tls, res);
         return res;
     }
+
     return 0;
 }
 
@@ -371,22 +372,25 @@ static void tlsPump(uv_tls_t* tls) {
     // Encrypt queued plaintext one request at a time. This keeps write callback
     // ownership simple: the head request completes only after its last
     // generated ciphertext leaves our ring buffer.
-    while(tls->state == TLS_CONNECTED && !tls->closing && tls->writeHead) {
+    while(tls->state == TLS_CONNECTED && !tls->closeRequested && tls->writeHead) {
         TLSWriteChunk* write = tls->writeHead;
 
         while(write->consumed < write->len) {
-            if(tls->writeInFlight) goto pumpDone;
+            if(tls->writeInFlight) goto writeQueueDone;
 
             int ret = mbedtls_ssl_write(&tls->ssl, write->data + write->consumed,
                                         write->len - write->consumed);
             int flushStatus = flushCiphertext(tls);
-            if(flushStatus < 0) return;
+            if(flushStatus < 0) {
+                stopOnFatalStatus(tls, flushStatus);
+                return;
+            }
 
             if(ret > 0) {
                 write->consumed += (size_t)ret;
                 tls->pendingPlainBytes -= (size_t)ret;
             } else if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
-                goto pumpDone;
+                goto writeQueueDone;
             } else {
                 tls->lastTlsErr = ret;
                 stopOnFatalStatus(tls, UV_EPROTO);
@@ -394,29 +398,35 @@ static void tlsPump(uv_tls_t* tls) {
             }
         }
 
-        if(!ringBufEmpty(&tls->cipherOut) || tls->writeInFlight) goto pumpDone;
-
+        if(!ringBufEmpty(&tls->cipherOut) || tls->writeInFlight) break;
         completeHeadWrite(tls, 0);
-        if(uv_is_closing((uv_handle_t*)tls)) return;
     }
+writeQueueDone:;
 
     // Deliver all available plaintext while the user read callback remains
     // installed. Callbacks may close the handle or stop reading, so re-check
     // state on every iteration.
     unsigned char plain[TLS_PLAIN_READ_CHUNK];
-    while(tls->state == TLS_CONNECTED && !tls->closing && hasReadCallback(tls)) {
+    while(tls->state == TLS_CONNECTED && !tls->closeRequested && hasReadCallback(tls)) {
+        size_t cipherBefore = ringBufLen(&tls->cipherIn);
         int ret = mbedtls_ssl_read(&tls->ssl, plain, sizeof(plain));
+        size_t cipherAfter = ringBufLen(&tls->cipherIn);
+
         int flushStatus = flushCiphertext(tls);
         if(flushStatus < 0) {
-            // Write callback in `flushStatus` could have stopped reads; Re-check for callback
-            if(hasReadCallback(tls)) deliverRead((uv_handle_t*)tls, NULL, flushStatus);
+            deliverRead((uv_handle_t*)tls, NULL, flushStatus);
             break;
         }
 
         if(ret > 0) {
             deliverRead((uv_handle_t*)tls, plain, ret);
-            if(uv_is_closing((uv_handle_t*)tls) || tls->closing) return;
-        } else if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
+        } else if(ret == MBEDTLS_ERR_SSL_WANT_READ) {
+            // TLS needs more input. If our ciphertext ring still has bytes and the last call
+            // consumed some, keep feeding it. If no progress was made, break and wait for libuv
+            // to call us again with more data.
+            if(cipherAfter > 0 && cipherAfter < cipherBefore) continue;
+            else break;
+        } else if(ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
             break;
         } else if(ret == MBEDTLS_ERR_SSL_RECEIVED_NEW_SESSION_TICKET) {
             continue;
@@ -432,7 +442,6 @@ static void tlsPump(uv_tls_t* tls) {
         }
     }
 
-pumpDone:;
     int flushStatus = flushCiphertext(tls);
 
     if(tls->drainArmed && tls->pendingPlainBytes <= TLS_WRITE_LOW_WATER) {
@@ -799,12 +808,14 @@ bool TLS_close(JStarVM* vm) {
 
     if(!jsrIsNull(vm, 1) && !Handle_registerCallback(vm, 1, CLOSE_CB, 0)) return false;
 
-    tls->closing = true;
+    tls->closeRequested = true;
     stopRawRead(tls);
     failWriteQueue(tls, UV_ECANCELED);
+
     if(tls->fatalStatus < 0 && !tls->writeInFlight && !ringBufEmpty(&tls->cipherOut)) {
         ringBufConsume(&tls->cipherOut, ringBufLen(&tls->cipherOut));
     }
+
     if(uv_is_closing((uv_handle_t*)tls)) {
         jsrPushNull(vm);
         return true;
