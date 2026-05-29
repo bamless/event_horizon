@@ -3,8 +3,9 @@
 // TLS echo server and client in a single script.
 //
 // Usage:
-//   jstar tmp/tls_echo.jsr server [host] [port]
-//   jstar tmp/tls_echo.jsr client [host] [port]
+//   tls_echo.jsr server [host] [port]
+//   tls_echo.jsr client [host] [port]
+//   tls_echo.jsr stress [host] [port]
 //
 // The server echoes every line back to the client. The client reads lines
 // from stdin, sends them over TLS, and prints the echoed reply.
@@ -62,6 +63,32 @@ fun runServer(host, port)
 end
 
 // ----------------------------------------------------------------------------
+// Stress
+// ----------------------------------------------------------------------------
+
+@async
+fun stressServer(host, port)
+    var client = TLSStream({"ca": CERT, "serverName": "localhost"})
+    try
+        yield client.connect(host, port)
+        print("Connected to {0}:{1} (Ctrl-D to quit)" % (host, port))
+
+        for var count = 0;; count += 1
+            yield client.write("hello {0}\n" % count)
+            var data = yield client.readLine()
+            if !data  // EOF
+                break
+            end
+            print(data.strip())
+        end
+    except ProgramInterrupt _
+        // Fall through
+    ensure
+        yield client.close()
+    end
+end
+
+// ----------------------------------------------------------------------------
 // Client
 // ----------------------------------------------------------------------------
 
@@ -97,7 +124,7 @@ end
 @async
 fun main()
     if #argv < 1
-        io.stderr.writeln("Usage: tls_echo.jsr <server|client> [host] [port]")
+        io.stderr.writeln("Usage: tls_echo.jsr <server|client|stress> [host] [port]")
         sys.exit(1)
     end
 
@@ -109,6 +136,8 @@ fun main()
         yield runServer(host, port)
     elif mode == "client"
         yield runClient(host, port)
+    elif mode == "stress"
+        yield stressServer(host, port)
     else
         io.stderr.writeln("Unknown mode '{0}': expected 'server' or 'client'" % mode)
         sys.exit(1)
