@@ -1,0 +1,120 @@
+#!/usr/bin/env jstar
+
+// TLS echo server and client in a single script.
+//
+// Usage:
+//   jstar tmp/tls_echo.jsr server [host] [port]
+//   jstar tmp/tls_echo.jsr client [host] [port]
+//
+// The server echoes every line back to the client. The client reads lines
+// from stdin, sends them over TLS, and prints the echoed reply.
+//
+// Both sides use the self-signed cert from tests/certs/ so this is purely
+// demonstration-only.
+//
+// Default host: 127.0.0.1
+// Default port: 19443
+
+importPaths.insert(0, './')
+
+import io
+import sys
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.tls for TLSStream
+
+static var CERT = "tests/certs/cert.pem"
+static var KEY  = "tests/certs/key.pem"
+
+static var DEFAULT_HOST = "127.0.0.1"
+static var DEFAULT_PORT = 19443
+
+// ----------------------------------------------------------------------------
+// Server
+// ----------------------------------------------------------------------------
+
+@async
+fun handleClient(client)
+    var peer = client.peerName()
+    print("Client connected: {0}:{1}" % peer)
+    try
+        var line
+        while line = yield client.readLine()
+            yield client.write(line)
+        end
+    ensure
+        yield client.close()
+        print("Client disconnected: {0}:{1}" % peer)
+    end
+end
+
+@async
+fun runServer(host, port)
+    var server = TLSStream({"cert": CERT, "key": KEY})
+    try
+        server.bind(host, port)
+        print("TLS echo server listening on {0}:{1}" % (host, port))
+        yield server.listen(handleClient)
+    ensure
+        yield server.close()
+    end
+end
+
+// ----------------------------------------------------------------------------
+// Client
+// ----------------------------------------------------------------------------
+
+@async
+fun runClient(host, port)
+    // Point the client at the self-signed cert so it can verify the server.
+    // In production this would be a trusted CA bundle, not the server's own cert.
+    var client = TLSStream({"ca": CERT, "serverName": "localhost"})
+    try
+        yield client.connect(host, port)
+        print("Connected to {0}:{1} (Ctrl-D to quit)" % (host, port))
+
+        var line
+        while line = io.stdin.readLine()
+            yield client.write(line)
+
+            var reply = yield client.readLine()
+            if !reply  // server closed the connection
+                break
+            end
+
+            print(reply.strip())
+        end
+    ensure
+        yield client.close()
+    end
+end
+
+// ----------------------------------------------------------------------------
+// Entry point
+// ----------------------------------------------------------------------------
+
+@async
+fun main()
+    if #argv < 1
+        io.stderr.writeln("Usage: tls_echo.jsr <server|client> [host] [port]")
+        sys.exit(1)
+    end
+
+    var mode = argv[0]
+    var host = argv[1] if #argv >= 2 else DEFAULT_HOST
+    var port = std.int(argv[2]) if #argv >= 3 else DEFAULT_PORT
+
+    if mode == "server"
+        yield runServer(host, port)
+    elif mode == "client"
+        yield runClient(host, port)
+    else
+        io.stderr.writeln("Unknown mode '{0}': expected 'server' or 'client'" % mode)
+        sys.exit(1)
+    end
+end
+
+if __name__ == "__main__"
+    evh.run(main())
+end
