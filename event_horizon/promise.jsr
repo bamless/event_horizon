@@ -72,7 +72,7 @@ class Promise
             end, fun(exc)
                 if onRejected is Function
                     try
-                        reject(onRejected(exc))
+                        resolve(onRejected(exc))
                     except Exception e
                         reject(e)
                     end

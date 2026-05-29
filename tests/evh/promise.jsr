@@ -5,6 +5,7 @@ importPaths.insert(0, './tests')
 import test for test, run
 
 import event_horizon as evh
+import event_horizon.async for async
 import event_horizon.promise for Promise, race, asResolved, asRejected, all
 
 @test
@@ -303,6 +304,61 @@ fun allImmediateValues()
     end)
     evh.run()
     assert(result[0] == 1 and result[1] == 2 and result[2] == 3)
+end
+
+
+@test
+fun testCatchCanRecover()
+    var result
+
+    @async
+    fun test()
+        var p = asRejected(Exception()).catch(fun(e)
+            return 123
+        end)
+        result = yield p
+    end
+    evh.run(test())
+
+    assert(result == 123)
+end
+
+@test
+fun testCatchCanRecoverWithPromise()
+    var result
+
+    @async
+    fun test()
+        var p = asRejected(Exception()).catch(fun(e)
+            return asResolved(123)
+        end)
+        result = yield p
+    end
+    evh.run(test())
+
+    assert(result == 123)
+end
+
+@test
+fun testCatchThrowStillRejects()
+    var exc
+
+    @async
+    fun test()
+        var p = asRejected(Exception("boom")).catch(fun(e)
+            raise Exception("replacement")
+        end)
+
+        try
+            yield p
+            assert(false)
+        except Exception e
+            exc = e
+        end
+    end
+    evh.run(test())
+
+    assert(exc.err() == "replacement")
 end
 
 if __name__ == '__main__'
