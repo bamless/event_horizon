@@ -408,6 +408,7 @@ static void tlsPump(uv_tls_t* tls) {
         int ret = mbedtls_ssl_read(&tls->ssl, plain, sizeof(plain));
         int flushStatus = flushCiphertext(tls);
         if(flushStatus < 0) {
+            // Write callback in `flushStatus` could have stopped reads; Re-check for callback
             if(hasReadCallback(tls)) deliverRead((uv_handle_t*)tls, NULL, flushStatus);
             break;
         }
@@ -421,11 +422,11 @@ static void tlsPump(uv_tls_t* tls) {
             continue;
         } else if(ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY || ret == 0) {
             tls->peerClosed = true;
-            if(hasReadCallback(tls)) deliverRead((uv_handle_t*)tls, NULL, UV_EOF);
+            deliverRead((uv_handle_t*)tls, NULL, UV_EOF);
             break;
         } else {
             tls->lastTlsErr = ret;
-            if(hasReadCallback(tls)) deliverRead((uv_handle_t*)tls, NULL, UV_EPROTO);
+            deliverRead((uv_handle_t*)tls, NULL, UV_EPROTO);
             stopOnFatalStatus(tls, UV_EPROTO);
             return;
         }
