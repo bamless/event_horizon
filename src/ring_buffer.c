@@ -20,7 +20,7 @@ size_t ringBufLen(const RingBuf* r) {
     return r->head - r->tail;
 }
 
-size_t ringBufFreeSpace(const RingBuf* r) {
+size_t ringBufAvailable(const RingBuf* r) {
     return r->capacityMask + 1 - ringBufLen(r);
 }
 
@@ -33,7 +33,7 @@ bool ringBufFull(const RingBuf* r) {
 }
 
 size_t ringBufWrite(RingBuf* r, const unsigned char* src, size_t n) {
-    size_t space = ringBufFreeSpace(r);
+    size_t space = ringBufAvailable(r);
     if(n > space) n = space;
     size_t off = r->head & r->capacityMask;
     size_t first = r->capacityMask + 1 - off;

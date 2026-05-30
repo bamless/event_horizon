@@ -116,7 +116,7 @@ end
 fun largeWriteReadCrossesTLSStagingBoundaries()
     // Crosses TLS_READ_CHUNK_SIZE, TLS_PLAIN_READ_CHUNK_SIZE, and recvBuf
     // capacity. This verifies that smaller libuv reads preserve ciphertext
-    // across multiple TLS records instead of depending on a 64 KiB read slab.
+    // across multiple TLS records.
     var payload = repeatedBlock("0123456789abcdef", 4096)  // 64 KiB
 
     @async

@@ -22,7 +22,7 @@ typedef struct {
 void ringBufInit(RingBuf* r, size_t capacity);
 void ringBufFree(RingBuf* r);
 size_t ringBufLen(const RingBuf* r);
-size_t ringBufFreeSpace(const RingBuf* r);
+size_t ringBufAvailable(const RingBuf* r);
 bool ringBufEmpty(const RingBuf* r);
 bool ringBufFull(const RingBuf* r);
 size_t ringBufWrite(RingBuf* r, const unsigned char* src, size_t n);

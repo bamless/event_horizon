@@ -5,6 +5,7 @@ importPaths.insert(0, './tests')
 import test for test, run
 
 import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
+import event_horizon.uv.errors for Errno
 import event_horizon.uv as uv
 import event_horizon.uv.tls for TLS
 
@@ -39,14 +40,13 @@ end
 
 @test
 fun handshake()
-    // Verify that client and server complete the TLS handshake without error
     var handshakeDone = false
 
     withTLSServer(PORT, fun(client)
         client.close()
     end)
 
-    var c = TLS()   // client with no CA — VERIFY_NONE
+    var c = TLS()   // client with no CA == VERIFY_NONE
     c.connect("127.0.0.1", PORT, null, fun(status)
         assert(status == 0, "Handshake failed with status: {0}" % status)
         handshakeDone = true
@@ -97,7 +97,6 @@ end
 
 @test
 fun handshakeWithCA()
-    // Verify handshake succeeds when the client supplies the correct CA cert
     var verified = false
 
     withTLSServer(PORT, fun(client)
@@ -117,7 +116,6 @@ end
 
 @test
 fun handshakeBadCA()
-    // A wrong CA should cause the handshake to fail (status < 0)
     var failStatus = null
 
     withTLSServer(PORT, fun(client)
@@ -129,13 +127,13 @@ fun handshakeBadCA()
     // different expected hostname so verification fails.
     var c = TLS({"ca": CERT})
     c.connect("127.0.0.1", PORT, "wrong.hostname", fun(status)
-        // mbedTLS CN mismatch → handshake fails → status == UV_EPROTO
+        // mbedTLS CN mismatch -> handshake fails -> status == UV_EPROTO
         failStatus = status
         c.close()
     end)
 
     uv.loop().run()
-    assert(failStatus != null and failStatus < 0, "Expected handshake failure")
+    assert(failStatus != null and failStatus == Errno.EPROTO, "Expected handshake failure")
 end
 
 @test
@@ -161,11 +159,11 @@ fun writeRead()
         assert(status == 0)
         c.write("hello TLS", fun(wStatus)
             assert(wStatus == 0)
-        end)
-        c.readStart(fun(data, rStatus)
-            received = data
-            c.readStop()
-            c.close()
+            c.readStart(fun(data, rStatus)
+                received = data
+                c.readStop()
+                c.close()
+            end)
         end)
     end)
 
@@ -226,6 +224,7 @@ fun closeWhileWriteInFlightDrainsAndCloses()
     var block = repeatedBlock("z", 4096)
     var large = repeatedBlock(block, 256)
     var closeCallbackFired = false
+    var writeFailed = false
     var serverRead = 0
 
     withTLSServer(PORT, fun(client)
@@ -244,8 +243,12 @@ fun closeWhileWriteInFlightDrainsAndCloses()
     var c = TLS()
     c.connect("127.0.0.1", PORT, null, fun(status)
         assert(status == 0)
-        c.write(large)
-        // Close immediately; the write is almost certainly still in flight.
+        c.write(large, fun(status)
+            if status < 0
+                writeFailed = true
+            end
+        end)
+        // Close immediately: the write is still in flight.
         c.close(fun()
             closeCallbackFired = true
         end)
@@ -253,6 +256,7 @@ fun closeWhileWriteInFlightDrainsAndCloses()
 
     uv.loop().run()
     assert(closeCallbackFired, "close callback did not fire after in-flight write drained")
+    assert(writeFailed, "Writes should fail when closed before flushing")
 end
 
 @test
@@ -361,7 +365,6 @@ end
 
 @test
 fun connectFail()
-    // Connect to a port with nothing listening — should get a connection refused
     var failStatus = null
 
     var c = TLS()
