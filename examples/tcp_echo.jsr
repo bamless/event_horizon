@@ -1,35 +1,27 @@
 #!/usr/bin/env jstar
 
-// TLS echo server and client in a single script.
+// TCP echo server and client in a single script.
 //
 // Usage:
-//   tls_echo.jsr server [host] [port]
-//   tls_echo.jsr client [host] [port]
-//   tls_echo.jsr stress [host] [port]
+//   tcp_echo.jsr server [host] [port]
+//   tcp_echo.jsr client [host] [port]
+//   tcp_echo.jsr stress [host] [port]
 //
 // The server echoes every line back to the client. The client reads lines
-// from stdin, sends them over TLS, and prints the echoed reply.
-//
-// Both sides use the self-signed cert from tests/certs/ so this is purely
-// demonstration-only.
+// from stdin, sends them over TCP, and prints the echoed reply.
 //
 // Default host: 127.0.0.1
-// Default port: 19443
-
-importPaths.insert(0, './')
+// Default port: 8080
 
 import io
 import sys
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.tls for TLSStream
-
-static var CERT = "tests/certs/cert.pem"
-static var KEY  = "tests/certs/key.pem"
+import event_horizon.tcp for TCPStream
 
 static var DEFAULT_HOST = "127.0.0.1"
-static var DEFAULT_PORT = 19443
+static var DEFAULT_PORT = 8080
 
 // ----------------------------------------------------------------------------
 // Server
@@ -40,9 +32,10 @@ fun handleClient(client)
     var peer = client.peerName()
     print("Client connected: {0}:{1}" % peer)
     try
-        var line
-        while line = yield client.readLine()
-            yield client.write(line)
+        var data
+        while data = yield client.readLine()
+            yield client.write(data)
+            print("Sent {0} bytes to {1}:{2}" % (#data, ...peer))
         end
     ensure
         yield client.close()
@@ -52,10 +45,10 @@ end
 
 @async
 fun runServer(host, port)
-    var server = TLSStream({"cert": CERT, "key": KEY})
+    var server = TCPStream()
     try
         server.bind(host, port)
-        print("TLS echo server listening on {0}:{1}" % (host, port))
+        print("TCP echo server listening on {0}:{1}" % (host, port))
         yield server.listen(handleClient)
     ensure
         yield server.close()
@@ -68,7 +61,7 @@ end
 
 @async
 fun stressServer(host, port)
-    var client = TLSStream({"ca": CERT, "serverName": "localhost"})
+    var client = TCPStream()
     try
         yield client.connect(host, port)
         print("Connected to {0}:{1} (Ctrl-C to quit)" % (host, port))
@@ -94,9 +87,7 @@ end
 
 @async
 fun runClient(host, port)
-    // Point the client at the self-signed cert so it can verify the server.
-    // In production this would be a trusted CA bundle, not the server's own cert.
-    var client = TLSStream({"ca": CERT, "serverName": "localhost"})
+    var client = TCPStream()
     try
         yield client.connect(host, port)
         print("Connected to {0}:{1} (Ctrl-D to quit)" % (host, port))
@@ -124,7 +115,7 @@ end
 @async
 fun main()
     if #argv < 1
-        io.stderr.writeln("Usage: tls_echo.jsr <server|client|stress> [host] [port]")
+        io.stderr.writeln("Usage: tcp_echo.jsr <server|client|stress> [host] [port]")
         sys.exit(1)
     end
 
