@@ -1,5 +1,17 @@
 #!/usr/bin/env jstar
 
+// HTTP GET example using TCPStream.
+//
+// Usage:
+//   jstar examples/http-get.jsr <url> <output-file>
+//
+// Arguments:
+//   url         - http://hostname/path  (https:// URLs are rejected)
+//   output-file - path where the response body is written
+//
+// Example:
+//   jstar examples/http-get.jsr http://example.com/ /tmp/out.html
+
 import io
 import re
 import sys
@@ -8,17 +20,27 @@ import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.tcp for TCPStream
 
+// Perform an HTTP GET and return the response body as a string.
+// `host`        - hostname (used for the Host header)
+// `path`        - request path, e.g. "/" or "/index.html"
+// `printHeader` - if true, prints the response status line + headers to stdout
 @async
-fun get(hostname, path, printHeader=false)
+fun get(host, path, printHeader)
     var s = TCPStream()
     try
-        yield s.connect(hostname, 80)
-        yield s.write("GET {0} HTTP/1.0\r\nHost: {1}\r\n\r\n" % (path, hostname))
-        
+        yield s.connect(host, 80)
+
+        // HTTP/1.0 keeps things simple: no chunked encoding, connection closes
+        // after the response so readAll() terminates naturally.
+        yield s.write("GET {0} HTTP/1.0\r\nHost: {1}\r\nConnection: close\r\n\r\n" % (path, host))
+
         var header = yield s.readUntil("\r\n\r\n")
         if printHeader
             print("Header:")
-            print(header.strip().split("\r\n").map(|line| => "   " + line).join("\n"))
+            for var line in header.strip().split("\r\n")
+                print("   " + line)
+            end
+            print("")
         end
 
         return yield s.readAll()
@@ -29,27 +51,43 @@ end
 
 @async
 fun main()
-    if #argv != 2
-        io.stderr.writeln("Usage: http-get.jsr url path")
-        sys.exit(-1)
+    if #argv < 2
+        io.stderr.writeln("Usage: http-get.jsr <url> <output-file>")
+        io.stderr.writeln("  e.g. http-get.jsr http://example.com/ /tmp/out.html")
+        sys.exit(1)
     end
 
-    var url, out = argv
-    var hostname, path = re.match(re.substituteAll(url, "^.*%://", "", 1), "([^/]*)(/?.*)")
+    var url = argv[0]
+    var out = argv[1]
 
-    if hostname == ""
-        io.stderr.writeln("Emtpy hostname")
-        sys.exit(-1)
+    // Parse scheme, host, path from the URL
+    var scheme, rest = re.match(url, "^(https?)://(.*)$")
+    if scheme == null
+        // No scheme - treat as bare hostname, default to http
+        scheme = "http"
+        rest = url
     end
 
+    if scheme != "http"
+        io.stderr.writeln("Error: only http:// URLs are supported (got '{0}')" % scheme)
+        sys.exit(1)
+    end
+
+    var host, path = re.match(rest, "^([^/:?#]*)(/?.*)$")
+    if host == null or host == ""
+        io.stderr.writeln("Cannot parse hostname from: {0}" % url)
+        sys.exit(1)
+    end
     if path == ""
         path = "/"
     end
 
-    var page = yield get(hostname, path, true)    
+    var body = yield get(host, path, true)
+
     with io.File(out, "w") f
-        f.write(page)
+        f.write(body)
     end
+    print("Wrote {0} bytes to {1}" % (#body, out))
 end
 
 evh.run(main())
