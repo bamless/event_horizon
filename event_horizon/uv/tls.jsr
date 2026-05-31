@@ -1,7 +1,7 @@
 import event_horizon.uv as uv
 import event_horizon.uv.stream for Stream
 
-// C native that allocates a TLSHandle, initialises mbedTLS, and wires up the memory BIO callbacks.
+// C native that allocates a uv_tcp_t, initialises mbedTLS, and wires up the memory BIO callbacks.
 static native uvTLS(loop, ca, cert, key, isServer)
 
 /// Raw TLS stream backed by mbedTLS over TCP.
