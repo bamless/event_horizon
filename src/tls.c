@@ -301,7 +301,7 @@ static void tlsWriteCallback(uv_write_t* req, int status) {
         // otherwise the handle would never be uv_close'd.
         if(tls->closePendingDrain && !uv_is_closing((uv_handle_t*)tls)) {
             tls->closePendingDrain = false;
-            uv_close((uv_handle_t*)&tls->tcp, closeCallback);
+            uv_close((uv_handle_t*)tls, closeCallback);
         }
         return;
     }
@@ -320,7 +320,7 @@ static void tlsWriteCallback(uv_write_t* req, int status) {
 
     if(tls->closePendingDrain && ringBufEmpty(&tls->cipherOut)) {
         tls->closePendingDrain = false;
-        uv_close((uv_handle_t*)&tls->tcp, closeCallback);
+        uv_close((uv_handle_t*)tls, closeCallback);
         return;
     }
 
@@ -369,17 +369,16 @@ static void tlsPump(uv_tls_t* tls) {
     } break;
     case TLS_CONNECTED: {
         // Encrypt queued plaintext one request at a time. This keeps write callback
-        // ownership simple: the head request completes only after its last
-        // generated ciphertext leaves our ring buffer.
-        while(!tls->closeRequested && tls->writeHead) {
+        // ownership simple: the head request completes only after its last generated
+        // ciphertext leaves our ring buffer.
+        if(!tls->closeRequested && !tls->writeInFlight && tls->writeHead) {
             TLSWriteChunk* write = tls->writeHead;
 
-            while(!tls->writeInFlight && write->consumed < write->len) {
+            while(write->consumed < write->len) {
                 int ret = mbedtls_ssl_write(&tls->ssl, write->data + write->consumed,
                                             write->len - write->consumed);
                 int flushStatus = flushCiphertext(tls);
                 if(flushStatus < 0) {
-                    // flushCiphertext already recorded the fatal status, just report it.
                     reportFatalStatus(tls, flushStatus);
                     return;
                 }
@@ -388,9 +387,9 @@ static void tlsPump(uv_tls_t* tls) {
                     write->consumed += ret;
                     tls->pendingPlainBytes -= ret;
                 } else if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
-                    // TLS wants to read or write more data - quit the pump to wait for inbound
+                    // TLS wants to read or write more data - quit the pump and wait for inbound
                     // or outbound data.
-                    goto writeQueueDone;
+                    break;
                 } else {
                     tls->lastTlsErr = ret;
                     stopOnFatalStatus(tls, UV_EPROTO);
@@ -398,11 +397,8 @@ static void tlsPump(uv_tls_t* tls) {
                     return;
                 }
             }
-
-            if(!ringBufEmpty(&tls->cipherOut) || tls->writeInFlight) break;
-            else completeHeadWrite(tls, 0);
         }
-    writeQueueDone:;
+
         // TODO: below we use a loop with a fixed `TLS_PLAIN_READ_CHUNK` to get
         // data out of the possibly non-contigous ring buffer. This costs us an
         // extra copy into a staging buffer - profile to evaluate wether using a
@@ -432,8 +428,7 @@ static void tlsPump(uv_tls_t* tls) {
                 if(cipherAfter > 0 && cipherAfter < cipherBefore) continue;
                 else break;
             } else if(ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
-                // We need more data from the application or for the outbound writes to complete -
-                // quit the pump.
+                // TLS wants to write some data - quit the pump and flush below
                 break;
             } else if(ret == MBEDTLS_ERR_SSL_RECEIVED_NEW_SESSION_TICKET) {
                 // Safe to ignore - right now we do not support session tickets.
@@ -468,7 +463,7 @@ static void tlsPump(uv_tls_t* tls) {
     if(tls->closePendingDrain && !tls->writeInFlight &&
        (ringBufEmpty(&tls->cipherOut) || flushStatus < 0)) {
         tls->closePendingDrain = false;
-        uv_close((uv_handle_t*)&tls->tcp, closeCallback);
+        uv_close((uv_handle_t*)tls, closeCallback);
     }
 }
 
@@ -843,7 +838,7 @@ bool TLS_close(JStarVM* vm) {
     }
 
     if(ringBufEmpty(&tls->cipherOut) && !tls->writeInFlight) {
-        uv_close((uv_handle_t*)&tls->tcp, closeCallback);
+        uv_close((uv_handle_t*)tls, closeCallback);
     } else {
         tls->closePendingDrain = true;
     }
@@ -933,7 +928,7 @@ bool uvTLS(JStarVM* vm) {
         StatusException_raise(vm, uvRes);
         return false;
     }
-    uv_handle_set_data((uv_handle_t*)&tls->tcp, meta);
+    uv_handle_set_data((uv_handle_t*)tls, meta);
 
 #if MBEDTLS_VERSION_NUMBER < 0x04000000
     tlsStatus = mbedtls_ctr_drbg_seed(&tls->ctrDrbg, mbedtls_entropy_func, &tls->entropy, NULL, 0);
