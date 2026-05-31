@@ -1,5 +1,5 @@
-#ifndef TLS2_H
-#define TLS2_H
+#ifndef TLS_H
+#define TLS_H
 
 #include <jstar/jstar.h>
 
