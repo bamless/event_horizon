@@ -894,6 +894,8 @@ bool TLS_peerName(JStarVM* vm) {
 // slot 4: private key path (String | null)
 // slot 5: server mode flag (Boolean)
 bool uvTLS(JStarVM* vm) {
+    int tlsStatus;
+
     bool isServer = jsrGetBoolean(vm, 5);
     bool hasCert = !jsrIsNull(vm, 3);
     bool hasKey = !jsrIsNull(vm, 4);
@@ -934,37 +936,28 @@ bool uvTLS(JStarVM* vm) {
     uv_handle_set_data((uv_handle_t*)&tls->tcp, meta);
 
 #if MBEDTLS_VERSION_NUMBER < 0x04000000
-    int rngRet = mbedtls_ctr_drbg_seed(&tls->ctrDrbg, mbedtls_entropy_func, &tls->entropy, NULL, 0);
-    if(rngRet != 0) {
-        TLSException_raise(vm, rngRet);
-        return false;
-    }
+    tlsStatus = mbedtls_ctr_drbg_seed(&tls->ctrDrbg, mbedtls_entropy_func, &tls->entropy, NULL, 0);
+    if(tlsStatus != 0) goto tlsError;
 #else
     psa_status_t psaRet = psa_crypto_init();
     if(psaRet != PSA_SUCCESS) {
-        TLSException_raise(vm, MBEDTLS_ERR_SSL_INTERNAL_ERROR);
-        return false;
+        tlsStatus = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+        goto tlsError;
     }
 #endif
 
     int endpoint = isServer ? MBEDTLS_SSL_IS_SERVER : MBEDTLS_SSL_IS_CLIENT;
-    int ret = mbedtls_ssl_config_defaults(&tls->conf, endpoint, MBEDTLS_SSL_TRANSPORT_STREAM,
-                                          MBEDTLS_SSL_PRESET_DEFAULT);
-    if(ret != 0) {
-        TLSException_raise(vm, ret);
-        return false;
-    }
+    tlsStatus = mbedtls_ssl_config_defaults(&tls->conf, endpoint, MBEDTLS_SSL_TRANSPORT_STREAM,
+                                            MBEDTLS_SSL_PRESET_DEFAULT);
+    if(tlsStatus != 0) goto tlsError;
 
 #if MBEDTLS_VERSION_NUMBER < 0x04000000
     mbedtls_ssl_conf_rng(&tls->conf, mbedtls_ctr_drbg_random, &tls->ctrDrbg);
 #endif
 
     if(!jsrIsNull(vm, 2)) {
-        ret = mbedtls_x509_crt_parse_file(&tls->caCert, jsrGetString(vm, 2));
-        if(ret != 0) {
-            TLSException_raise(vm, ret);
-            return false;
-        }
+        tlsStatus = mbedtls_x509_crt_parse_file(&tls->caCert, jsrGetString(vm, 2));
+        if(tlsStatus != 0) goto tlsError;
         mbedtls_ssl_conf_ca_chain(&tls->conf, &tls->caCert, NULL);
         mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     } else {
@@ -972,34 +965,28 @@ bool uvTLS(JStarVM* vm) {
     }
 
     if(hasCert && hasKey) {
-        ret = mbedtls_x509_crt_parse_file(&tls->ownCert, jsrGetString(vm, 3));
-        if(ret != 0) {
-            TLSException_raise(vm, ret);
-            return false;
-        }
+        tlsStatus = mbedtls_x509_crt_parse_file(&tls->ownCert, jsrGetString(vm, 3));
+        if(tlsStatus != 0) goto tlsError;
 #if MBEDTLS_VERSION_NUMBER < 0x04000000
-        ret = mbedtls_pk_parse_keyfile(&tls->pk, jsrGetString(vm, 4), NULL, mbedtls_ctr_drbg_random,
-                                       &tls->ctrDrbg);
+        tlsStatus = mbedtls_pk_parse_keyfile(&tls->pk, jsrGetString(vm, 4), NULL,
+                                             mbedtls_ctr_drbg_random, &tls->ctrDrbg);
 #else
-        ret = mbedtls_pk_parse_keyfile(&tls->pk, jsrGetString(vm, 4), NULL);
+        tlsStatus = mbedtls_pk_parse_keyfile(&tls->pk, jsrGetString(vm, 4), NULL);
 #endif
-        if(ret != 0) {
-            TLSException_raise(vm, ret);
-            return false;
-        }
-        ret = mbedtls_ssl_conf_own_cert(&tls->conf, &tls->ownCert, &tls->pk);
-        if(ret != 0) {
-            TLSException_raise(vm, ret);
-            return false;
-        }
+        if(tlsStatus != 0) goto tlsError;
+
+        tlsStatus = mbedtls_ssl_conf_own_cert(&tls->conf, &tls->ownCert, &tls->pk);
+        if(tlsStatus != 0) goto tlsError;
     }
 
-    ret = mbedtls_ssl_setup(&tls->ssl, &tls->conf);
-    if(ret != 0) {
-        TLSException_raise(vm, ret);
-        return false;
-    }
+    tlsStatus = mbedtls_ssl_setup(&tls->ssl, &tls->conf);
+    if(tlsStatus != 0) goto tlsError;
 
     mbedtls_ssl_set_bio(&tls->ssl, tls, sslSendCallback, sslRecvCallback, NULL);
     return true;
+
+tlsError:
+    uv_close((uv_handle_t*)tls, NULL);
+    TLSException_raise(vm, tlsStatus);
+    return false;
 }
