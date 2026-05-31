@@ -26,7 +26,6 @@
 
 #define TLS_CIPHER_IN_SIZE   (64 * 1024)
 #define TLS_CIPHER_OUT_SIZE  (64 * 1024)
-#define TLS_READ_CHUNK_SIZE  (8 * 1024)
 #define TLS_PLAIN_READ_CHUNK (16 * 1024)
 #define TLS_WRITE_HIGH_WATER (256 * 1024)
 #define TLS_WRITE_LOW_WATER  (128 * 1024)
@@ -375,9 +374,7 @@ static void tlsPump(uv_tls_t* tls) {
         while(!tls->closeRequested && tls->writeHead) {
             TLSWriteChunk* write = tls->writeHead;
 
-            while(write->consumed < write->len) {
-                if(tls->writeInFlight) goto writeQueueDone;
-
+            while(!tls->writeInFlight && write->consumed < write->len) {
                 int ret = mbedtls_ssl_write(&tls->ssl, write->data + write->consumed,
                                             write->len - write->consumed);
                 int flushStatus = flushCiphertext(tls);
@@ -391,8 +388,8 @@ static void tlsPump(uv_tls_t* tls) {
                     write->consumed += ret;
                     tls->pendingPlainBytes -= ret;
                 } else if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
-                    // TLS wants to read or write more data - quit the pump to deliver reads below
-                    // and to let in-flight write complete.
+                    // TLS wants to read or write more data - quit the pump to wait for inbound
+                    // or outbound data.
                     goto writeQueueDone;
                 } else {
                     tls->lastTlsErr = ret;
@@ -406,6 +403,10 @@ static void tlsPump(uv_tls_t* tls) {
             else completeHeadWrite(tls, 0);
         }
     writeQueueDone:;
+        // TODO: below we use a loop with a fixed `TLS_PLAIN_READ_CHUNK` to get
+        // data out of the possibly non-contigous ring buffer. This costs us an
+        // extra copy into a staging buffer - profile to evaluate wether using a
+        // memory-mapped contiguous ring wins us back some performance.
 
         // Deliver all available plaintext while the user read callback remains
         // installed. Callbacks may close the handle or stop reading, so re-check
@@ -426,13 +427,17 @@ static void tlsPump(uv_tls_t* tls) {
                 deliverRead((uv_handle_t*)tls, plain, ret);
             } else if(ret == MBEDTLS_ERR_SSL_WANT_READ) {
                 // TLS needs more input. If our ciphertext ring still has bytes and the last call
-                // consumed some, keep feeding it. If no progress was made, break and wait for
-                // libuv to call us again with more data.
+                // consumed some, keep feeding it. If no progress was made we genuinely need
+                // data from the network, so we quit the pump.
                 if(cipherAfter > 0 && cipherAfter < cipherBefore) continue;
                 else break;
             } else if(ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
+                // We need more data from the application or for the outbound writes to complete -
+                // quit the pump.
                 break;
             } else if(ret == MBEDTLS_ERR_SSL_RECEIVED_NEW_SESSION_TICKET) {
+                // Safe to ignore - right now we do not support session tickets.
+                // https://github.com/Mbed-TLS/mbedtls/issues/8749#issuecomment-2317146634
                 continue;
             } else if(ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY || ret == 0) {
                 tls->peerClosed = true;
@@ -454,7 +459,7 @@ static void tlsPump(uv_tls_t* tls) {
     if(tls->drainArmed && tls->pendingPlainBytes <= TLS_WRITE_LOW_WATER) {
         tls->drainArmed = false;
         // TODO: Expose and call a J* drain callback for user backpressure control.
-        // For now callers can only poll pendingWriteQueueSize() in matching tls.jsr.
+        // For now callers can only poll pendingWriteQueueSize() on tls.jsr.
     }
 
     // Finish a user-requested close once its ciphertext has drained. If the
@@ -476,9 +481,8 @@ static void tlsAllocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t
 
     uv_tls_t* tls = (uv_tls_t*)handle;
     LoopMetadata* loop = handle->loop->data;
-    size_t cap = ringBufAvailable(&tls->cipherIn);
-    size_t len = TLS_READ_CHUNK_SIZE;
-    if(len > cap) len = cap;
+    size_t len = ringBufAvailable(&tls->cipherIn);
+    if(len > LOOP_READ_BUF_SIZE) len = LOOP_READ_BUF_SIZE;
 
     if(len == 0) {
         buf->base = NULL;
