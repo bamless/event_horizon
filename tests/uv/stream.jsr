@@ -2,10 +2,8 @@
 importPaths.insert(0, './')
 importPaths.insert(0, './tests')
 
-import io
 import test for test, run, skip
-
-import server_utils for spawnTCPServer
+import server_utils for withTCPServer
 
 import event_horizon.errors for EventHorizonException, StatusException, LoopExecutionException
 import event_horizon.uv.errors for strerror
@@ -14,7 +12,16 @@ import event_horizon.uv.tcp for TCP
 
 @test
 fun shutdown()
-    var server = spawnTCPServer(8080)
+    withTCPServer(8080, fun(server, client)
+        client.readStart(fun(_, status)
+            if status < 0
+                raise StatusException(status)
+            end
+            client.close()
+            server.close()
+        end)
+    end)
+
     var tcp = TCP() 
     var shut = false
     
@@ -32,8 +39,6 @@ fun shutdown()
     assert(!shut, '`shutdown` called before next loop tick')
     uv.loop().run()
     assert(shut, '`shutdown` not called')
-
-    server.close()
 end
 
 @test
@@ -106,10 +111,23 @@ end
 
 @test
 fun write()
-    var server = spawnTCPServer(8080)
-
     var s = TCP()
     var data = "Hello, World!"
+    var received = ""
+
+    withTCPServer(8080, fun(server, client)
+        client.readStart(fun(read, status)
+            if status < 0
+                raise StatusException(status)
+            end
+            if !read
+                client.close()
+                server.close()
+                return
+            end
+            received += read
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         if status < 0
@@ -128,19 +146,28 @@ fun write()
     uv.loop().run()
 
     assert(#s._callbacks == 0)
-
-    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
-    assert(res == data, "'{0}' != '{1}'" % (res, data))
-
-    server.close()
+    assert(received == data, "'{0}' != '{1}'" % (received, data))
 end
 
 @test
 fun twoWrite()
-    var server = spawnTCPServer(8080)
-
     var s = TCP()
     var data = "Hello, World!"
+    var received = ""
+
+    withTCPServer(8080, fun(server, client)
+        client.readStart(fun(read, status)
+            if status < 0
+                raise StatusException(status)
+            end
+            if !read
+                client.close()
+                server.close()
+                return
+            end
+            received += read
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         if status < 0
@@ -148,15 +175,24 @@ fun twoWrite()
             raise StatusException(status)
         end
 
+        var writesDone = 0
         s.write(data, fun(status)
             if status < 0
                 raise StatusException(status)
+            end
+            writesDone += 1
+            if writesDone == 2
+                s.close()
             end
         end)
 
         s.write(data, fun(status)
             if status < 0
                 raise StatusException(status)
+            end
+            writesDone += 1
+            if writesDone == 2
+                s.close()
             end
         end)
     end)
@@ -164,22 +200,28 @@ fun twoWrite()
     uv.loop().run()
 
     assert(#s._callbacks == 0)
-
-    s.close()
-    uv.loop().run()
-
-    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
-    assert(res == data * 2, "'{0}' != '{1}'" % (res, data))
-
-    server.close()
+    assert(received == data * 2, "'{0}' != '{1}'" % (received, data * 2))
 end
 
 @test
 fun writeFail()
-    var server = spawnTCPServer(8080)
-
     var s = TCP()
     var data = "Hello, World!"
+    var received = ""
+
+    withTCPServer(8080, fun(server, client)
+        client.readStart(fun(read, status)
+            if status < 0
+                raise StatusException(status)
+            end
+            if !read
+                client.close()
+                server.close()
+                return
+            end
+            received += read
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         s.close()
@@ -200,19 +242,32 @@ fun writeFail()
 
 
     assert(didThrow)
-
-    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
-    assert(res == '', "Non empty server result: {0}" % res)
-
-    server.close()
+    assert(received == '', "Non empty server result: {0}" % received)
 end
 
 @test
 fun writeThrows()
-    var server = spawnTCPServer(8080)
-
     var s = TCP()
     var data = "Hello, World!"
+    var received = ""
+
+    withTCPServer(8080, fun(server, client)
+        client.readStart(fun(read, status)
+            if status < 0
+                raise StatusException(status)
+            end
+            if !read
+                client.close()
+                server.close()
+                return
+            end
+            received += read
+            if received == data
+                client.close()
+                server.close()
+            end
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         if status < 0
@@ -235,19 +290,28 @@ fun writeThrows()
     end
 
     assert(didThrow)
-
-    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
-    assert(res == data, "'{0}' != '{1}'" % (res, data))
-
-    server.close()
+    assert(received == data, "'{0}' != '{1}'" % (received, data))
 end
 
 @test
 fun tryWrite()
-    var server = spawnTCPServer(8080)
-
     var s = TCP()
     var data = "Hello, World!"
+    var received = ""
+
+    withTCPServer(8080, fun(server, client)
+        client.readStart(fun(read, status)
+            if status < 0
+                raise StatusException(status)
+            end
+            if !read
+                client.close()
+                server.close()
+                return
+            end
+            received += read
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         if status < 0
@@ -262,11 +326,7 @@ fun tryWrite()
     end)
 
     uv.loop().run()
-
-    var res = server.read(200) // TODO: investigate why `readAll` is now failing on `Popen`
-    assert(data.startsWith(res), "{0} does not start with {1}" % (data, res))
-
-    server.close()
+    assert(data.startsWith(received), "{0} does not start with {1}" % (data, received))
 end
 
 @test
@@ -291,10 +351,18 @@ end
 
 @test
 fun read()
-    var server = spawnTCPServer(8080, "w")
-
     var s = TCP()
     var data = "Hello, World!"
+
+    withTCPServer(8080, fun(server, client)
+        client.write(data, fun(status)
+            if status < 0
+                raise StatusException(status)
+            end
+            client.close()
+            server.close()
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         if status < 0
@@ -310,13 +378,9 @@ fun read()
             end
 
             s.close()
-            server.close()
             
             assert(read == data, '{0} != {1}' % (read, data)) 
         end)
-
-        server.write(data)
-        server.flush()
     end)
 
     uv.loop().run()
@@ -324,10 +388,18 @@ end
 
 @test
 fun read()
-    var server = spawnTCPServer(8080, "w")
-
     var s = TCP()
     var data = "Hello, World!"
+
+    withTCPServer(8080, fun(server, client)
+        client.write(data, fun(status)
+            if status < 0
+                raise StatusException(status)
+            end
+            client.close()
+            server.close()
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         if status < 0
@@ -351,13 +423,9 @@ fun read()
             end
 
             s.close()
-            server.close()
 
             assert(didThrow, "second readStart did not throw")
         end)
-
-        server.write(data)
-        server.flush()
     end)
 
     uv.loop().run()
@@ -365,14 +433,15 @@ end
 
 @test
 fun readFail()
-    var server = spawnTCPServer(8080, "w")
-
     var s = TCP()
-    var data = "Hello, World!"
+
+    withTCPServer(8080, fun(server, client)
+        client.close()
+        server.close()
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         s.close()
-        server.close()
 
         if status < 0
             s.close()
@@ -385,9 +454,6 @@ fun readFail()
             end
 
             s.close()
-            server.close()
-            
-            assert(read == data, '{0} != {1}' % (read, data)) 
         end)
     end)
 
@@ -404,10 +470,24 @@ end
 
 @test
 fun readStop()
-    var server = spawnTCPServer(8080, "w")
-
     var s = TCP()
     var data = "Hello, World!"
+    var accepted = null
+    var server = TCP()
+    server.bind("0.0.0.0", 8080)
+    server.listen(fun(client, status)
+        if status < 0
+            server.close()
+            raise StatusException(status)
+        end
+        accepted = client
+        server.close()
+        accepted.write(data, fun(status)
+            if status < 0
+                raise StatusException(status)
+            end
+        end)
+    end)
 
     var numCalled = 0
     s.connect("127.0.0.1", 8080, fun(status)
@@ -428,30 +508,37 @@ fun readStop()
         end)
     end)
 
-    server.write("Hello, World!")
-    server.flush()
     uv.loop().run()
 
     assert(!s.isClosing())
 
-    server.write("Hello, World!")
-    server.flush()
+    accepted.write("Hello, World!", fun(status)
+        if status < 0
+            raise StatusException(status)
+        end
+    end)
     uv.loop().run()
 
     s.close()
+    accepted.close()
     uv.loop().run()
-
-    server.close()
 
     assert(numCalled == 1, "read called more than one time")
 end
 
 @test
 fun readThrows()
-    var server = spawnTCPServer(8080, "w")
-
     var s = TCP()
-    var data = "Hello, World!"
+
+    withTCPServer(8080, fun(server, client)
+        client.write("foo", fun(status)
+            if status < 0
+                raise StatusException(status)
+            end
+            client.close()
+            server.close()
+        end)
+    end)
 
     s.connect("127.0.0.1", 8080, fun(status)
         if status < 0
@@ -461,12 +548,8 @@ fun readThrows()
 
         s.readStart(fun(read, status)
             s.close()
-            server.close()
             raise NameException()
         end)
-
-        server.write("foo")
-        server.flush()
     end)
 
     var didThrow = false
@@ -493,7 +576,7 @@ fun listen()
 
         if status < 0
             s.close()
-            io.stderr.writeln("client error: {0}" % strerror(status))
+            raise StatusException(status)
         end
 
         client.close()
@@ -509,7 +592,15 @@ end
 
 @test
 fun isReadableWritable()
-    var server = spawnTCPServer(8080)
+    withTCPServer(8080, fun(server, client)
+        client.readStart(fun(_, status)
+            if status < 0
+                raise StatusException(status)
+            end
+            client.close()
+            server.close()
+        end)
+    end)
     var s = TCP()
 
     assert(!s.isReadable() and !s.isWritable(), "Socket not conneted, should not be readable or writable")
@@ -534,7 +625,6 @@ fun isReadableWritable()
     end)
 
     uv.loop().run()
-    server.close()
 end
 
 @test

@@ -1,34 +1,30 @@
-// TODO: refactor this code to use something more portable
+import event_horizon.errors for StatusException
+import event_horizon.uv.tcp for TCP
+import event_horizon.uv.tls for TLS
 
-import io
-import sys
-
-fun sleepAndServerAvailable()
-    var _, res
-    _, res = sys.exec('which nc')
-    if res != 0
-        raise Exception('`nc` command not available on system. Cannot run test')
-    end
-    _, res = sys.exec('which sleep')
-    if res != 0
-        raise Exception('`sleep` command not available on system. Cannot run test')
-    end
-end
-
-fun sleep(sec)
-    sys.exec('sleep {0}' % sec)
-end
-
-fun spawnTCPServer(port, mode="r")
-    sleepAndServerAvailable()
-    var server = io.popen("nc -l -p {0}" % port, mode) 
-    sleep(0.01)
+fun withTCPServer(port, onClient)
+    var server = TCP()
+    server.bind("0.0.0.0", port)
+    server.listen(fun(client, status)
+        if status < 0
+            server.close()
+            raise StatusException(status)
+        end
+        onClient(server, client)
+    end)
     return server
 end
 
-fun spawnTCPClient(port, mode="r")
-    sleepAndServerAvailable()
-    var client = io.popen("nc 127.0.0.1 {0}" % port, mode) 
-    sleep(0.005)
-    return client
+fun withTLSServer(port, cert, key, onClient)
+    var server = TLS({"cert": cert, "key": key})
+    server.bind("0.0.0.0", port)
+    server.listen(fun(client, status)
+        if status < 0
+            server.close()
+            return
+        end
+        onClient(client)
+        server.close()
+    end)
+    return server
 end

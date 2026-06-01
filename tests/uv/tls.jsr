@@ -3,16 +3,16 @@ importPaths.insert(0, './')
 importPaths.insert(0, './tests')
 
 import test for test, run
+import server_utils for withTLSServer
 
 import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
 import event_horizon.uv.errors for Errno
 import event_horizon.uv as uv
 import event_horizon.uv.tls for TLS
 
-// Paths are relative to the project root (where tests/run.jsr is invoked)
 static var CERT = "tests/certs/cert.pem"
 static var KEY  = "tests/certs/key.pem"
-static var PORT = 8088   // use a non-standard port to avoid conflicts
+static var PORT = 8088
 
 static fun repeatedBlock(block, count)
     var chunks = []
@@ -33,26 +33,11 @@ static fun closeIgnoringAlreadyClosing(stream)
     end
 end
 
-// Start a self-signed TLS server on PORT that accepts one connection, runs
-// `onClient(client)`, then closes both the client and the server.
-static fun withTLSServer(port, onClient)
-    var server = TLS({"cert": CERT, "key": KEY})
-    server.bind("0.0.0.0", port)
-    server.listen(fun(client, status)
-        if status < 0
-            server.close()
-            return
-        end
-        onClient(client)
-        server.close()
-    end)
-end
-
 @test
 fun handshake()
     var handshakeDone = false
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.close()
     end)
 
@@ -109,7 +94,7 @@ end
 fun handshakeWithCA()
     var verified = false
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.close()
     end)
 
@@ -128,7 +113,7 @@ end
 fun handshakeBadCA()
     var failStatus = null
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.close()
     end)
 
@@ -151,7 +136,7 @@ fun writeRead()
     // Full echo round-trip: server reads a message and writes it back
     var received = null
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.readStart(fun(data, status)
             if status < 0
                 closeIgnoringAlreadyClosing(client)
@@ -189,7 +174,7 @@ fun largeWriteQueuesWithoutSynchronousEAGAIN()
     var writeCallbackFired = false
     var serverRead = 0
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.readStart(fun(data, status)
             if status < 0
                 closeIgnoringAlreadyClosing(client)
@@ -237,7 +222,7 @@ fun closeWhileWriteInFlightDrainsAndCloses()
     var writeFailed = false
     var serverRead = 0
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
                 closeIgnoringAlreadyClosing(client)
@@ -280,7 +265,7 @@ fun closeWhileClosePendingFailsWithEALREADY()
     var didThrow = false
     var serverRead = 0
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
                 closeIgnoringAlreadyClosing(client)
@@ -321,7 +306,7 @@ end
 fun closeConnectedFiresCallback()
     var closeCallbackFired = false
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.close()
     end)
 
@@ -344,7 +329,7 @@ fun closeCancelsActiveRead()
     var readData = "unset"
     var closeCallbackFired = false
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
                 closeIgnoringAlreadyClosing(client)
@@ -377,7 +362,7 @@ fun closeAfterShutdownCancelsActiveRead()
     var shutdownStatus = null
     var closeCallbackFired = false
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
                 closeIgnoringAlreadyClosing(client)
@@ -413,7 +398,7 @@ fun shutdownWithPendingWriteThrows()
     var didThrow = false
     var writeCallbackFired = false
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
                 closeIgnoringAlreadyClosing(client)
@@ -495,7 +480,7 @@ end
 fun peerName()
     var peerAddr = null
 
-    withTLSServer(PORT, fun(client)
+    withTLSServer(PORT, CERT, KEY, fun(client)
         client.close()
     end)
 

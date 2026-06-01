@@ -3,10 +3,7 @@ importPaths.insert(0, './')
 importPaths.insert(0, './tests')
 
 import test for test, run, skip
-
-import io
-
-import server_utils for spawnTCPServer
+import server_utils for withTCPServer
 
 import event_horizon.errors for LoopExecutionException, StatusException
 import event_horizon.uv.errors for strerror 
@@ -15,24 +12,27 @@ import event_horizon.uv.tcp for TCP
 
 @test
 fun connect()
-    with spawnTCPServer(8080) server
-        var tcp = TCP()
+    withTCPServer(8080, fun(server, client)
+        client.close()
+        server.close()
+    end)
 
-        var connected = false
+    var tcp = TCP()
 
-        tcp.connect("127.0.0.1", 8080, fun(status)
-            assert(#tcp._callbacks == 0)
-            assert(status is Number)
-            connected = true
-            tcp.close()
-        end)
+    var connected = false
 
-        assert(#tcp._callbacks == 1)
+    tcp.connect("127.0.0.1", 8080, fun(status)
+        assert(#tcp._callbacks == 0)
+        assert(status is Number)
+        connected = true
+        tcp.close()
+    end)
 
-        assert(!connected, '`connect` callback called before next loop tick')
-        uv.loop().run()
-        assert(connected, '`connect` not called')
-    end
+    assert(#tcp._callbacks == 1)
+
+    assert(!connected, '`connect` callback called before next loop tick')
+    uv.loop().run()
+    assert(connected, '`connect` not called')
 end
 
 @test
@@ -118,12 +118,12 @@ fun accept()
     s.listen(fun(client, status)
         if status < 0
             s.close()
-            io.stderr.writeln("client error: {0}" % strerror(status))
+            raise StatusException(status)
         end
 
         client.write("Hello, World!", fun(status)
             if status < 0
-                io.stderr.writeln("client error: {0}" % strerror(status))
+                raise StatusException(status)
             end
         end)
         
@@ -134,13 +134,13 @@ fun accept()
     c.connect('0.0.0.0', 8080, fun(status)
         if status < 0
             c.close()
-            io.stderr.writeln("client error: {0}" % strerror(status))
+            raise StatusException(status)
         end
 
         c.readStart(fun(data, status)
             c.close()
             if status < 0
-                io.stderr.writeln("client error: {0}" % strerror(status))
+                raise StatusException(status)
             end
             assert(data == "Hello, World!")
         end)
@@ -181,7 +181,10 @@ end
 
 @test
 fun peerName()
-    var server = spawnTCPServer(8080)
+    withTCPServer(8080, fun(server, client)
+        client.close()
+        server.close()
+    end)
     var s = TCP()
 
     s.connect("127.0.0.1", 8080, fun(status)
@@ -195,7 +198,6 @@ fun peerName()
     end)
 
     uv.loop().run()
-    server.close()
 end
 
 @test

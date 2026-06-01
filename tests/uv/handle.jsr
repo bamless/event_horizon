@@ -3,8 +3,7 @@ importPaths.insert(0, './')
 importPaths.insert(0, './tests')
 
 import test for test, run, skip
-
-import server_utils for spawnTCPServer
+import server_utils for withTCPServer
 
 import event_horizon.errors for EventHorizonException, LoopExecutionException, StatusException
 import event_horizon.uv as uv
@@ -16,7 +15,7 @@ import event_horizon.uv.pipe for Pipe
 import event_horizon.uv.idle for Idle
 import event_horizon.uv.timer for Timer
 
-fun numHandles(loop=null)
+static fun numHandles(loop=null)
     loop = loop or uv.loop()
     return #loop._handles
 end
@@ -247,7 +246,10 @@ end
 
 @test
 fun size()
-    var server = spawnTCPServer(8080)
+    withTCPServer(8080, fun(server, client)
+        client.close()
+        server.close()
+    end)
     var s = TCP()
 
     s.connect('127.0.0.1', 8080, fun(status)
@@ -271,8 +273,6 @@ fun size()
     end)
 
     uv.loop().run()
-
-    server.close()
 end
 
 @test
