@@ -115,7 +115,8 @@ void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf) {
 }
 
 static void dispatchRead(uv_handle_t* handle, const unsigned char* data, int nread,
-                         CallbackType cbType, bool wantAddr, const struct sockaddr* sa) {
+                         CallbackType cbType, bool wantAddr, const struct sockaddr* sa,
+                         bool unregister) {
     HandleMetadata* handleMetadata = handle->data;
     LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
@@ -124,8 +125,14 @@ static void dispatchRead(uv_handle_t* handle, const unsigned char* data, int nre
 
     int handleSlot = jsrTop(vm);
     int slot = 2;  // [loop, handle]
+    int callbackId = handleMetadata->callbacks[cbType];
+    if(callbackId == -1) {
+        jsrPopN(vm, slot);
+        return;
+    }
 
-    if(!Handle_getCallback(vm, handleMetadata->callbacks[cbType], false, handleSlot)) {
+    if(unregister) handleMetadata->callbacks[cbType] = -1;
+    if(!Handle_getCallback(vm, callbackId, unregister, handleSlot)) {
         EventLoop_addException(vm, -1);
         jsrPopN(vm, slot + 1);  // [loop, handle, exception]
         return;
@@ -168,7 +175,11 @@ static void dispatchRead(uv_handle_t* handle, const unsigned char* data, int nre
 }
 
 void deliverRead(uv_handle_t* handle, const unsigned char* data, int nread) {
-    dispatchRead(handle, data, nread, READ_CB, false, NULL);
+    dispatchRead(handle, data, nread, READ_CB, false, NULL, false);
+}
+
+void cancelRead(uv_handle_t* handle, int status) {
+    dispatchRead(handle, NULL, status, READ_CB, false, NULL, true);
 }
 
 void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
@@ -178,7 +189,8 @@ void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
 void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* sa,
                   unsigned int flags) {
     (void)flags;
-    dispatchRead((uv_handle_t*)udp, (const unsigned char*)buf->base, (int)nread, RECV_CB, true, sa);
+    dispatchRead((uv_handle_t*)udp, (const unsigned char*)buf->base, (int)nread, RECV_CB, true, sa,
+                 false);
 }
 
 static void voidHandleCallback(uv_handle_t* handle, CallbackType cbType) {

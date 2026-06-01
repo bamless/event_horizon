@@ -27,6 +27,7 @@ void reqCallback(uv_handle_t* handle, int callbackId, bool unregister, int dataR
 void connectCallback(uv_connect_t* req, int status);
 void allocCallback(uv_handle_t* handle, size_t suggestedSize, uv_buf_t* buf);
 void deliverRead(uv_handle_t* handle, const unsigned char* data, int nread);
+void cancelRead(uv_handle_t* handle, int status);
 void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
 void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* sa,
                   unsigned int flags);

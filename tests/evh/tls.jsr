@@ -6,10 +6,11 @@ import test for test, run
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.errors for StatusException
+import event_horizon.errors for EventHorizonException, StatusException
 import event_horizon.promise for Promise, all
 import event_horizon.timers for wait
 import event_horizon.tls for TLSStream
+import event_horizon.uv.errors for Errno
 
 static var CERT = "tests/certs/cert.pem"
 static var KEY  = "tests/certs/key.pem"
@@ -371,6 +372,185 @@ fun readUntilSeparatorSplitAcrossChunks()
     end
 
     evh.run(all([server(), client()]))
+end
+
+@test
+fun closeConnectedResolves()
+    var clientClosed = false
+    var serverClosed = false
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            yield client.close()
+            serverClosed = true
+            yield s.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        yield c.close()
+        clientClosed = true
+    end
+
+    evh.run(all([server(), client()]))
+    assert(clientClosed, "client close did not resolve")
+    assert(serverClosed, "server close did not resolve")
+end
+
+@test
+fun closeWhileClosePendingRejects()
+    var rejected = false
+    var firstCloseResolved = false
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            yield client.close()
+            yield s.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        var firstClose = c.close().then(fun(_)
+            firstCloseResolved = true
+        end)
+
+        try
+            yield c.close()
+        except StatusException e
+            rejected = true
+            assert(e.status() == Errno.EALREADY, "expected UV_EALREADY, got {0}" % e.status())
+        end
+
+        yield firstClose
+    end
+
+    evh.run(all([server(), client()]))
+    assert(rejected, "second close did not reject")
+    assert(firstCloseResolved, "first close did not resolve")
+end
+
+@test
+fun closeCancelsPendingRead()
+    var readCanceled = false
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                yield client.read()
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        var pendingRead = c.read().catch(fun(e)
+            readCanceled = e is StatusException and e.status() == Errno.ECANCELED
+        end)
+        yield c.close()
+        yield pendingRead
+    end
+
+    evh.run(all([server(), client()]))
+    assert(readCanceled, "pending TLS read was not canceled by close")
+end
+
+@test
+fun shutdownWithPendingWriteRejects()
+    var block = repeatedBlock("y", 4096)
+    var large = repeatedBlock(block, 256)
+    var rejected = false
+    var writeResolved = false
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                yield client.read(#large)
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        var pendingWrite = c.write(large).then(fun(_)
+            writeResolved = true
+        end)
+
+        try
+            yield c.shutdown()
+        except EventHorizonException e
+            rejected = true
+            assert(e.err() == "TLS shutdown requires all pending writes to complete")
+        end
+
+        yield pendingWrite
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+    assert(rejected, "shutdown with pending write did not reject")
+    assert(writeResolved, "pending write did not resolve after rejected shutdown")
+end
+
+@test
+fun writeAfterShutdownRejects()
+    var rejected = false
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            yield client.close()
+            yield s.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        yield c.shutdown()
+
+        try
+            yield c.write("after shutdown")
+        except StatusException e
+            rejected = true
+            assert(e.status() == Errno.EPIPE, "expected UV_EPIPE, got {0}" % e.status())
+        ensure
+            yield c.close()
+        end
+    end
+
+    evh.run(all([server(), client()]))
+    assert(rejected, "write after shutdown did not reject")
 end
 
 @test

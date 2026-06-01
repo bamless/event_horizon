@@ -23,6 +23,16 @@ static fun repeatedBlock(block, count)
     return chunks.join()
 end
 
+static fun closeIgnoringAlreadyClosing(stream)
+    try
+        stream.close()
+    except StatusException e
+        if e.status() != Errno.EALREADY
+            raise e
+        end
+    end
+end
+
 // Start a self-signed TLS server on PORT that accepts one connection, runs
 // `onClient(client)`, then closes both the client and the server.
 static fun withTLSServer(port, onClient)
@@ -144,7 +154,7 @@ fun writeRead()
     withTLSServer(PORT, fun(client)
         client.readStart(fun(data, status)
             if status < 0
-                client.close()
+                closeIgnoringAlreadyClosing(client)
                 return
             end
             // Echo back
@@ -182,11 +192,11 @@ fun largeWriteQueuesWithoutSynchronousEAGAIN()
     withTLSServer(PORT, fun(client)
         client.readStart(fun(data, status)
             if status < 0
-                client.close()
+                closeIgnoringAlreadyClosing(client)
                 return
             end
             if !data
-                client.close()
+                closeIgnoringAlreadyClosing(client)
                 return
             end
             serverRead += #data
@@ -230,7 +240,7 @@ fun closeWhileWriteInFlightDrainsAndCloses()
     withTLSServer(PORT, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
-                client.close()
+                closeIgnoringAlreadyClosing(client)
                 return
             end
             serverRead += #data
@@ -273,7 +283,7 @@ fun closeWhileClosePendingFailsWithEALREADY()
     withTLSServer(PORT, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
-                client.close()
+                closeIgnoringAlreadyClosing(client)
                 return
             end
             serverRead += #data
@@ -308,6 +318,95 @@ fun closeWhileClosePendingFailsWithEALREADY()
 end
 
 @test
+fun closeConnectedFiresCallback()
+    var closeCallbackFired = false
+
+    withTLSServer(PORT, fun(client)
+        client.close()
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.close(fun()
+            closeCallbackFired = true
+        end)
+    end)
+
+    uv.loop().run()
+    assert(closeCallbackFired, "close callback did not fire")
+    assert(#c._callbacks == 0, "close callback leaked")
+end
+
+@test
+fun closeCancelsActiveRead()
+    var readStatus = null
+    var readData = "unset"
+    var closeCallbackFired = false
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0 or !data
+                closeIgnoringAlreadyClosing(client)
+            end
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.readStart(fun(data, status)
+            readData = data
+            readStatus = status
+        end)
+        c.close(fun()
+            closeCallbackFired = true
+        end)
+    end)
+
+    uv.loop().run()
+    assert(readData == null, "close should cancel read with null data")
+    assert(readStatus == Errno.ECANCELED, "expected UV_ECANCELED, got {0}" % readStatus)
+    assert(closeCallbackFired, "close callback did not fire")
+    assert(#c._callbacks == 0, "read callback leaked after close cancellation")
+end
+
+@test
+fun closeAfterShutdownCancelsActiveRead()
+    var readStatus = null
+    var shutdownStatus = null
+    var closeCallbackFired = false
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0 or !data
+                closeIgnoringAlreadyClosing(client)
+            end
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.readStart(fun(_, status)
+            readStatus = status
+        end)
+        c.shutdown(fun(status)
+            shutdownStatus = status
+        end)
+        c.close(fun()
+            closeCallbackFired = true
+        end)
+    end)
+
+    uv.loop().run()
+    assert(readStatus == Errno.ECANCELED, "expected UV_ECANCELED, got {0}" % readStatus)
+    assert(shutdownStatus == Errno.ECANCELED, "expected shutdown UV_ECANCELED, got {0}" % shutdownStatus)
+    assert(closeCallbackFired, "close callback did not fire")
+    assert(#c._callbacks == 0, "read callback leaked after close cancellation")
+end
+
+@test
 fun shutdownWithPendingWriteThrows()
     var block = repeatedBlock("y", 4096)
     var large = repeatedBlock(block, 256)
@@ -317,7 +416,7 @@ fun shutdownWithPendingWriteThrows()
     withTLSServer(PORT, fun(client)
         client.readStart(fun(data, status)
             if status < 0 or !data
-                client.close()
+                closeIgnoringAlreadyClosing(client)
             end
         end)
     end)
@@ -366,7 +465,7 @@ fun writeAfterShutdownFailsSynchronously()
                 end)
             except StatusException e
                 didThrow = true
-                assert(e.status() < 0)
+                assert(e.status() == Errno.EPIPE, "expected UV_EPIPE, got {0}" % e.status())
             ensure
                 c.close()
             end
