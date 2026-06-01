@@ -260,6 +260,54 @@ fun closeWhileWriteInFlightDrainsAndCloses()
 end
 
 @test
+fun closeWhileClosePendingFailsWithEALREADY()
+    // The first close is deferred because TLS still has ciphertext draining.
+    // A second close must fail before it can replace the first close callback.
+    var block = repeatedBlock("q", 4096)
+    var large = repeatedBlock(block, 256)
+    var firstCloseCallbackFired = false
+    var secondCloseCallbackFired = false
+    var didThrow = false
+    var serverRead = 0
+
+    withTLSServer(PORT, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0 or !data
+                client.close()
+                return
+            end
+            serverRead += #data
+            if serverRead >= #large
+                client.close()
+            end
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.write(large, fun(_) end)
+        c.close(fun()
+            firstCloseCallbackFired = true
+        end)
+
+        try
+            c.close(fun()
+                secondCloseCallbackFired = true
+            end)
+        except StatusException e
+            didThrow = true
+            assert(e.status() == Errno.EALREADY, "expected UV_EALREADY, got {0}" % e.status())
+        end
+    end)
+
+    uv.loop().run()
+    assert(didThrow, "second close while TLS close was pending did not throw")
+    assert(firstCloseCallbackFired, "first close callback did not fire")
+    assert(!secondCloseCallbackFired, "second close callback should not be registered")
+end
+
+@test
 fun shutdownWithPendingWriteThrows()
     var block = repeatedBlock("y", 4096)
     var large = repeatedBlock(block, 256)

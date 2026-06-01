@@ -807,10 +807,13 @@ bool TLS_shutdown(JStarVM* vm) {
 
 bool TLS_close(JStarVM* vm) {
     if(!jsrIsNull(vm, 1)) JSR_CHECK(Function, 1, "callback");
-    if(!Handle_checkClosing(vm, 0)) return false;
 
     uv_tls_t* tls = (uv_tls_t*)Handle_getHandle(vm, 0);
     if(!tls) return false;
+    if(uv_is_closing((uv_handle_t*)tls) || tls->closeRequested) {
+        StatusException_raise(vm, UV_EALREADY);
+        return false;
+    }
 
     if(!jsrIsNull(vm, 1) && !Handle_registerCallback(vm, 1, CLOSE_CB, 0)) return false;
 
@@ -822,11 +825,6 @@ bool TLS_close(JStarVM* vm) {
 
     if(tls->fatalStatus < 0 && !tls->writeInFlight && !ringBufEmpty(&tls->cipherOut)) {
         ringBufConsume(&tls->cipherOut, ringBufLen(&tls->cipherOut));
-    }
-
-    if(uv_is_closing((uv_handle_t*)tls)) {
-        jsrPushNull(vm);
-        return true;
     }
 
     if(tls->state == TLS_CONNECTED && tls->fatalStatus == 0) {
