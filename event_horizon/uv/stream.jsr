@@ -63,7 +63,9 @@ class Stream is Handle
     native _rawAccept(client)
 
     // Factory method called during `Stream.listen` for accepting new connections.
-    // Should return a correctly set-up handle to the subclass-specific uv wrapper.
+    //
+    // Returns an `accept`ed handle to the subclass-specific libuv wrapper (i.e TCP,
+    // Pipe, TLS, etc.), typically by calling `_rawAccept`.
     @abstractMethod
     fun _accept() end
 end

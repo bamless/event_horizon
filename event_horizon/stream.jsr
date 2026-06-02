@@ -229,7 +229,9 @@ class Stream is Handle
     end
 
     // Factory method called during `Stream.listen` for accepting new connections.
-    // Should return a correctly set-up handle to the subclass-specific uv wrapper.
+    //
+    // Returns a correctly set-up handle to the subclass-specific wrapper (i.e TCPStream,
+    // PipeStream, etc.).
     @abstractMethod
     fun _accept(client) end
 end
