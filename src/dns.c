@@ -85,6 +85,7 @@ bool dns_getAddrInfo(JStarVM* vm) {
     };
 
     uv_getaddrinfo_t* req = malloc(sizeof(*req));
+    JSR_ASSERT(req, "Out of memory");
     setRequestCallback((uv_req_t*)req, callbackId);
 
     int res = uv_getaddrinfo(loop, req, &getAddrInfoCallback, node, service, &hints);

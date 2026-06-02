@@ -86,7 +86,9 @@ static SendReq* sendReqAcquire(void) {
         sendReqPool = req->nextFree;
         return req;
     }
-    return malloc(sizeof(SendReq));
+    SendReq* req = malloc(sizeof(SendReq));
+    JSR_ASSERT(req, "Out of memory");
+    return req;
 }
 
 static void sendReqRelease(SendReq* req) {

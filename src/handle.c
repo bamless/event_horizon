@@ -1,5 +1,6 @@
 #include "handle.h"
 
+#include <jstar/conf.h>
 #include <jstar/jstar.h>
 #include <stdlib.h>
 
@@ -24,6 +25,7 @@ static void freeHandle(void* data) {
 uv_handle_t* pushLibUVHandle(JStarVM* vm, size_t size) {
     jsrPushUserdata(vm, size, &freeHandle);
     HandleMetadata* metadata = malloc(sizeof(*metadata));
+    JSR_ASSERT(metadata, "Out of memory");
     for(int i = 0; i < NUM_CB; i++) {
         metadata->callbacks[i] = -1;
     }

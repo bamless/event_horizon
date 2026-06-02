@@ -113,6 +113,7 @@ bool EventLoop_init(JStarVM* vm) {
     uv_loop_init(loop);
 
     LoopMetadata* metadata = malloc(sizeof(*metadata));
+    JSR_ASSERT(metadata, "Out of memory");
     metadata->vm = vm;
     metadata->loopId = loopId;
     uv_loop_set_data(loop, metadata);

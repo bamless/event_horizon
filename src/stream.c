@@ -23,7 +23,9 @@ static WriteReq* writeReqAcquire(void) {
         writeReqPool = req->nextFree;
         return req;
     }
-    return malloc(sizeof(WriteReq));
+    WriteReq* req = malloc(sizeof(WriteReq));
+    JSR_ASSERT(req, "Out of memory");
+    return req;
 }
 
 static void writeReqRelease(WriteReq* req) {
@@ -169,6 +171,7 @@ bool Stream_shutdown(JStarVM* vm) {
     if(!stream) return false;
 
     uv_shutdown_t* req = malloc(sizeof(*req));
+    JSR_ASSERT(req, "Out of memory");
 
     int callbackId = -1;
     if(!jsrIsNull(vm, 1)) {

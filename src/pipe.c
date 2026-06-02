@@ -55,6 +55,7 @@ bool Pipe_connect(JStarVM* vm) {
     if(!pipe) return false;
 
     uv_connect_t* req = malloc(sizeof(*req));
+    JSR_ASSERT(req, "Out of memory");
 
     int callbackId = -1;
     if(!jsrIsNull(vm, 2)) {

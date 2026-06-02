@@ -30,6 +30,7 @@ bool TCP_connect(JStarVM* vm) {
     if(!tcp) return false;
 
     uv_connect_t* req = malloc(sizeof(*req));
+    JSR_ASSERT(req, "Out of memory");
 
     int callbackId = -1;
     if(!jsrIsNull(vm, 3)) {
