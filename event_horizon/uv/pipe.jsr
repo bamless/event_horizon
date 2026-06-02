@@ -16,13 +16,6 @@ class Pipe is Stream
         super(loop or uv.loop(), uvPipe(loop, ipc))
     end
 
-    /// Accept the next pending pipe connection and return a Pipe client handle.
-    fun accept()
-        var client = Pipe(false, this._loop)
-        this._rawAccept(client.handle())
-        return client
-    end
-
     /// Open an existing file descriptor as a pipe.
     native open(fd)
     /// Bind this pipe to name.
@@ -33,4 +26,10 @@ class Pipe is Stream
     native sockName()
     /// Return the peer pipe name.
     native peerName()
+
+    fun _accept()
+        var client = Pipe(false, this._loop)
+        this._rawAccept(client.handle())
+        return client
+    end
 end

@@ -11,6 +11,8 @@ import event_horizon.promise for Promise, all
 import event_horizon.pipe for PipeStream
 import event_horizon.timers for wait
 
+static var TEST_PIPE = "TEST_PIPE"
+
 @test
 fun listenConnect()
     var clientConnect, serverConnect = false, false
@@ -18,7 +20,7 @@ fun listenConnect()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             serverConnect = true
@@ -30,7 +32,7 @@ fun listenConnect()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
         clientConnect = true
         yield client.close()
     end
@@ -47,7 +49,7 @@ fun listenOnError()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.close()
@@ -62,7 +64,7 @@ fun listenOnError()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
         yield client.close()
     end
     
@@ -80,7 +82,7 @@ fun listenClose()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.close()
@@ -93,7 +95,7 @@ fun listenClose()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
         yield client.close()
     end
 
@@ -109,7 +111,7 @@ fun writeRead()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             try
@@ -127,7 +129,7 @@ fun writeRead()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
         yield client.write("Hello, World!")
         data = yield client.read()
         yield client.close()
@@ -142,7 +144,7 @@ end
 fun writeReadPromise()
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
 
         return server.listen(fun(client)
             return client.read().then(fun(data)
@@ -159,7 +161,7 @@ fun writeReadPromise()
 
     fun client()
         var client = PipeStream()
-        return client.connect("test_pipe").then(fun(_)
+        return client.connect(TEST_PIPE).then(fun(_)
             return client.write("Hello, World!")
         end).then(fun(_)
             return client.read()
@@ -179,7 +181,7 @@ fun writeReadCount()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.write("0123456789")
@@ -191,7 +193,7 @@ fun writeReadCount()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
 
         var data1 = yield client.read(5)
         assert(data1 == "01234")
@@ -218,7 +220,7 @@ fun writeReadCountDelayed()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.write("01234")
@@ -233,7 +235,7 @@ fun writeReadCountDelayed()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
 
         var data1 = yield client.read(8)
         assert(data1 == "01234567")
@@ -257,7 +259,7 @@ fun writeReadUntil()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.write(
@@ -271,7 +273,7 @@ fun writeReadUntil()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
 
         var data1 = yield client.readUntil("\r\n\r\n")
         assert(data1 == "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n")
@@ -298,7 +300,7 @@ fun writeReadUntilDelayed()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.write(
@@ -314,7 +316,7 @@ fun writeReadUntilDelayed()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
 
         var data1 = yield client.readUntil("\r\n\r\n")
         assert(data1 == "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n")
@@ -341,7 +343,7 @@ fun writeln()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.write(yield client.readLine())
@@ -353,7 +355,7 @@ fun writeln()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
         yield client.writeln("Hello, World!")
         var data = yield client.readLine()
         assert(data == "Hello, World!\n")
@@ -368,7 +370,7 @@ fun readLine()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.write("line1\nline")
@@ -381,7 +383,7 @@ fun readLine()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
 
         var data1 = yield client.readLine()
         assert(data1 == "line1\n")
@@ -411,7 +413,7 @@ fun readUntilFail()
     @async
     fun server()
         var server = PipeStream()
-        server.bind("test_pipe")
+        server.bind(TEST_PIPE)
         
         yield server.listen(async(fun(client)
             yield client.write("line1")
@@ -423,7 +425,7 @@ fun readUntilFail()
     @async
     fun client()
         var client = PipeStream()
-        yield client.connect("test_pipe")
+        yield client.connect(TEST_PIPE)
 
         var partial = yield client.readLine()
         assert(!partial.endsWith("\n"))

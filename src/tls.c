@@ -454,11 +454,11 @@ static void tlsPump(uv_tls_t* tls) {
         } else if(ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
             // TODO: A cert verification failure arrives here as the generic
             // MBEDTLS_ERR_X509_CERT_VERIFY_FAILED, which mbedtls_strerror later
-            // renders as "unknown error code" in _tlsError(). The real reason is
+            // renders as "unknown error code" in tlsError(). The real reason is
             // only available right now, via mbedtls_ssl_get_verify_result(&ssl)
             // (a bitmask formatted by mbedtls_x509_crt_verify_info). When ret is
             // MBEDTLS_ERR_X509_CERT_VERIFY_FAILED we should capture that detail
-            // here (e.g. the verify flags) so _tlsError() can report it.
+            // here (e.g. the verify flags) so tlsError() can report it.
             tls->lastTlsErr = ret;
             stopOnFatalStatus(tls, UV_EPROTO);
             reportFatalStatus(tls, UV_EPROTO);

@@ -222,8 +222,8 @@ class Stream is Handle
     end
 
     // Construct an error object from a libuv status code. Subclasses may
-    // override this to raise a richer exception type (e.g. TLSException)
-    // when the status code alone does not carry enough diagnostic context.
+    // override this to raise a richer exception type when the status code
+    // alone does not carry enough diagnostic context.
     fun _makeError(status, handle=null)
         return StatusException(status)
     end

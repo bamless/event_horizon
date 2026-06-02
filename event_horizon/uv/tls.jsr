@@ -7,7 +7,7 @@ static native uvTLS(loop, ca, cert, key, isServer)
 /// Raw TLS stream backed by mbedTLS over TCP.
 ///
 /// Callback status values follow libuv conventions. TLS protocol failures use
-/// UV_EPROTO as the callback status; _tlsError() exposes the mbedTLS detail for
+/// UV_EPROTO as the callback status; tlsError() exposes the mbedTLS detail for
 /// higher-level wrappers.
 class TLS is Stream
     /// Construct a TLS handle.
@@ -33,16 +33,7 @@ class TLS is Stream
     /// On handshake failure, the accepted client is closed automatically if the
     /// callback leaves it open.
     fun listen(callback, backlog=0)
-        var stream = this
-        this._rawListen(fun(status)
-            if status < 0
-                callback(null, status)
-                return
-            end
-
-            var client = TLS(stream._options, stream._loop, true)
-            stream._rawAccept(client.handle())
-
+        super(fun(client, status)
             // Kick off the server-side handshake; The callback fires when done.
             // On failure, auto-close the accepted handle if the user callback
             // did not do so, otherwise the uv_tcp_t leaks into the event loop.
@@ -81,9 +72,15 @@ class TLS is Stream
     native close(callback=null)
     /// Return plaintext bytes queued inside TLS but not yet encrypted.
     native pendingWriteQueueSize()
+    /// Return last TLS error, if any
+    native tlsError()
 
-    // Native async plaintext write used by Stream.write.
     native _rawWrite(data, callback=null)
     native _startServerHandshake(callback)
-    native _tlsError()
+
+    fun _accept()
+        var client = TLS(this._options, this._loop, true)
+        this._rawAccept(client.handle())
+        return client
+    end
 end

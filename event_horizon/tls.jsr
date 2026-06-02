@@ -87,12 +87,12 @@ class TLSStream is Stream
     fun _makeError(status, handle=null)
         if status == Errno.EPROTO
             var h = handle or this._handle
-            var tlsMsg = h._tlsError()
+            var tlsMsg = h.tlsError()
             if tlsMsg
                 return TLSException(tlsMsg)
             end
         end
-        return StatusException(status)
+        return super(status)
     end
 
     fun _accept(client)

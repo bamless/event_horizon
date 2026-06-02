@@ -14,13 +14,6 @@ class TCP is Stream
         super(loop, uvTCP(loop))
     end
 
-    /// Accept the next pending connection and return a TCP client handle.
-    fun accept()
-        var client = TCP(this._loop)
-        this._rawAccept(client.handle())
-        return client
-    end
-
     /// Connect to addr:port and invoke callback(status) on completion.
     native connect(addr, port, callback=null)
     /// Bind to a local address and port.
@@ -29,4 +22,10 @@ class TCP is Stream
     native sockName()
     /// Return (address, port) for the peer socket.
     native peerName()
+
+    fun _accept()
+        var client = TCP(this._loop)
+        this._rawAccept(client.handle())
+        return client
+    end
 end

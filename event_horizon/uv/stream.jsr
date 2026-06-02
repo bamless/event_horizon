@@ -19,7 +19,7 @@ class Stream is Handle
                 callback(null, status)
                 return
             end
-            var c = stream.accept()
+            var c = stream._accept()
             callback(c, status)
         end, backlog)
     end
@@ -58,12 +58,12 @@ class Stream is Handle
     /// Return bytes queued in libuv's write queue.
     native getWriteQueueSize()
 
-    // Factory method called during `Stream.listen` for accepting new connections.
-    // Should return a correctly set-up handle to the subclass-specific uv wrapper.
-    @abstractMethod
-    fun accept() end
-
     native _rawWrite(data, callback=null)
     native _rawListen(callback, backlog)
     native _rawAccept(client)
+
+    // Factory method called during `Stream.listen` for accepting new connections.
+    // Should return a correctly set-up handle to the subclass-specific uv wrapper.
+    @abstractMethod
+    fun _accept() end
 end

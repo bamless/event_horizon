@@ -9,10 +9,12 @@ import event_horizon.uv.errors for strerror
 import event_horizon.uv as uv
 import event_horizon.uv.pipe for Pipe
 
+static var TEST_PIPE = "TEST_PIPE"
+
 @test
 fun bindConnect()
     var s = Pipe()
-    s.bind("./test")
+    s.bind(TEST_PIPE)
 
     var clientConnected = false
 
@@ -27,7 +29,7 @@ fun bindConnect()
 
     var c = Pipe()
     
-    c.connect("./test", fun(status)
+    c.connect(TEST_PIPE, fun(status)
         assert(status >= 0)
         connected = true
         c.close()

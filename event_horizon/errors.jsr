@@ -4,6 +4,31 @@ import event_horizon.uv.errors for strerror
 class EventHorizonException is Exception
 end
 
+/// Wrap a negative libuv status code.
+///
+/// High-level APIs raise or reject with StatusException for ordinary network,
+/// DNS, handle, timer, and stream failures.
+class StatusException is EventHorizonException
+    /// Construct from a libuv status and optional cause.
+    construct(status, exc=null)
+        super(strerror(status), exc)
+        this._status = status
+    end
+
+    /// Return the underlying libuv status code.
+    fun status()
+        return this._status
+    end
+end
+
+/// Raised when mbedTLS reports a protocol-level TLS error.
+///
+/// Examples include handshake failures, certificate verification failures, bad
+/// records, and alerts received from the peer. The message is the mbedTLS error
+/// string when available.
+class TLSException is EventHorizonException
+end
+
 /// Raised after the event loop finishes when callbacks failed during the run.
 ///
 /// A single captured exception is used as the cause. Multiple captured
@@ -13,8 +38,13 @@ class LoopExecutionException is EventHorizonException
     construct(exceptions)
         var cause = exceptions[0] if #exceptions == 1 else null
         this._exceptions = exceptions if #exceptions > 1 else []
-        var exceptionMsg = "Exception raised during loop execution." if #exceptions == 1 else "Multiple exceptions raised during loop execution:"
-        super(exceptionMsg, cause)
+        var msg
+        if #exceptions == 1
+            msg = "Exception raised during loop execution."  
+        else
+            msg = "Multiple exceptions raised during loop execution:"
+        end
+        super(msg, cause)
     end
     
     /// Print this exception and all captured callback exceptions.
@@ -47,6 +77,7 @@ class LoopExecutionException is EventHorizonException
                 end
             end
         end
+
         return chunks.join()
     end
 
@@ -54,29 +85,4 @@ class LoopExecutionException is EventHorizonException
     fun exceptions()
         return this._exceptions
     end
-end
-
-/// Wrap a negative libuv status code.
-///
-/// High-level APIs raise or reject with StatusException for ordinary network,
-/// DNS, handle, timer, and stream failures.
-class StatusException is EventHorizonException
-    /// Construct from a libuv status and optional cause.
-    construct(status, exc=null)
-        super(strerror(status), exc)
-        this._status = status
-    end
-
-    /// Return the underlying libuv status code.
-    fun status()
-        return this._status
-    end
-end
-
-/// Raised when mbedTLS reports a protocol-level TLS error.
-///
-/// Examples include handshake failures, certificate verification failures, bad
-/// records, and alerts received from the peer. The message is the mbedTLS error
-/// string when available.
-class TLSException is EventHorizonException
 end
