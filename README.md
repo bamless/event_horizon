@@ -9,7 +9,7 @@ when data is available.
 ## Features
 
 - **`async/await`**: coroutine-based concurrency via the `@async` decorator and `yield`
-- **Promises**: `Promise`, `Promise.all()`, `asResolved()`, `asRejected()`
+- **Promises**: `Promise`, `all()`, `race()`, `asResolved()`, `asRejected()`
 - **TCP**: `TCPStream` for clients and servers, with automatic DNS resolution
 - **TLS**: `TLSStream` for encrypted TCP connections (client and server), backed by [mbedTLS](https://github.com/Mbed-TLS/mbedtls)
 - **UDP**: `UDPSocket`, including multicast support
