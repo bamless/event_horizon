@@ -35,7 +35,7 @@ blocks until all pending asynchronous operations have completed.
 |---|---|
 | `event_horizon` | `run()` |
 | `event_horizon.async` | `async` |
-| `event_horizon.promise` | `Promise`, `asResolved`, `asRejected`, `all` |
+| `event_horizon.promise` | `Promise`, `asResolved`, `asRejected`, `all`, `race` |
 | `event_horizon.tcp` | `TCPStream` |
 | `event_horizon.tls` | `TLSStream` |
 | `event_horizon.udp` | `UDPSocket` |
