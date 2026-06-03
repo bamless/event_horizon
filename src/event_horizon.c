@@ -19,7 +19,7 @@ static JStarNativeReg registry[] = {
     JSR_REGFUNC(_consts_init, consts_init)
     JSR_REGFUNC(getAddrInfo, dns_getAddrInfo)
     JSR_REGFUNC(strerror, errors_strerror)
-    JSR_REGFUNC(_errorsInit, errors_init)
+    JSR_REGFUNC(errorsInit, errors_init)
 
     JSR_REGMETH(EventLoop, run, EventLoop_run)
     JSR_REGMETH(EventLoop, stop, EventLoop_stop)

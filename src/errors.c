@@ -1,5 +1,6 @@
 #include "errors.h"
 
+#include <jstar/jstar.h>
 #include <mbedtls/error.h>
 #include <uv.h>
 
@@ -43,19 +44,22 @@ bool errors_strerror(JStarVM* vm) {
 }
 
 bool errors_init(JStarVM* vm) {
-    // Overwrite the ordinal values in the J* `Errno` enum with real libuv
-    // error codes. We use UV_ERRNO_MAP so this stays in sync with libuv
-    // automatically.
-#define SET_ERRNO(name, _)               \
-    jsrPushNumber(vm, UV_##name);        \
-    jsrSetField(vm, -2, #name);          \
+    if(!jsrGetGlobal(vm, NULL, "Enum")) return false;
+
+    jsrPushTable(vm);
+    int tableSlot = jsrTop(vm);
+
+#define SET_ERRNO(name, _)                            \
+    jsrPushString(vm, #name);                         \
+    jsrPushNumber(vm, UV_##name);                     \
+    if(!jsrSubscriptSet(vm, tableSlot)) return false; \
     jsrPop(vm);
 
-    if(!jsrGetGlobal(vm, NULL, "Errno")) return false;
     UV_ERRNO_MAP(SET_ERRNO)
-    jsrPop(vm);
 
-#undef SET_ERRNO
+    if(!jsrCall(vm, 1)) return false;
+    if(!jsrSetGlobal(vm, NULL, "Errno")) return false;
+    jsrPop(vm);
 
     jsrPushNull(vm);
     return true;
