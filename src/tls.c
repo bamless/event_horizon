@@ -7,6 +7,7 @@
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509_crt.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <uv.h>
@@ -586,18 +587,11 @@ static void tlsRawReadCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_
     uv_tls_t* tls = (uv_tls_t*)stream;
 
     if(nread > 0) {
-        // The alloc callback caps the buffer to cipherIn's free space, so the
-        // write should always fit; treat a short write as a fatal overflow.
         size_t written = ringBufWrite(&tls->cipherIn, (const unsigned char*)buf->base,
                                       (size_t)nread);
-        if(written != (size_t)nread) {
-            stopOnFatalStatus(tls, UV_ENOBUFS);
-            reportFatalStatus(tls, UV_ENOBUFS);
-            if(isCloseInProgress(tls) && !uv_is_closing((uv_handle_t*)tls)) {
-                uv_close((uv_handle_t*)tls, closeCallback);
-            }
-            return;
-        }
+        // The alloc callback caps the buffer to cipherIn's free space, so the
+        // write should always fit; treat a short write as a fatal overflow.
+        JSR_ASSERT(written == (size_t)nread, "Write should always fit the ring buffer");
         tlsPump(tls);
     } else if(nread == UV_EOF) {
         // Let the pump observe the peer close: the handshake will fail or the
