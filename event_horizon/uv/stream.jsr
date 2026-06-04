@@ -25,24 +25,7 @@ class Stream is Handle
     end
 
     /// Write data and invoke callback(status) when the write is accepted/done.
-    ///
-    /// Attempts a synchronous write via tryWrite. If the kernel buffer has
-    /// space, callback(0) is invoked before write() returns. If the buffer is
-    /// full, the remainder is queued and callback fires asynchronously from the
-    /// event loop. Synchronous failures raise StatusException; asynchronous
-    /// failures are passed as a negative status to callback.
-    fun write(data, callback=null)
-        var written = this.tryWrite(data)
-        if written == #data
-            if callback
-                callback(0)
-            end
-            return
-        end
-        var pending = data[written,] if written > 0 else data
-        this._rawWrite(pending, callback)
-    end
-
+    native write(data, callback=null)
     /// Try a synchronous write and return bytes written, or raise StatusException.
     native tryWrite(data)
     /// Start reading; callback(data, status) receives chunks, EOF, or errors.
@@ -58,7 +41,6 @@ class Stream is Handle
     /// Return bytes queued in libuv's write queue.
     native getWriteQueueSize()
 
-    native _rawWrite(data, callback=null)
     native _rawListen(callback, backlog)
     native _rawAccept(client)
 

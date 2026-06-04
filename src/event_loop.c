@@ -89,7 +89,7 @@ static void closeLibuvLoop(void* data) {
     // TODO: should we close this automatically?
     int res = uv_loop_close(loop);
     if(res == UV_EBUSY) {
-        fprintf(stderr, "Pending handles during call to `uv_loop_cose`.\n");
+        fprintf(stderr, "Pending handles during call to `uv_loop_close`.\n");
     }
     free(metadata);
 }

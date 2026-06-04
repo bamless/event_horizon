@@ -28,8 +28,6 @@
 #define TLS_CIPHER_IN_SIZE   (64 * 1024)
 #define TLS_CIPHER_OUT_SIZE  (64 * 1024)
 #define TLS_PLAIN_READ_CHUNK (16 * 1024)
-#define TLS_WRITE_HIGH_WATER (256 * 1024)
-#define TLS_WRITE_LOW_WATER  (128 * 1024)
 
 typedef struct TLSWriteChunk {
     const unsigned char* data;
@@ -82,7 +80,6 @@ typedef struct uv_tls_s {
 
     TLSWriteChunk* writeHead;
     TLSWriteChunk* writeTail;
-    size_t pendingPlainBytes;
 
     int handshakeCbId;
     int shutdownCbId;
@@ -114,7 +111,6 @@ static void freeWriteQueue(uv_tls_t* tls) {
     }
     tls->writeHead = NULL;
     tls->writeTail = NULL;
-    tls->pendingPlainBytes = 0;
 }
 
 static void freeTLSHandle(void* data) {
@@ -162,7 +158,6 @@ static void enqueueWrite(uv_tls_t* tls, TLSWriteChunk* write) {
         tls->writeHead = write;
     }
     tls->writeTail = write;
-    tls->pendingPlainBytes += write->len;
 }
 
 static TLSWriteChunk* dequeueWrite(uv_tls_t* tls) {
@@ -190,7 +185,6 @@ static void failWriteQueue(uv_tls_t* tls, int status) {
     while(tls->writeHead) {
         completeHeadWrite(tls, status);
     }
-    tls->pendingPlainBytes = 0;
 }
 
 // ------------------------------------------------------------------------------
@@ -367,7 +361,6 @@ static void pumpWrites(uv_tls_t* tls) {
 
         if(ret > 0) {
             write->consumed += ret;
-            tls->pendingPlainBytes -= ret;
         } else if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
             // TLS wants to read or write more data - quit the pump and wait for inbound
             // or outbound data.
@@ -546,12 +539,6 @@ static void tlsPump(uv_tls_t* tls) {
 
     int flushStatus = flushCiphertext(tls);
     if(flushStatus < 0) reportFatalStatus(tls, flushStatus);
-
-    if(tls->drainArmed && tls->pendingPlainBytes <= TLS_WRITE_LOW_WATER) {
-        tls->drainArmed = false;
-        // TODO: Expose and call a J* drain callback for user backpressure control.
-        // For now callers can only poll pendingWriteQueueSize() on tls.jsr.
-    }
 
     // Finish a user-requested close once its ciphertext has drained. If the
     // drain flush failed synchronously the socket is dead and can never drain,
@@ -776,7 +763,7 @@ bool TLS_readStop(JStarVM* vm) {
     return true;
 }
 
-bool TLS_rawWrite(JStarVM* vm) {
+bool TLS_write(JStarVM* vm) {
     JSR_CHECK(String, 1, "data");
     if(!jsrIsNull(vm, 2)) JSR_CHECK(Function, 2, "callback");
     if(!Handle_checkClosing(vm, 0)) return false;
@@ -827,18 +814,7 @@ bool TLS_rawWrite(JStarVM* vm) {
     enqueueWrite(tls, write);
     tlsPump(tls);
 
-    if(tls->pendingPlainBytes >= TLS_WRITE_HIGH_WATER) {
-        tls->drainArmed = true;
-    }
-
     jsrPushNull(vm);
-    return true;
-}
-
-bool TLS_pendingWriteQueueSize(JStarVM* vm) {
-    uv_tls_t* tls = (uv_tls_t*)Handle_getHandle(vm, 0);
-    if(!tls) return false;
-    jsrPushNumber(vm, tls->pendingPlainBytes);
     return true;
 }
 

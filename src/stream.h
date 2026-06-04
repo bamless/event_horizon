@@ -4,7 +4,7 @@
 #include <jstar/jstar.h>
 
 // class Stream is Stream
-bool Stream_rawWrite(JStarVM* vm);
+bool Stream_write(JStarVM* vm);
 bool Stream_tryWrite(JStarVM* vm);
 bool Stream_readStart(JStarVM* vm);
 bool Stream_readStop(JStarVM* vm);

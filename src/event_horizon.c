@@ -38,6 +38,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Handle, fileno, Handle_fileno)
     JSR_REGMETH(Handle, handleType, Handle_handleType)
 
+    JSR_REGMETH(Stream, write, Stream_write)
     JSR_REGMETH(Stream, tryWrite, Stream_tryWrite)
     JSR_REGMETH(Stream, readStart, Stream_readStart)
     JSR_REGMETH(Stream, readStop, Stream_readStop)
@@ -45,7 +46,6 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Stream, isReadable, Stream_isReadable)
     JSR_REGMETH(Stream, isWritable, Stream_isWritable)
     JSR_REGMETH(Stream, getWriteQueueSize, Stream_getWriteQueueSize)
-    JSR_REGMETH(Stream, _rawWrite, Stream_rawWrite)
     JSR_REGMETH(Stream, _rawListen, Stream_rawListen)
     JSR_REGMETH(Stream, _rawAccept, Stream_rawAccept)
 
@@ -105,8 +105,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(TLS, tlsError,              TLS_tlsError)
     JSR_REGMETH(TLS, sockName,              TLS_sockName)
     JSR_REGMETH(TLS, peerName,              TLS_peerName)
-    JSR_REGMETH(TLS, _rawWrite,             TLS_rawWrite)
-    JSR_REGMETH(TLS, pendingWriteQueueSize, TLS_pendingWriteQueueSize)
+    JSR_REGMETH(TLS, write,                 TLS_write)
     JSR_REGMETH(TLS, readStart,             TLS_readStart)
     JSR_REGMETH(TLS, readStop,              TLS_readStop)
     JSR_REGMETH(TLS, shutdown,              TLS_shutdown)

@@ -58,6 +58,8 @@ class TLS is Stream
     native connect(addr, port, serverName, callback=null)
     /// Bind the underlying TCP socket for TLS server use.
     native bind(addr, port, ipv6Only=false)
+    /// Write data and invoke callback(status) when the write is accepted/done.
+    native write(data, callback=null)
     /// Return (address, port) for the local socket.
     native sockName()
     /// Return (address, port) for the peer socket.
@@ -70,12 +72,9 @@ class TLS is Stream
     native shutdown(callback=null)
     /// Close the TLS handle, sending close_notify best-effort when connected.
     native close(callback=null)
-    /// Return plaintext bytes queued inside TLS but not yet encrypted.
-    native pendingWriteQueueSize()
     /// Return last TLS error, if any
     native tlsError()
 
-    native _rawWrite(data, callback=null)
     native _startServerHandshake(callback)
 
     fun _accept()

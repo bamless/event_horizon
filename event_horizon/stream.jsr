@@ -5,6 +5,8 @@ import event_horizon.handle for Handle
 import event_horizon.promise for Promise
 import event_horizon.uv.stream_buffer for StreamBuffer
 
+static var DEFAULT_HIGH_WATER_MARK = 65536
+
 @async
 static fun handleConnection(client, status, onConnect)
     if status < 0
@@ -21,10 +23,13 @@ end
 /// failures.
 class Stream is Handle
     /// Construct from a raw event_horizon.uv stream handle.
-    @abstract(Stream) construct(handle)
+    @abstract(Stream) construct(handle, highWaterMark=null)
         super(handle)
         this._resolveListen = null
         this._buffer = StreamBuffer()
+        this._highWaterMark = highWaterMark or DEFAULT_HIGH_WATER_MARK
+        this._drainArmed = false
+        this._drainWaiters = []
     end
 
     /// Async: close the stream and resolve when the handle is closed.
@@ -59,25 +64,24 @@ class Stream is Handle
     /// Rejects with StatusException if libuv rejects the write or the stream is
     /// no longer writable.
     fun write(data)
-        // Try a synchronous write first
-        var written = this._handle.tryWrite(data)
-        if written == #data
-            return
-        end
-
-        // Partial write (kernel buffer nearly full) or EAGAIN: hand the
-        // remainder off to the full async path.
         var self = this
-        var pending = data[written, #data] if written > 0 else data
-        return Promise(fun(resolve, reject)
-            self._handle.write(pending, fun(status)
+        var promise = Promise(fun(resolve, reject)
+            self._handle.write(data, fun(status)
                 if status < 0
                     reject(self._makeError(status))
+                    self._rejectDrain(self._makeError(status))
                 else
                     resolve()
+                    self._maybeDrain()
                 end
             end)
         end, this._handle.loop())
+
+        if this.getWriteQueueSize() >= this._highWaterMark
+            this._drainArmed = true
+        end
+
+        return promise
     end
 
     /// Async: write data followed by a newline.
@@ -219,6 +223,51 @@ class Stream is Handle
     /// Return the number of bytes currently queued in libuv for writing.
     fun getWriteQueueSize()
         return this._handle.getWriteQueueSize()
+    end
+
+    /// Return true if the native write queue has crossed the configured
+    /// high-water mark and producers should wait for drain.
+    fun needsDrain()
+        return this._drainArmed
+    end
+
+     /// Async: resolve when write-side backpressure clears.
+    fun drain()
+        if !this._drainArmed
+            return
+        end
+
+        var self = this
+        return Promise(fun(resolve, reject)
+            self._drainWaiters.add((resolve, reject))
+            self._maybeDrain()
+        end, this._handle.loop())
+    end
+
+    // Resolve pending drain waiters if backpressure has cleared.
+    fun _maybeDrain()
+         if this._drainArmed and this.getWriteQueueSize() == 0
+            this._drainArmed = false
+
+            var waiters = this._drainWaiters
+            this._drainWaiters = []
+
+            for var resolve, _ in waiters
+                resolve()
+            end
+        end
+    end
+
+    // Rejects all pending drain waiters
+    fun _rejectDrain(error)
+        this._drainArmed = false
+
+        var waiters = this._drainWaiters
+        this._drainWaiters = []
+
+        for var _, reject in waiters
+            reject(error)
+        end
     end
 
     // Construct an error object from a libuv status code. Subclasses may

@@ -42,7 +42,7 @@ void writeCallback(uv_write_t* req, int status) {
     reqCallback(handle, callbackId, true, dataRef, status);
 }
 
-bool Stream_rawWrite(JStarVM* vm) {
+bool Stream_write(JStarVM* vm) {
     JSR_CHECK(String, 1, "data");
     if(!jsrIsNull(vm, 2)) {
         JSR_CHECK(Function, 2, "callback");
