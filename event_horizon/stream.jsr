@@ -7,14 +7,6 @@ import event_horizon.uv.stream_buffer for StreamBuffer
 
 static var DEFAULT_HIGH_WATER_MARK = 65536
 
-@async
-static fun handleConnection(client, status, onConnect)
-    if status < 0
-        raise StatusException(status)
-    end
-    return onConnect(client)
-end
-
 /// High-level asynchronous byte stream.
 ///
 /// Async methods return Promise values and should be yielded. I/O failures are
@@ -54,9 +46,8 @@ class Stream is Handle
                 try
                     if status < 0
                         errHandler(self._makeError(status, client))
-                        return
                     else
-                        handleConnection(self._accept(client), status, onConnect).catch(errHandler)
+                        onConnect(self._accept(client)).catch(errHandler)
                     end
                 except Exception e
                     errHandler(e)
