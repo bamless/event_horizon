@@ -30,6 +30,7 @@ class Stream is Handle
         this._highWaterMark = highWaterMark or DEFAULT_HIGH_WATER_MARK
         this._drainArmed = false
         this._drainWaiters = []
+        this._queuedBytes = 0
     end
 
     /// Async: close the stream and resolve when the handle is closed.
@@ -69,9 +70,14 @@ class Stream is Handle
     /// Rejects with StatusException if libuv rejects the write or the stream is
     /// no longer writable.
     fun write(data)
+        var dataLen = #data
+        this._queuedBytes += dataLen
+
         var self = this
         var promise = Promise(fun(resolve, reject)
             self._handle.write(data, fun(status)
+                self._queuedBytes -= dataLen
+
                 if status < 0
                     reject(self._makeError(status))
                     self._rejectDrain(self._makeError(status))
@@ -82,7 +88,7 @@ class Stream is Handle
             end)
         end, this._handle.loop())
 
-        if this.getWriteQueueSize() >= this._highWaterMark
+        if this._queuedBytes >= this._highWaterMark
             this._drainArmed = true
         end
 
@@ -259,7 +265,7 @@ class Stream is Handle
 
     // Resolve pending drain waiters if backpressure has cleared.
     fun _maybeDrain()
-         if this._drainArmed and this.getWriteQueueSize() == 0
+         if this._drainArmed and this._queuedBytes == 0
             this._drainArmed = false
 
             var waiters = this._drainWaiters
