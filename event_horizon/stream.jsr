@@ -267,12 +267,13 @@ class Stream is Handle
     fun _maybeDrain()
          if this._drainArmed and this._queuedBytes == 0
             this._drainArmed = false
+            if #this._drainWaiters
+                var waiters = this._drainWaiters
+                this._drainWaiters = []
 
-            var waiters = this._drainWaiters
-            this._drainWaiters = []
-
-            for var resolve, _ in waiters
-                resolve()
+                for var resolve, _ in waiters
+                    resolve()
+                end
             end
         end
     end
@@ -280,12 +281,13 @@ class Stream is Handle
     // Rejects all pending drain waiters
     fun _rejectDrain(error)
         this._drainArmed = false
+        if #this._drainWaiters
+            var waiters = this._drainWaiters
+            this._drainWaiters = []
 
-        var waiters = this._drainWaiters
-        this._drainWaiters = []
-
-        for var _, reject in waiters
-            reject(error)
+            for var _, reject in waiters
+                reject(error)
+            end
         end
     end
 
