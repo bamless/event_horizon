@@ -267,7 +267,7 @@ class Stream is Handle
     fun _maybeDrain()
          if this._drainArmed and this._queuedBytes == 0
             this._drainArmed = false
-            if #this._drainWaiters
+            if #this._drainWaiters > 0
                 var waiters = this._drainWaiters
                 this._drainWaiters = []
 
@@ -281,7 +281,7 @@ class Stream is Handle
     // Rejects all pending drain waiters
     fun _rejectDrain(error)
         this._drainArmed = false
-        if #this._drainWaiters
+        if #this._drainWaiters > 0
             var waiters = this._drainWaiters
             this._drainWaiters = []
 

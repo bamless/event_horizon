@@ -29,14 +29,14 @@
 #define TLS_CIPHER_OUT_SIZE  (64 * 1024)
 #define TLS_PLAIN_READ_CHUNK (16 * 1024)
 
-typedef struct TLSWriteChunk {
+typedef struct TLSWrite {
     const unsigned char* data;
     size_t len;
     size_t consumed;
     int callbackId;
     int dataRef;
-    struct TLSWriteChunk* next;
-} TLSWriteChunk;
+    struct TLSWrite* next;
+} TLSWrite;
 
 typedef enum TLSState {
     TLS_STATE_HANDSHAKING,
@@ -78,8 +78,8 @@ typedef struct uv_tls_s {
     RingBuf cipherIn;
     RingBuf cipherOut;
 
-    TLSWriteChunk* writeHead;
-    TLSWriteChunk* writeTail;
+    TLSWrite* writeHead;
+    TLSWrite* writeTail;
 
     int handshakeCbId;
     int shutdownCbId;
@@ -103,9 +103,9 @@ static void tlsShutdownCallback(uv_shutdown_t* req, int status);
 // ------------------------------------------------------------------------------
 
 static void freeWriteQueue(uv_tls_t* tls) {
-    TLSWriteChunk* write = tls->writeHead;
+    TLSWrite* write = tls->writeHead;
     while(write) {
-        TLSWriteChunk* next = write->next;
+        TLSWrite* next = write->next;
         free(write);
         write = next;
     }
@@ -150,7 +150,7 @@ static uv_tls_t* pushTLSHandle(JStarVM* vm) {
 // Queue helpers
 // ------------------------------------------------------------------------------
 
-static void enqueueWrite(uv_tls_t* tls, TLSWriteChunk* write) {
+static void enqueueWrite(uv_tls_t* tls, TLSWrite* write) {
     write->next = NULL;
     if(tls->writeTail) {
         tls->writeTail->next = write;
@@ -160,8 +160,8 @@ static void enqueueWrite(uv_tls_t* tls, TLSWriteChunk* write) {
     tls->writeTail = write;
 }
 
-static TLSWriteChunk* dequeueWrite(uv_tls_t* tls) {
-    TLSWriteChunk* write = tls->writeHead;
+static TLSWrite* dequeueWrite(uv_tls_t* tls) {
+    TLSWrite* write = tls->writeHead;
     if(!write) return NULL;
 
     tls->writeHead = write->next;
@@ -171,7 +171,7 @@ static TLSWriteChunk* dequeueWrite(uv_tls_t* tls) {
 }
 
 static void completeHeadWrite(uv_tls_t* tls, int status) {
-    TLSWriteChunk* write = dequeueWrite(tls);
+    TLSWrite* write = dequeueWrite(tls);
     if(!write) return;
 
     int callbackId = write->callbackId;
@@ -349,7 +349,7 @@ static void pumpWrites(uv_tls_t* tls) {
     // Encrypt queued plaintext one request at a time. This keeps write callback
     // ownership simple: the head request completes only after its last generated
     // ciphertext leaves our ring buffer.
-    TLSWriteChunk* write = tls->writeHead;
+    TLSWrite* write = tls->writeHead;
     while(write->consumed < write->len) {
         int ret = mbedtls_ssl_write(&tls->ssl, write->data + write->consumed,
                                     write->len - write->consumed);
@@ -802,7 +802,7 @@ bool TLS_write(JStarVM* vm) {
     const char* data = jsrGetString(vm, 1);
     size_t len = jsrGetStringSz(vm, 1);
 
-    TLSWriteChunk* write = malloc(sizeof(*write));
+    TLSWrite* write = malloc(sizeof(*write));
     JSR_ASSERT(write, "Out of memory");
     write->data = (const unsigned char*)data;
     write->len = len;
