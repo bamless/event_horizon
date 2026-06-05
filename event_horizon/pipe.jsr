@@ -9,8 +9,8 @@ class PipeStream is Stream
     ///
     /// ipc enables libuv IPC mode. loop defaults to the global loop. _pipe is
     /// used internally when accepting an already-created raw pipe handle.
-    construct(ipc=false, loop=null, _pipe=null)
-        super(_pipe or uv_pipe.Pipe(ipc, loop))
+    construct(ipc=false, highWaterMark=null, loop=null, _pipe=null)
+        super(_pipe or uv_pipe.Pipe(ipc, loop), highWaterMark)
     end
 
     /// Bind this pipe to name, or raise StatusException.
@@ -50,6 +50,6 @@ class PipeStream is Stream
     end
 
     fun _accept(client)
-        return PipeStream(false, this._handle.loop(), client)
+        return PipeStream(false, this._highWaterMark, this._handle.loop(), client)
     end
 end

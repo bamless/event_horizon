@@ -12,8 +12,8 @@ class TCPStream is Stream
     /// Construct a TCP stream on loop, or the global loop when omitted.
     ///
     /// _tcp is used internally when accepting an already-created raw TCP handle.
-    construct(loop=null, _tcp=null)
-        super(_tcp or uv_tcp.TCP(loop))
+    construct(highWaterMark=null, loop=null, _tcp=null)
+        super(_tcp or uv_tcp.TCP(loop), highWaterMark)
     end
 
     /// Async: connect to addr:port.
@@ -57,6 +57,6 @@ class TCPStream is Stream
     end
 
     fun _accept(client)
-        return TCPStream(this._handle.loop(), client)
+        return TCPStream(this._highWaterMark, this._handle.loop(), client)
     end
 end

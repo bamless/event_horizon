@@ -19,9 +19,9 @@ class TLSStream is Stream
     ///   "cert"       - path to own certificate (required for servers)
     ///   "key"        - path to own private key (required for servers)
     ///   "serverName" - SNI hostname override for client connections
-    construct(options=null, loop=null, _tls=null)
+    construct(options=null, highWaterMark=null, loop=null, _tls=null)
         var opts = options or {}
-        super(_tls or uv_tls.TLS(opts, loop))
+        super(_tls or uv_tls.TLS(opts, loop), highWaterMark)
         this._options = opts
     end
 
@@ -96,6 +96,6 @@ class TLSStream is Stream
     end
 
     fun _accept(client)
-        return TLSStream(this._options, this._handle.loop(), client)
+        return TLSStream(this._options, this._highWaterMark, this._handle.loop(), client)
     end
 end

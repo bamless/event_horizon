@@ -50,11 +50,16 @@ class Stream is Handle
         return Promise(fun(resolve, _)
             self._resolveListen = resolve
             self._handle.listen(fun(client, status)
-                if status < 0
-                    errHandler(self._makeError(status, client))
-                    return
+                try
+                    if status < 0
+                        errHandler(self._makeError(status, client))
+                        return
+                    else
+                        handleConnection(self._accept(client), status, onConnect).catch(errHandler)
+                    end
+                except Exception e
+                    errHandler(e)
                 end
-                handleConnection(self._accept(client), status, onConnect).catch(errHandler)
             end)
         end, this._handle.loop())
     end
@@ -223,6 +228,14 @@ class Stream is Handle
     /// Return the number of bytes currently queued in libuv for writing.
     fun getWriteQueueSize()
         return this._handle.getWriteQueueSize()
+    end
+
+    fun getHighWaterMark()
+        return this._highWaterMark
+    end
+
+    fun setHighWaterMark(highWaterMark)
+        this._highWaterMark = highWaterMark
     end
 
     /// Return true if the native write queue has crossed the configured
