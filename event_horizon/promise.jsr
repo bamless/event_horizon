@@ -150,18 +150,20 @@ end
 
 /// Async: resolve when all promises resolve, or reject on the first rejection.
 fun all(promises, loop=null)
-    var count = promises.count()
-    var results = List(count)
-    if count == 0
+    var promiseCount = #promises
+    var results = List(promiseCount)
+
+    if promiseCount == 0
         return asResolved(results, loop)
     end
 
     var numResolved = 0
     return Promise(fun(resolve, reject)
-        for var idx, promise in promises.enumerate()
-            asResolved(promise, loop).then(fun(res)
+        for var i = 0; i < promiseCount; i += 1
+            var idx = i
+            asResolved(promises[i], loop).then(fun(res)
                 results[idx] = res
-                if (numResolved += 1) == count
+                if (numResolved += 1) == promiseCount
                     resolve(results)
                 end
             end, fun(exc)
