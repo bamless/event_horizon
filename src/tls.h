@@ -12,6 +12,7 @@ bool TLS_peerName(JStarVM* vm);
 bool TLS_readStart(JStarVM* vm);
 bool TLS_readStop(JStarVM* vm);
 bool TLS_write(JStarVM* vm);
+bool TLS_pendingWriteQueueSize(JStarVM* vm);
 bool TLS_shutdown(JStarVM* vm);
 bool TLS_close(JStarVM* vm);
 bool TLS_startServerHandshake(JStarVM* vm);

@@ -106,6 +106,7 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(TLS, sockName, TLS_sockName)
     JSR_REGMETH(TLS, peerName, TLS_peerName)
     JSR_REGMETH(TLS, write, TLS_write)
+    JSR_REGMETH(TLS, pendingWriteQueueSize, TLS_pendingWriteQueueSize)
     JSR_REGMETH(TLS, readStart, TLS_readStart)
     JSR_REGMETH(TLS, readStop, TLS_readStop)
     JSR_REGMETH(TLS, shutdown, TLS_shutdown)

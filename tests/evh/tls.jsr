@@ -150,6 +150,88 @@ fun largeWriteReadCrossesTLSStagingBoundaries()
 end
 
 @test
+fun emptyWriteResolvesAndDoesNotBlockNextWrite()
+    var emptyResolved = false
+    var nextResolved = false
+    var received = null
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                received = yield client.read()
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        yield c.write("")
+        emptyResolved = true
+        yield c.write("after empty")
+        nextResolved = true
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+    assert(emptyResolved, "empty TLS write did not resolve")
+    assert(nextResolved, "write after empty TLS write did not resolve")
+    assert(received == "after empty", "write after empty TLS write was not delivered")
+end
+
+@test
+fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
+    var block = repeatedBlock("p", 4096)
+    var large = repeatedBlock(block, 256)
+    var queuedAfterWrite = null
+    var queuedAfterResolve = null
+    var serverRead = 0
+
+    @async
+    fun server()
+        var s = TLSStream(SERVER_OPTS)
+        s.bind("0.0.0.0", PORT)
+        yield s.listen(async(fun(client)
+            try
+                while serverRead < #large
+                    var data = yield client.read()
+                    if !data
+                        break
+                    end
+                    serverRead += #data
+                end
+            ensure
+                yield client.close()
+                yield s.close()
+            end
+        end))
+    end
+
+    @async
+    fun client()
+        var c = TLSStream(CLIENT_OPTS)
+        yield c.connect("127.0.0.1", PORT)
+        var pendingWrite = c.write(large)
+        queuedAfterWrite = c.pendingWriteQueueSize()
+        yield pendingWrite
+        queuedAfterResolve = c.pendingWriteQueueSize()
+        yield c.close()
+    end
+
+    evh.run(all([server(), client()]))
+    assert(queuedAfterWrite > 0, "large TLS write did not report queued plaintext")
+    assert(queuedAfterResolve == 0, "TLS pending write queue did not drain")
+    assert(serverRead == #large, "server did not read the full large write")
+end
+
+@test
 fun queuedTLSWritesPreserveOrder()
     // Issue several writes before the peer reads everything. The native TLS
     // pending-write pump must resume in FIFO order as libuv write callbacks

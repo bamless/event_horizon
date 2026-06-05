@@ -212,6 +212,81 @@ fun largeWriteQueuesWithoutSynchronousEAGAIN()
 end
 
 @test
+fun emptyWriteCompletesAndDoesNotBlockNextWrite()
+    var emptyWriteDone = false
+    var nextWriteDone = false
+    var received = null
+
+    withTLSServer(PORT, CERT, KEY, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0 or !data
+                closeIgnoringAlreadyClosing(client)
+                return
+            end
+            received = data
+            client.close()
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.write("", fun(writeStatus)
+            assert(writeStatus == 0)
+            emptyWriteDone = true
+        end)
+        c.write("after empty", fun(writeStatus)
+            assert(writeStatus == 0)
+            nextWriteDone = true
+            c.close()
+        end)
+    end)
+
+    uv.loop().run()
+    assert(emptyWriteDone, "empty TLS write callback did not fire")
+    assert(nextWriteDone, "write after empty TLS write did not complete")
+    assert(received == "after empty", "write after empty TLS write was not delivered")
+end
+
+@test
+fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
+    var block = repeatedBlock("p", 4096)
+    var large = repeatedBlock(block, 256)
+    var queuedAfterWrite = null
+    var queuedAfterCallback = null
+    var serverRead = 0
+
+    withTLSServer(PORT, CERT, KEY, fun(client)
+        client.readStart(fun(data, status)
+            if status < 0 or !data
+                closeIgnoringAlreadyClosing(client)
+                return
+            end
+            serverRead += #data
+            if serverRead >= #large
+                client.close()
+            end
+        end)
+    end)
+
+    var c = TLS()
+    c.connect("127.0.0.1", PORT, null, fun(status)
+        assert(status == 0)
+        c.write(large, fun(writeStatus)
+            assert(writeStatus == 0)
+            queuedAfterCallback = c.pendingWriteQueueSize()
+            c.close()
+        end)
+        queuedAfterWrite = c.pendingWriteQueueSize()
+    end)
+
+    uv.loop().run()
+    assert(queuedAfterWrite > 0, "large TLS write did not report queued plaintext")
+    assert(queuedAfterCallback == 0, "TLS pending write queue did not drain")
+    assert(serverRead == #large, "server did not read the full large write")
+end
+
+@test
 fun closeWhileWriteInFlightDrainsAndCloses()
     // Closing right after a large write (while its ciphertext is still draining
     // through libuv) must defer the close, finish the drain, then run the close

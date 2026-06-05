@@ -787,10 +787,19 @@ bool TLS_write(JStarVM* vm) {
         return false;
     }
 
+    const char* data = jsrGetString(vm, 1);
+    size_t len = jsrGetStringSz(vm, 1);
+
     int callbackId = -1;
     if(!jsrIsNull(vm, 2)) {
         callbackId = Handle_registerCallbackWithId(vm, 2, 0);
         if(callbackId == -1) return false;
+    }
+
+    if(len == 0) {
+        reqCallback((uv_handle_t*)tls, callbackId, true, -1, 0);
+        jsrPushNull(vm);
+        return true;
     }
 
     int dataRef = Handle_pushPending(vm, 1, 0);
@@ -798,9 +807,6 @@ bool TLS_write(JStarVM* vm) {
         if(!Handle_unregisterCallbackById(vm, callbackId, 0)) return false;
         return false;
     }
-
-    const char* data = jsrGetString(vm, 1);
-    size_t len = jsrGetStringSz(vm, 1);
 
     TLSWrite* write = malloc(sizeof(*write));
     JSR_ASSERT(write, "Out of memory");
@@ -831,6 +837,19 @@ bool TLS_tlsError(JStarVM* vm) {
     mbedtls_strerror(tls->lastTlsErr, buf, sizeof(buf));
     tls->lastTlsErr = 0;
     jsrPushString(vm, buf);
+    return true;
+}
+
+bool TLS_pendingWriteQueueSize(JStarVM* vm) {
+    uv_tls_t* tls = (uv_tls_t*)Handle_getHandle(vm, 0);
+    if(!tls) return false;
+
+    size_t pending = 0;
+    for(TLSWrite* write = tls->writeHead; write; write = write->next) {
+        pending += write->len - write->consumed;
+    }
+
+    jsrPushNumber(vm, pending);
     return true;
 }
 

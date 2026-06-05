@@ -70,6 +70,8 @@ class TLS is Stream
     native readStop()
     /// Send close_notify and half-close; callback(status) runs on completion.
     native shutdown(callback=null)
+    /// Return plaintext bytes queued inside TLS but not yet encrypted.
+    native pendingWriteQueueSize()
     /// Close the TLS handle, sending close_notify best-effort when connected.
     native close(callback=null)
     /// Return last TLS error, if any
