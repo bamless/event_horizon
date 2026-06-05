@@ -10,8 +10,8 @@
 #include "stream.h"
 #include "stream_buffer.h"
 #include "tcp.h"
-#include "tls.h"
 #include "timer.h"
+#include "tls.h"
 #include "udp.h"
 
 // clang-format off
@@ -99,21 +99,22 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Pipe, peerName, Pipe_peerName)
     JSR_REGFUNC(uvPipe, uvPipe)
 
-    JSR_REGMETH(TLS, bind,                  TLS_bind)
-    JSR_REGMETH(TLS, connect,               TLS_connect)
-    JSR_REGMETH(TLS, close,                 TLS_close)
-    JSR_REGMETH(TLS, tlsError,              TLS_tlsError)
-    JSR_REGMETH(TLS, sockName,              TLS_sockName)
-    JSR_REGMETH(TLS, peerName,              TLS_peerName)
-    JSR_REGMETH(TLS, write,                 TLS_write)
-    JSR_REGMETH(TLS, readStart,             TLS_readStart)
-    JSR_REGMETH(TLS, readStop,              TLS_readStop)
-    JSR_REGMETH(TLS, shutdown,              TLS_shutdown)
+    JSR_REGMETH(TLS, bind, TLS_bind)
+    JSR_REGMETH(TLS, connect, TLS_connect)
+    JSR_REGMETH(TLS, close, TLS_close)
+    JSR_REGMETH(TLS, tlsError, TLS_tlsError)
+    JSR_REGMETH(TLS, sockName, TLS_sockName)
+    JSR_REGMETH(TLS, peerName, TLS_peerName)
+    JSR_REGMETH(TLS, write, TLS_write)
+    JSR_REGMETH(TLS, readStart, TLS_readStart)
+    JSR_REGMETH(TLS, readStop, TLS_readStop)
+    JSR_REGMETH(TLS, shutdown, TLS_shutdown)
     JSR_REGMETH(TLS, _startServerHandshake, TLS_startServerHandshake)
-    JSR_REGFUNC(uvTLS,                      uvTLS)
+    JSR_REGFUNC(uvTLS, uvTLS)
 
     JSR_REGEND
 };
+// clang-format on
 
 JSTAR_API JStarNativeReg* jsrOpenModule(void) {
     return registry;

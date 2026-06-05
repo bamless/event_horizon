@@ -8,6 +8,7 @@ JSC_FILES = $(patsubst $(JSR_SRC_DIR)%.jsr, $(JSR_BUILD_DIR)%.jsc, $(JSR_FILES))
 all: $(JSC_FILES)
 	@[ -f ./build/CMakeCache.txt ] || (mkdir build; cd build; cmake ../; cd ../)
 	$(MAKE) -C build
+	@cp ./build/src/__package__.so $(JSR_BUILD_DIR)/uv/
 
 $(JSR_BUILD_DIR)%.jsc: $(JSR_SRC_DIR)%.jsr
 	@mkdir -p $(dir $@)
