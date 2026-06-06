@@ -1,11 +1,16 @@
 import event_horizon.async for Coroutine
 import event_horizon.errors for EventHorizonException, CancelledError
 
+var State = Enum{
+    .PENDING   : 0,
+    .DONE      : 1,
+    .CANCELLED : 2,
+}
+
 class Future
     construct(loop)
         this._loop = loop
-        this._done = false
-        this._cancelled = false
+        this._state = State.PENDING
         this._result = null
         this._exception = null
         this._callbacks = []
@@ -14,12 +19,12 @@ class Future
 
     /// Return true when this Future has a result, exception, or cancellation.
     fun isDone()
-        return this._done
+        return this._state != State.PENDING
     end
 
     /// Return true when this Future completed by cancellation.
     fun isCancelled()
-        return this._cancelled
+        return this._state == State.CANCELLED
     end
 
     /// Return the EventLoop that owns this Future.
@@ -31,10 +36,10 @@ class Future
     ///
     /// Raises EventHorizonException if the Future has already completed.
     fun setResult(value=null)
-        if this._done
+        if this._state != State.PENDING
             raise EventHorizonException("Future already done")
         end
-        this._done = true
+        this._state = State.DONE
         this._result = value
         this._scheduleCallbacks()
     end
@@ -44,10 +49,10 @@ class Future
     /// Calling result() on this Future will raise error. Raises
     /// EventHorizonException if the Future has already completed.
     fun setException(error)
-        if this._done
+        if this._state != State.PENDING
             raise EventHorizonException("Future already done")
         end
-        this._done = true
+        this._state = State.DONE
         this._exception = error
         this._scheduleCallbacks()
     end
@@ -58,11 +63,11 @@ class Future
     /// was already complete. Calling result() after cancellation raises
     /// CancelledError.
     fun cancel()
-        if this._done
+        if this._state != State.PENDING
             return false
         end
 
-        this._done = this._cancelled = true
+        this._state = State.CANCELLED
         this._exception = CancelledError()
         this._scheduleCallbacks()
 
@@ -78,7 +83,7 @@ class Future
     /// Raises EventHorizonException if the Future is still pending. Re-raises the
     /// stored exception if the Future failed or was cancelled.
     fun result()
-        if !this._done
+        if this._state == State.PENDING
             raise EventHorizonException("Future not done")
         end
 
@@ -94,7 +99,7 @@ class Future
     /// callback receives this Future and can inspect it with result(),
     /// isDone(), or isCancelled().
     fun addDoneCallback(callback)
-        if this._done
+        if this._state != State.PENDING
             var self = this
             this._loop.callSoon(fun()
                 callback(self)

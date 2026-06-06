@@ -8,11 +8,37 @@ class Task is Future
         this._coro = coro
         this._waitingOn = null
         this._cancelRequested = false
+        this._cancelling = false
 
         var self = this
         this._loop.callSoon(fun()
-            self._step(null, null)
+            self._start()
         end)
+    end
+
+    fun _start()
+        if this.isDone()
+            return
+        end
+
+        if this._cancelRequested
+            super.cancel()
+            return
+        end
+
+        try
+            var started = this._coro.start()
+            if !(started is Generator)
+                this.setResult(started)
+                return
+            end
+            this._coro = started
+        except Exception e
+            this.setException(e)
+            return
+        end
+
+        this._step()
     end
 
     fun _step(arg=null, exc=null)
@@ -20,29 +46,17 @@ class Task is Future
             return
         end
 
-        if this._cancelRequested and !exc
-            exc = CancelledError()
+        // Override any pending result from a cancelled _waitingOn future: once
+        // cancellation is requested we never deliver the result to the coroutine.
+        if this._cancelRequested
             this._cancelRequested = false
+            exc = CancelledError()
         end
 
-        if this._coro is Coroutine
-            if exc is CancelledError
-                super.cancel()
-                return
-            end
-
-            try
-                var started = this._coro.start()
-                if !(started is Generator)
-                    this.setResult(started)
-                    return
-                end
-
-                this._coro = started
-            except Exception e
-                this.setException(e)
-                return
-            end
+        // Record that we are entering the cancellation path before throwing so that
+        // a concurrent cancel() call does not interrupt the try/except blocks.
+        if exc is CancelledError
+            this._cancelling = true
         end
 
         var yielded
@@ -97,6 +111,10 @@ class Task is Future
             return false
         end
 
+        if this._cancelling
+            return true
+        end
+
         var self = this
         this._cancelRequested = true
 
@@ -109,5 +127,11 @@ class Task is Future
         end
 
         return true
+    end
+
+    /// Return true while CancelledError has been thrown into the coroutine but the
+    /// task has not yet completed (i.e. a try/except block is still executing).
+    fun isCancelling()
+        return this._cancelling
     end
 end

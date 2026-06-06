@@ -10,16 +10,6 @@ import event_horizon.uv.timer for Timer
 static var eventLoops = Registry()
 static var runningLoop = null
 
-/// Return the EventLoop associated with loopId.
-fun getEventLoop(loopId)
-    return eventLoops.get(loopId)
-end
-
-/// Return the loop currently executing callbacks, or null if none is running.
-fun getRunningEventLoop()
-    return runningLoop
-end
-
 static fun _enterRunningEventLoop(loop)
     var previous = runningLoop
     runningLoop = loop
@@ -30,7 +20,6 @@ static fun _leaveRunningEventLoop(previous)
     runningLoop = previous
 end
 
-// Internal libuv run mode values.
 static var _RunMode = Enum{
     .DEFAULT : 0,
     .ONCE    : 1,
@@ -51,8 +40,8 @@ class EventLoop
         this._readyQueue = []
         this._drainBuffer = []
         this._readyDrainer = null
-        this._readyDrainerActive = false
-        this._drainingReady = false
+        this._pendingTaskCount = 0
+        this._stopWhenDrained = false
         this._init()
     end
 
@@ -107,22 +96,18 @@ class EventLoop
         var active = true
 
         timer.start(ms, 0, fun()
-            if !active
-                return
+            if active
+                active = false
+                timer.close()
+                callback()
             end
-
-            active = false
-            timer.close()
-            callback()
         end)
 
         return fun()
-            if !active
-                return
+            if active
+                active = false
+                timer.close()
             end
-
-            active = false
-            timer.close()
         end
     end
 
@@ -135,15 +120,22 @@ class EventLoop
     ///
     /// Lazy Coroutine values are started on this loop.
     fun createTask(coro)
-        if coro is Coroutine
-            return Task(coro, this)
+        if !(coro is Coroutine)
+            raise EventHorizonException("createTask expects a coroutine")
         end
 
-        if coro is Generator
-            return Task(coro, this)
-        end
+        var task = Task(coro, this)
+        this._pendingTaskCount += 1
 
-        raise Exception("createTask expects a coroutine")
+        var self = this
+        task.addDoneCallback(fun(_)
+            self._pendingTaskCount -= 1
+            if self._stopWhenDrained and self._pendingTaskCount == 0
+                self.stop()
+            end
+        end)
+
+        return task
     end
 
     /// Return a Future that completes after ms milliseconds.
@@ -162,13 +154,20 @@ class EventLoop
 
     /// Run the loop until awaitable completes and return its result.
     ///
+    /// After the awaitable completes the loop waits for all other pending tasks
+    /// before stopping, so that try/except blocks triggered by cancellation (e.g.
+    /// from race/all) run to completion. Background tasks that were not
+    /// cancelled by the caller keep the loop alive until they finish.
+    ///
     /// Awaitables may be Futures, Tasks, or Coroutines.
     /// Exceptions stored on the completed awaitable are re-raised here.
     fun runUntilComplete(awaitable)
+        this._stopWhenDrained = false
         var fut = future.ensureFuture(awaitable, this)
+
         var self = this
         fut.addDoneCallback(fun(_)
-            self.stop()
+            self._drainAndStop()
         end)
 
         try
@@ -191,9 +190,20 @@ class EventLoop
         return fut.result()
     end
 
+    // Called when the main future is done. If all tasks have already finished,
+    // stop immediately; otherwise set the flag so the last task's done callback
+    // calls stop().
+    fun _drainAndStop()
+        if this._pendingTaskCount == 0
+            this.stop()
+        else
+            this._stopWhenDrained = true
+        end
+    end
+
     fun _runLoop(mode)
         if this.isClosed()
-            raise Exception("event loop is closed")
+            raise EventHorizonException("event loop is closed")
         end
 
         var previous = _enterRunningEventLoop(this)
@@ -214,35 +224,21 @@ class EventLoop
     end
 
     fun _armReadyDrainer()
-        if this._readyDrainerActive or this._drainingReady
+        if this._readyDrainer
             return
         end
 
-        if !this._readyDrainer
-            this._readyDrainer = Prepare(this)
-        end
-
-        this._readyDrainerActive = true
+        var drainer = Prepare(this)
+        this._readyDrainer = drainer
 
         var self = this
-        this._readyDrainer.start(fun()
-            self._readyDrainer.stop()
-            self._readyDrainerActive = false
-            self._drainingReady = true
+        drainer.start(fun()
+            drainer.stop()
 
             // Drain iteratively. Callbacks added by running callbacks are picked
             // up by the while-loop rather than scheduling a second prepare turn.
-            //
-            // We ping-pong between _readyQueue and _drainBuffer to avoid
-            // allocating a new list on each iteration: swap the two references,
-            // process the batch now in _drainBuffer, then clear it for reuse.
-            // Any callbacks enqueued during the drain land in the freshly
-            // emptied _readyQueue and are picked up by the next while iteration.
             while #self._readyQueue > 0
-                var tmp = self._drainBuffer
-                self._drainBuffer = self._readyQueue
-                self._readyQueue = tmp
-
+                self._drainBuffer, self._readyQueue = self._readyQueue, self._drainBuffer
                 for var callback in self._drainBuffer
                     try
                         callback()
@@ -253,8 +249,6 @@ class EventLoop
                 self._drainBuffer.clear()
             end
 
-            self._drainingReady = false
-            var drainer = self._readyDrainer
             self._readyDrainer = null
             drainer.close()
         end)
@@ -262,15 +256,27 @@ class EventLoop
 
     native _run(mode=0)    // Run libuv's loop with the given mode
     native _alive()        // Return whether the loop has active handles or requests.
-    native _walk(callback) // Visit active handles with callback(handle). 
+    native _walk(callback) // Visit active handles with callback(handle).
     native _init()
 end
 
+/// Return the EventLoop associated with loopId.
+fun getEventLoop(loopId)
+    return eventLoops.get(loopId)
+end
+
+/// Return the loop currently executing callbacks, or null if none is running.
+fun getRunningEventLoop()
+    return runningLoop
+end
+
+
 // -----------------------------------------------------------------------------
-// Private implementation
-// -----------------------------------------------------------------------------
+//  Private - exception managment
 
 // Exceptions raised during event loop execution.
+// We need a place to store them beacuse J* exceptions
+// cannot surface across libuv's c callbacks.
 static var exceptions = []
 
 // Adds an exception to the list of exceptions raised during event loop
