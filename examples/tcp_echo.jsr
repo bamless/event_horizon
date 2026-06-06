@@ -27,8 +27,7 @@ static var DEFAULT_PORT = 8080
 // Server
 // ----------------------------------------------------------------------------
 
-@async
-fun handleClient(client)
+@async fun handleClient(client)
     var peer = client.peerName()
     print("Client connected: {0}:{1}" % peer)
     try
@@ -43,8 +42,7 @@ fun handleClient(client)
     end
 end
 
-@async
-fun runServer(host, port)
+@async fun runServer(host, port)
     var server = TCPStream()
     try
         server.bind(host, port)
@@ -59,8 +57,7 @@ end
 // Stress
 // ----------------------------------------------------------------------------
 
-@async
-fun stressServer(host, port)
+@async fun stressServer(host, port)
     var client = TCPStream()
     try
         yield client.connect(host, port)
@@ -85,8 +82,7 @@ end
 // Client
 // ----------------------------------------------------------------------------
 
-@async
-fun runClient(host, port)
+@async fun runClient(host, port)
     var client = TCPStream()
     try
         yield client.connect(host, port)
@@ -112,8 +108,7 @@ end
 // Entry point
 // ----------------------------------------------------------------------------
 
-@async
-fun main()
+@async fun main()
     if #argv < 1
         io.stderr.writeln("Usage: tcp_echo.jsr <server|client|stress> [host] [port]")
         sys.exit(1)

@@ -3,23 +3,21 @@
 import event_horizon as evh
 import event_horizon.async for async
 
-@async
-fun printDelayed(val, ms)
+@async fun printDelayed(val, ms)
     yield evh.sleep(ms)
     print(val)
 end
 
-@async
-fun main()
+@async fun main()
     print("main called")
 
     yield printDelayed("Hello, World", 1000)
     print("After first `printDelayed`")
     
-    var p = printDelayed("Hello, Again!", 1000)
+    var task = evh.createTask(printDelayed("Hello, Again!", 1000))
     print("After second `printDelayed`")
 
-    yield p
+    yield task
 end
 
 evh.run(main())

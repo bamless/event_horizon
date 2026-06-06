@@ -47,8 +47,7 @@ end
 // `path`        - request path, e.g. "/" or "/index.html"
 // `ca`          - CA bundle path, or null to skip certificate verification
 // `printHeader` - if true, prints the response status line + headers to stdout
-@async
-fun get(host, path, ca, printHeader)
+@async fun get(host, path, ca, printHeader)
     var opts = {}
     if ca
         opts["ca"] = ca
@@ -77,8 +76,7 @@ fun get(host, path, ca, printHeader)
     end
 end
 
-@async
-fun main()
+@async fun main()
     if #argv < 2
         io.stderr.writeln("Usage: https-get.jsr <url> <output-file> [ca-bundle|none]")
         io.stderr.writeln("  e.g. https-get.jsr https://example.com/ /tmp/out.html")

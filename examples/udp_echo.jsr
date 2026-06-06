@@ -27,8 +27,7 @@ static var DEFAULT_PORT = 8080
 // Server
 // ----------------------------------------------------------------------------
 
-@async
-fun runServer(host, port)
+@async fun runServer(host, port)
     var sock = UDPSocket()
     try
         sock.bind(host, port)
@@ -48,8 +47,7 @@ end
 // Stress
 // ----------------------------------------------------------------------------
 
-@async
-fun stressServer(host, port)
+@async fun stressServer(host, port)
     var sock = UDPSocket()
     try
         sock.connect(host, port)
@@ -71,8 +69,7 @@ end
 // Client
 // ----------------------------------------------------------------------------
 
-@async
-fun runClient(host, port)
+@async fun runClient(host, port)
     var sock = UDPSocket()
     try
         sock.connect(host, port)
@@ -93,8 +90,7 @@ end
 // Entry point
 // ----------------------------------------------------------------------------
 
-@async
-fun main()
+@async fun main()
     if #argv < 1
         io.stderr.writeln("Usage: udp_echo.jsr <server|client|stress> [host] [port]")
         sys.exit(1)

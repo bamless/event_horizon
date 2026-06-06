@@ -24,8 +24,7 @@ import event_horizon.tcp for TCPStream
 // `host`        - hostname (used for the Host header)
 // `path`        - request path, e.g. "/" or "/index.html"
 // `printHeader` - if true, prints the response status line + headers to stdout
-@async
-fun get(host, path, printHeader)
+@async fun get(host, path, printHeader)
     var s = TCPStream()
     try
         yield s.connect(host, 80)
@@ -49,8 +48,7 @@ fun get(host, path, printHeader)
     end
 end
 
-@async
-fun main()
+@async fun main()
     if #argv < 2
         io.stderr.writeln("Usage: http-get.jsr <url> <output-file>")
         io.stderr.writeln("  e.g. http-get.jsr http://example.com/ /tmp/out.html")
