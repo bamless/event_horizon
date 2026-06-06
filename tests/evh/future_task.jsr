@@ -181,6 +181,44 @@ fun taskCancellationIsThrownIntoCoroutine()
 end
 
 @test
+fun multipleCancellations()
+    var firstCancelled = false
+    var secondCancelled = false
+    var loop = getEventLoop()
+    var task = null
+
+    @async
+    fun work()
+        try
+            yield sleep(1000)
+        except CancelledError _
+            firstCancelled = true
+
+            loop.callSoon(fun()
+                task.cancel()
+            end)
+
+            try
+                yield sleep(1000)
+            except CancelledError _
+                secondCancelled = true
+            end
+        end
+
+        return "handled"
+    end
+
+    task = loop.createTask(work())
+    loop.callSoon(fun()
+        task.cancel()
+    end)
+
+    assert(evh.run(task) == "handled")
+    assert(firstCancelled)
+    assert(secondCancelled)
+end
+
+@test
 fun highLevelHandleCloseReturnsFuture()
     var idle = IdleHandle()
     var closed = false

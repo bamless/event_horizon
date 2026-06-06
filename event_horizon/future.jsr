@@ -62,13 +62,13 @@ class Future
     /// Returns true when this call cancelled the Future, or false when the Future
     /// was already complete. Calling result() after cancellation raises
     /// CancelledError.
-    fun cancel()
+    fun cancel(exc=null)
         if this._state != State.PENDING
             return false
         end
 
         this._state = State.CANCELLED
-        this._exception = CancelledError()
+        this._exception = exc or CancelledError()
         this._scheduleCallbacks()
 
         if this._cancelCallback

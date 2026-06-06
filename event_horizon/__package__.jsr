@@ -4,7 +4,7 @@ import event_horizon.async for async
 import event_horizon.errors for CancelledError, EventHorizonException
 import event_horizon.future as future
 
-var VERSION = (0, 1, 1)
+var VERSION = (0, 1, 2)
 
 /// Return the running event loop, or the default loop if none is running.
 fun getEventLoop()
@@ -100,6 +100,12 @@ fun all(...awaitables)
 
             try
                 results[idx] = done.result()
+            except CancelledError e
+                cancelPending(done)
+                fut.setException(
+                    CancelledError("{0} was cancelled during event_horizon.all()" % child, e)
+                )
+                return
             except Exception e
                 cancelPending(done)
                 fut.setException(e)
@@ -117,7 +123,7 @@ end
 
 /// Return a Future that completes with the first awaitable to finish.
 ///
-/// The first returned value, raised exception, or cancellation is propagated.
+/// The first returned value or raised exception is propagated.
 /// All unfinished siblings are cancelled.
 fun race(...awaitables)
     var loop = getEventLoop()
@@ -141,6 +147,7 @@ fun race(...awaitables)
         return fut
     end
 
+    var numActive = #awaitables
     for var awaitable in awaitables
         var child
 
@@ -160,13 +167,22 @@ fun race(...awaitables)
                 return
             end
 
-            cancelPending(done)
-
             try
                 fut.setResult(done.result())
+            except CancelledError e
+                // A cancelled child withdraws from the race. If every child
+                // withdraws, there is no possible winner left to report.
+                if (numActive -= 1) == 0
+                    fut.setException(
+                        CancelledError("all awaitables were cancelled during event_horizon.race()", e)
+                    )
+                end
+                return
             except Exception e
                 fut.setException(e)
             end
+
+            cancelPending(done)
         end)
     end
 

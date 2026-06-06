@@ -53,8 +53,6 @@ class Task is Future
             exc = CancelledError()
         end
 
-        // Record that we are entering the cancellation path before throwing so that
-        // a concurrent cancel() call does not interrupt the try/except blocks.
         if exc is CancelledError
             this._cancelling = true
         end
@@ -64,7 +62,7 @@ class Task is Future
         try
             yielded = this._coro(arg) if !exc else this._coro.throw(exc)
         except CancelledError e
-            super.cancel()
+            super.cancel(e)
             return
         except Exception e
             this.setException(e)
@@ -111,10 +109,6 @@ class Task is Future
             return false
         end
 
-        if this._cancelling
-            return true
-        end
-
         var self = this
         this._cancelRequested = true
 
@@ -129,9 +123,13 @@ class Task is Future
         return true
     end
 
-    /// Return true while CancelledError has been thrown into the coroutine but the
-    /// task has not yet completed (i.e. a try/except block is still executing).
+    /// Return true after cancellation has been thrown into the coroutine and
+    /// before the task has completed.
     fun isCancelling()
         return this._cancelling
+    end
+
+    fun __string__()
+        return "<Task '{0}'>" % (this._coro)
     end
 end
