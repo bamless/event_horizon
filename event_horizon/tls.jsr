@@ -1,7 +1,7 @@
+import event_horizon for getEventLoop
 import event_horizon.async for async
 import event_horizon.dns for getAddrInfo
 import event_horizon.errors for StatusException, TLSException
-import event_horizon.promise for Promise
 import event_horizon.stream for Stream
 import event_horizon.utils.ip for getIPType, IPType
 import event_horizon.uv.consts for SockType
@@ -11,7 +11,7 @@ import event_horizon.uv.tls as uv_tls
 /// High-level TLS stream over TCP.
 ///
 /// TLSException is used for mbedTLS protocol failures when the native layer
-/// exposes a detailed TLS error. Other network failures reject or raise
+/// exposes a detailed TLS error. Other network failures raise
 /// StatusException.
 class TLSStream is Stream
     /// options keys:
@@ -21,21 +21,21 @@ class TLSStream is Stream
     ///   "serverName" - SNI hostname override for client connections
     construct(options=null, highWaterMark=null, loop=null, _tls=null)
         var opts = options or {}
+        loop = loop or getEventLoop()
         super(_tls or uv_tls.TLS(opts, loop), highWaterMark)
         this._options = opts
     end
 
     /// Async: resolve addr if needed, connect TCP, then complete TLS handshake.
-    ///
-    /// Rejects with StatusException for DNS/connect failures and TLSException
+///
+    /// Raises StatusException for DNS/connect failures and TLSException
     /// for TLS handshake/protocol failures when mbedTLS supplies details.
-    @async
-    fun connect(addr, port)
+    @async fun connect(addr, port)
         var hostname = addr
 
         // Resolve hostnames that are not already IP addresses
         if getIPType(addr) == IPType.ERROR
-            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_STREAM)
+            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_STREAM, 0, this._handle.loop())
             addr = result[0][0]
         end
 
@@ -44,15 +44,21 @@ class TLSStream is Stream
         var serverName = this._options["serverName"] if this._options.contains("serverName") else hostname
 
         var self = this
-        return Promise(fun(resolve, reject)
-            self._handle.connect(addr, port, serverName, fun(status)
-                if status < 0
-                    reject(self._makeError(status))
-                else
-                    resolve()
-                end
-            end)
-        end, this._handle.loop())
+        var fut = this._handle.loop().createFuture()
+
+        this._handle.connect(addr, port, serverName, fun(status)
+            if fut.isDone()
+                return
+            end
+
+            if status < 0
+                fut.setException(self._makeError(status))
+            else
+                fut.setResult()
+            end
+        end)
+
+        return yield fut
     end
 
     /// Bind the underlying TCP stream for use as a TLS server.

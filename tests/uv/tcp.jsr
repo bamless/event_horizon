@@ -31,7 +31,7 @@ fun connect()
     assert(#tcp._callbacks == 1)
 
     assert(!connected, '`connect` callback called before next loop tick')
-    uv.loop().run()
+    uv.loop().runForever()
     assert(connected, '`connect` not called')
 end
 
@@ -48,7 +48,7 @@ fun connectFail()
     end)
 
     assert(!called, '`connect` callback called before next loop tick')
-    uv.loop().run()
+    uv.loop().runForever()
     assert(called, '`connect` not called')
 end
 
@@ -64,13 +64,13 @@ fun connectThrows()
 
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
     end
 
-    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().runForever()` Did not propagate the exception")
 end
 
 @test
@@ -89,7 +89,7 @@ fun connectMultipleThrows()
     
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         var exceptions = e.exceptions()
@@ -98,7 +98,7 @@ fun connectMultipleThrows()
         assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
     end
 
-    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().runForever()` Did not propagate the exception")
 end
 
 @test
@@ -106,7 +106,7 @@ fun bind()
     var s = TCP()
     s.bind('0.0.0.0', 8080)
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -146,7 +146,7 @@ fun accept()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -158,7 +158,7 @@ fun sockName()
     assert(addr == "0.0.0.0" and port == 8080)
 
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -176,7 +176,7 @@ fun sockNameFail()
     assert(didThrow, "sockName did not throw")
 
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -197,7 +197,7 @@ fun peerName()
         s.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -215,7 +215,7 @@ fun peerNameFail()
     assert(didThrow, "peerName did not throw")
 
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 if __name__ == '__main__'

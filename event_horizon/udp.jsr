@@ -1,8 +1,8 @@
+import event_horizon for getEventLoop
 import event_horizon.async for async
 import event_horizon.dns for getAddrInfo
 import event_horizon.errors for StatusException
 import event_horizon.handle for Handle
-import event_horizon.promise for Promise, asResolved
 import event_horizon.utils.ip for getIPType, IPType
 import event_horizon.uv.consts for SockType
 import event_horizon.uv.udp as uv_udp
@@ -10,12 +10,13 @@ import event_horizon.uv.udp for Flags, Membership
 
 /// High-level UDP socket.
 ///
-/// Async methods return Promise values and should be yielded. UDP send/receive
-/// failures reject with StatusException. Native configuration methods raise
-/// StatusException when libuv rejects them.
+/// Async methods return Future values and should be yielded. UDP send/receive
+/// failures complete with StatusException. Native configuration methods raise
+/// StatusException when libuv fails them.
 class UDPSocket is Handle
-    /// Construct a UDP socket on loop, or the global loop when omitted.
+    /// Construct a UDP socket on loop, or the active/default loop when omitted.
     construct(loop=null)
+        loop = loop or getEventLoop()
         super(uv_udp.UDP(loop))
     end
 
@@ -31,12 +32,11 @@ class UDPSocket is Handle
 
     /// Async: send one datagram.
     ///
-    /// Hostname destinations are resolved before sending. Rejects with
+    /// Hostname destinations are resolved before sending. Raises
     /// StatusException if resolution or sending fails.
-    @async
-    fun send(data, addr=null, port=null)
+    @async fun send(data, addr=null, port=null)
         if addr and getIPType(addr) == IPType.ERROR
-            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_DGRAM)
+            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_DGRAM, 0, this._handle.loop())
             addr = result[0][0]
         end
 
@@ -47,16 +47,20 @@ class UDPSocket is Handle
         end
 
         // Kernel buffer full, fall back to the async send.
-        var self = this
-        return Promise(fun(resolve, reject)
-            self._handle.send(data, addr, port, fun(status)
-                if status < 0
-                    reject(StatusException(status))
-                else
-                    resolve()
-                end
-            end)
-        end, this._handle.loop())
+        var fut = this._handle.loop().createFuture()
+        this._handle.send(data, addr, port, fun(status)
+            if fut.isDone()
+                return
+            end
+
+            if status < 0
+                fut.setException(StatusException(status))
+            else
+                fut.setResult()
+            end
+        end)
+
+        return yield fut
     end
 
     /// Try to send one datagram synchronously and return bytes sent or 0.
@@ -66,21 +70,32 @@ class UDPSocket is Handle
         return this._handle.trySend(data, addr, port)
     end
 
-    /// Async: receive one datagram and resolve with (data, addr, port).
+    /// Async: receive one datagram and complete with (data, addr, port).
     ///
-    /// Rejects with StatusException for receive errors.
+    /// Fails with StatusException for receive errors.
     fun recv()
         var self = this
-        return Promise(fun(resolve, reject)
-            self._handle.recvStart(fun(data, addr, port, status)
-                self._handle.recvStop()
-                if status < 0
-                    reject(StatusException(status))
-                else
-                    resolve((data, addr, port))
-                end
-            end)
-        end, this._handle.loop())
+        var fut = this._handle.loop().createFuture()
+
+        fut.setCancelCallback(fun()
+            self._handle.recvStop()
+        end)
+
+        self._handle.recvStart(fun(data, addr, port, status)
+            self._handle.recvStop()
+
+            if fut.isDone()
+                return
+            end
+
+            if status < 0
+                fut.setException(StatusException(status))
+            else
+                fut.setResult((data, addr, port))
+            end
+        end)
+
+        return fut
     end
 
     /// Return (address, port) for the local socket, or raise StatusException.

@@ -13,17 +13,43 @@ static JStarSymbol* sym_ref;
 static JStarSymbol* sym_get;
 static JStarSymbol* sym_unref;
 
+static JStarSymbol* sym_g_addException;
+static JStarSymbol* sym_g_clearExceptions;
+static JStarSymbol* sym_g_getExceptions;
+
 // class EventLoop
 #define G_ADD_EXCEPTION    "_addException"
 #define G_CLEAR_EXCEPTIONS "_clearExceptions"
 #define G_GET_EXCEPTIONS   "_getExceptions"
+
+static uv_loop_t* getUVLoopUserdata(JStarVM* vm, int eventLoopSlot) {
+    if(!jsrGetFieldCached(vm, eventLoopSlot, M_LOOP_LOOP, sym_loop)) return NULL;
+    if(!jsrCheckUserdata(vm, -1, "EventLoop." M_LOOP_LOOP)) return NULL;
+    uv_loop_t* loop = jsrGetUserdata(vm, -1);
+    jsrPop(vm);
+    return loop;
+}
+
+static bool setLoopClosed(JStarVM* vm, int eventLoopSlot, bool closed) {
+    jsrPushBoolean(vm, closed);
+    if(!jsrSetField(vm, eventLoopSlot, M_LOOP_CLOSED)) {
+        jsrPop(vm);
+        return false;
+    }
+    jsrPop(vm);
+    return true;
+}
 
 bool EventLoop_run(JStarVM* vm) {
     JSR_CHECK(Int, 1, "mode");
     int mode = jsrGetNumber(vm, 1);
 
     // Clear the list of exceptions
-    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_CLEAR_EXCEPTIONS)) return false;
+    if(!jsrGetGlobalCached(vm, "event_horizon.uv.event_loop", G_CLEAR_EXCEPTIONS,
+                           sym_g_clearExceptions)) {
+        return false;
+    }
+
     if(!jsrCall(vm, 0)) return false;
 
     uv_loop_t* loop = EventLoop_getUVLoop(vm, 0);
@@ -36,7 +62,11 @@ bool EventLoop_run(JStarVM* vm) {
     }
 
     // Check for any exceptions raised during `uv_run_loop` callbacks and throw them
-    if(!jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_GET_EXCEPTIONS)) return false;
+    if(!jsrGetGlobalCached(vm, "event_horizon.uv.event_loop", G_GET_EXCEPTIONS,
+                           sym_g_getExceptions)) {
+        return false;
+    }
+
     if(!jsrCall(vm, 0)) return false;
     if(jsrListGetLength(vm, -1) != 0) {
         LoopExecutionException_raise(vm, -1);
@@ -52,6 +82,29 @@ bool EventLoop_stop(JStarVM* vm) {
     uv_loop_t* loop = EventLoop_getUVLoop(vm, 0);
     if(!loop) return false;
     uv_stop(loop);
+    jsrPushNull(vm);
+    return true;
+}
+
+bool EventLoop_close(JStarVM* vm) {
+    uv_loop_t* loop = getUVLoopUserdata(vm, 0);
+    if(!loop) return false;
+
+    LoopMetadata* metadata = loop->data;
+    if(metadata->closed) {
+        jsrPushNull(vm);
+        return true;
+    }
+
+    int res = uv_loop_close(loop);
+    if(res < 0) {
+        StatusException_raise(vm, res);
+        return false;
+    }
+
+    metadata->closed = true;
+    if(!setLoopClosed(vm, 0, true)) return false;
+
     jsrPushNull(vm);
     return true;
 }
@@ -86,10 +139,19 @@ bool EventLoop_walk(JStarVM* vm) {
 static void closeLibuvLoop(void* data) {
     uv_loop_t* loop = data;
     LoopMetadata* metadata = loop->data;
-    // TODO: should we close this automatically?
-    int res = uv_loop_close(loop);
-    if(res == UV_EBUSY) {
-        fprintf(stderr, "Pending handles during call to `uv_loop_close`.\n");
+    if(!metadata->closed) {
+        // If handles are still open their uv_handle_t memory may already have
+        // been freed by the GC (handle userdatas are collected before the loop
+        // userdata because they are allocated later). uv_loop_close walks the
+        // handle queue and dereferences each handle's flags field, so calling
+        // it here would be a use-after-free. Skip the close and accept the
+        // resource leak instead.
+        if(metadata->openHandles > 0) {
+            fprintf(stderr, "warning: event loop GC'd with %d open handle(s).\n",
+                    metadata->openHandles);
+        } else {
+            uv_loop_close(loop);
+        }
     }
     free(metadata);
 }
@@ -102,6 +164,10 @@ bool EventLoop_init(JStarVM* vm) {
         sym_ref = jsrNewSymbol(vm);
         sym_get = jsrNewSymbol(vm);
         sym_unref = jsrNewSymbol(vm);
+
+        sym_g_addException = jsrNewSymbol(vm);
+        sym_g_clearExceptions = jsrNewSymbol(vm);
+        sym_g_getExceptions = jsrNewSymbol(vm);
     }
 
     // Instantiate the libuv loop
@@ -116,6 +182,8 @@ bool EventLoop_init(JStarVM* vm) {
     JSR_ASSERT(metadata, "Out of memory");
     metadata->vm = vm;
     metadata->loopId = loopId;
+    metadata->closed = false;
+    metadata->openHandles = 0;
     uv_loop_set_data(loop, metadata);
 
     // this._loop = loop
@@ -127,10 +195,15 @@ bool EventLoop_init(JStarVM* vm) {
 }
 
 uv_loop_t* EventLoop_getUVLoop(JStarVM* vm, int eventLoopSlot) {
-    if(!jsrGetFieldCached(vm, eventLoopSlot, M_LOOP_LOOP, sym_loop)) return NULL;
-    if(!jsrCheckUserdata(vm, -1, "EventLoop." M_LOOP_LOOP)) return NULL;
-    uv_loop_t* loop = jsrGetUserdata(vm, -1);
-    jsrPop(vm);
+    uv_loop_t* loop = getUVLoopUserdata(vm, eventLoopSlot);
+    if(!loop) return NULL;
+
+    LoopMetadata* metadata = loop->data;
+    if(metadata->closed) {
+        EventHorizonException_raise(vm, "Event loop is closed");
+        return NULL;
+    }
+
     return loop;
 }
 
@@ -176,7 +249,7 @@ void EventLoop_addException(JStarVM* vm, int exceptionSlot) {
     // Normalise a negative (top-relative) slot to an absolute index before
     // any pushes shift the stack top.
     if(exceptionSlot < 0) exceptionSlot = jsrTop(vm) + exceptionSlot + 1;
-    jsrGetGlobal(vm, "event_horizon.uv.event_loop", G_ADD_EXCEPTION);
+    jsrGetGlobalCached(vm, "event_horizon.uv.event_loop", G_ADD_EXCEPTION, sym_g_addException);
     jsrPushValue(vm, exceptionSlot);
     jsrCall(vm, 1);
     jsrPop(vm);

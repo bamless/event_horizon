@@ -20,7 +20,7 @@ fun idle()
 
     assert(called == 0)
 
-    uv.loop().run()
+    uv.loop().runForever()
     
     assert(called == 1)
 
@@ -30,12 +30,12 @@ fun idle()
         called += 1
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     
     assert(called == 2)
 
     idle1.close()
     idle2.close()
 
-    uv.loop().run()
+    uv.loop().runForever()
 end

@@ -7,6 +7,7 @@
 #include "handle.h"
 #include "idle.h"
 #include "pipe.h"
+#include "prepare.h"
 #include "stream.h"
 #include "stream_buffer.h"
 #include "tcp.h"
@@ -21,10 +22,11 @@ static JStarNativeReg registry[] = {
     JSR_REGFUNC(strerror, errors_strerror)
     JSR_REGFUNC(errorsInit, errors_init)
 
-    JSR_REGMETH(EventLoop, run, EventLoop_run)
+    JSR_REGMETH(EventLoop, _run, EventLoop_run)
     JSR_REGMETH(EventLoop, stop, EventLoop_stop)
-    JSR_REGMETH(EventLoop, alive, EventLoop_alive)
-    JSR_REGMETH(EventLoop, walk, EventLoop_walk)
+    JSR_REGMETH(EventLoop, close, EventLoop_close)
+    JSR_REGMETH(EventLoop, _alive, EventLoop_alive)
+    JSR_REGMETH(EventLoop, _walk, EventLoop_walk)
     JSR_REGMETH(EventLoop, _init, EventLoop_init)
 
     JSR_REGMETH(Handle, close, Handle_close)
@@ -83,6 +85,10 @@ static JStarNativeReg registry[] = {
     JSR_REGMETH(Idle, start, Idle_start)
     JSR_REGMETH(Idle, stop, Idle_stop)
     JSR_REGFUNC(uvIdle, uvIdle)
+
+    JSR_REGMETH(Prepare, start, Prepare_start)
+    JSR_REGMETH(Prepare, stop, Prepare_stop)
+    JSR_REGFUNC(uvPrepare, uvPrepare)
 
     JSR_REGMETH(Timer, start, Timer_start)
     JSR_REGMETH(Timer, stop, Timer_stop)

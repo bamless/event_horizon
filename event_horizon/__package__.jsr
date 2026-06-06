@@ -1,17 +1,270 @@
 import event_horizon.uv as uv
 import event_horizon.uv.event_loop as event_loop
+import event_horizon.async for async
+import event_horizon.errors for CancelledError, EventHorizonException
+import event_horizon.future as future
 
-var VERSION = (0, 0, 1)
+var VERSION = (0, 1, 0)
+
+/// Return the running event loop, or the default loop if none is running.
+fun getEventLoop()
+    return getRunningEventLoop() or getDefaultEventLoop()
+end
+
+/// Return the default event loop.
+fun getDefaultEventLoop()
+    return uv.loop()
+end
+
+/// Return the event loop currently executing callbacks or Tasks.
+fun getRunningEventLoop()
+    return event_loop.getRunningEventLoop()
+end
 
 /// Run the event loop.
 ///
-/// If `promise` is not null, exceptions raised during execution are
-/// surfaced by the event loop as `LoopExecutionException`. Otherwise,
-/// you should install a `catch` handler on your root promise or else
-/// risk swallowing errors.
-fun run(promise=null, loop=null)
-    if promise
-        promise.catch(|e| => event_loop._addException(e))
+/// Run the 'awaitable' until it completes and return its result.
+/// The awaitable may be a Future, Task, or Coroutine.
+fun run(awaitable, loop=null)
+    loop = loop or getEventLoop()
+    return loop.runUntilComplete(awaitable)
+end
+
+/// Schedule coro on the active event loop and return a Task.
+fun createTask(coro)
+    var loop = getRunningEventLoop()
+    if !loop
+        raise EventHorizonException("no running event loop")
     end
-    return (loop or uv.loop()).run()
+    return loop.createTask(coro)
+end
+
+/// Wrap an awaitable in a Future owned by loop.
+///
+/// When loop is omitted, the current running loop is used, falling back to the
+/// default loop outside a running event loop.
+fun ensureFuture(value, loop=null)
+    loop = loop or getEventLoop()
+    return future.ensureFuture(value, loop)
+end
+
+/// Return a Future that completes when every awaitable succeeds.
+///
+/// The result is ordered to match the input awaitables. If one awaitable raises
+/// or is cancelled, all unfinished siblings are cancelled and that error is
+/// raised from the returned Future.
+fun all(...awaitables)
+    var loop = getEventLoop()
+    var awaitableCount = #awaitables
+    var results = List(awaitableCount)
+    var fut = loop.createFuture()
+    var children = []
+
+    fun cancelPending(skip=null)
+        for var child in children
+            if child != skip and !child.isDone()
+                child.cancel()
+            end
+        end
+    end
+
+    fut.setCancelCallback(fun()
+        cancelPending()
+    end)
+
+    if awaitableCount == 0
+        fut.setResult(results)
+        return fut
+    end
+
+    var numResolved = 0
+    for var i = 0; i < awaitableCount; i += 1
+        var idx = i
+        var child
+
+        try
+            child = future.ensureFuture(awaitables[i], loop)
+        except Exception e
+            if !fut.isDone()
+                cancelPending()
+                fut.setException(e)
+            end
+            return fut
+        end
+
+        children.add(child)
+        child.addDoneCallback(fun(done)
+            if fut.isDone()
+                return
+            end
+
+            try
+                results[idx] = done.result()
+            except Exception e
+                cancelPending(done)
+                fut.setException(e)
+                return
+            end
+
+            if (numResolved += 1) == awaitableCount
+                fut.setResult(results)
+            end
+        end)
+    end
+
+    return fut
+end
+
+/// Return a Future that completes with the first awaitable to finish.
+///
+/// The first returned value, raised exception, or cancellation is propagated.
+/// All unfinished siblings are cancelled.
+fun race(...awaitables)
+    var loop = getEventLoop()
+    var fut = loop.createFuture()
+    var children = []
+
+    fun cancelPending(skip=null)
+        for var child in children
+            if child != skip and !child.isDone()
+                child.cancel()
+            end
+        end
+    end
+
+    fut.setCancelCallback(fun()
+        cancelPending()
+    end)
+
+    if #awaitables == 0
+        fut.setException(EventHorizonException("race requires at least one awaitable"))
+        return fut
+    end
+
+    for var awaitable in awaitables
+        var child
+
+        try
+            child = future.ensureFuture(awaitable, loop)
+        except Exception e
+            if !fut.isDone()
+                cancelPending()
+                fut.setException(e)
+            end
+            return fut
+        end
+
+        children.add(child)
+        child.addDoneCallback(fun(done)
+            if fut.isDone()
+                return
+            end
+
+            cancelPending(done)
+
+            try
+                fut.setResult(done.result())
+            except Exception e
+                fut.setException(e)
+            end
+        end)
+    end
+
+    return fut
+end
+
+var WaitOutcomeState = Enum{
+    .COMPLETED : 0,
+    .FAILED    : 1,
+    .CANCELLED : 2
+}
+
+/// Outcome record returned by waitAll().
+class WaitOutcome
+    construct(state, value=null)
+        this.state = state
+        this.value = value
+    end
+
+    fun __string__()
+        return "<WaitOutcome .state={0} .value={1}>" % (WaitOutcomeState.name(this.state), this.value)
+    end
+end
+
+/// Return a Future that waits until every awaitable has finished.
+///
+/// The result is an ordered list of WaitOutcome records. Child errors and
+/// cancellations are reported as outcomes instead of being raised from the
+/// returned Future. Cancelling the returned Future still cancels unfinished
+/// children.
+fun waitAll(...awaitables)
+    var loop = getEventLoop()
+    var awaitableCount = #awaitables
+    var outcomes = List(awaitableCount)
+    var fut = loop.createFuture()
+    var children = []
+
+    fut.setCancelCallback(fun()
+        for var child in children
+            if !child.isDone()
+                child.cancel()
+            end
+        end
+    end)
+
+    if awaitableCount == 0
+        fut.setResult(outcomes)
+        return fut
+    end
+
+    var numSettled = 0
+    for var i = 0; i < awaitableCount; i += 1
+        var idx = i
+        var child
+
+        try
+            child = future.ensureFuture(awaitables[i], loop)
+        except Exception e
+            if !fut.isDone()
+                for var pending in children
+                    if !pending.isDone()
+                        pending.cancel()
+                    end
+                end
+                fut.setException(e)
+            end
+            return fut
+        end
+
+        children.add(child)
+        child.addDoneCallback(fun(done)
+            if fut.isDone()
+                return
+            end
+
+            try
+                outcomes[idx] = WaitOutcome(WaitOutcomeState.COMPLETED, done.result())
+            except CancelledError e
+                outcomes[idx] = WaitOutcome(WaitOutcomeState.CANCELLED, e)
+            except Exception e
+                outcomes[idx] = WaitOutcome(WaitOutcomeState.FAILED, e)
+            end
+
+            if (numSettled += 1) == awaitableCount
+                fut.setResult(outcomes)
+            end
+        end)
+    end
+
+    return fut
+end
+
+/// Async: suspend the current Task for ms milliseconds.
+@async fun sleep(ms, result=null)
+    var loop = getRunningEventLoop()
+    if !loop
+        raise EventHorizonException("no running event loop")
+    end
+    yield loop.sleep(ms)
+    return result
 end

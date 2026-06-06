@@ -43,7 +43,7 @@ fun handleType()
     idle.close()
     timer.close()
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -59,7 +59,7 @@ fun close()
     end)
     
     assert(!closed, "`close` called before next loop tick")
-    uv.loop().run()
+    uv.loop().runForever()
     assert(closed, "`close` callback not called")
 
     assert(numHandles(), "Handle was not unregistred from the registry")
@@ -82,7 +82,7 @@ fun alreadyClosing()
 
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException)
@@ -108,7 +108,7 @@ fun closeFail()
         didThrow = true
     end
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(didThrow, "Close should throw on subsequent calls")
     assert(numHandles(), "Handle was not unregistred from the registry")
@@ -124,13 +124,13 @@ fun closeThrows()
     
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is Exception, "Chained exception is of wrong type: {0}" % type(e.cause()))
     end
 
-    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().runForever()` Did not propagate the exception")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
 
@@ -147,7 +147,7 @@ fun closeMultipleThrows()
     
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         var exceptions = e.exceptions()
@@ -156,7 +156,7 @@ fun closeMultipleThrows()
         assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
     end
 
-    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().runForever()` Did not propagate the exception")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
 
@@ -178,7 +178,7 @@ fun doubleClose()
     end)
     
     assert(!closed, "`close` called before next loop tick")
-    uv.loop().run()
+    uv.loop().runForever()
     assert(closed, "`close` callback not called")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
@@ -202,7 +202,7 @@ fun twoClose()
     end)
     
     assert(!closed1 and !closed2, "`close` called before next loop tick")
-    uv.loop().run()
+    uv.loop().runForever()
     assert(closed1 and closed2, "`close` callback not called")
     assert(numHandles(), "Handle was not unregistred from the registry")
 end
@@ -217,7 +217,7 @@ fun customLoop()
     tcp.close(|| => closed = true)
 
     assert(!closed, "`close` called before next loop tick")
-    loop.run()
+    loop.runForever()
     assert(closed, "`close` callback not called")
     assert(numHandles(loop), "Handle was not unregistred from the registry")
 end
@@ -228,7 +228,7 @@ fun isActive()
     var tcp = TCP()
     assert(!tcp.isActive())
     tcp.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -241,7 +241,7 @@ fun isClosing()
         assert(tcp.isClosing(), "isClosing() returned false")
     end)
     
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -272,7 +272,7 @@ fun size()
         s.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -282,7 +282,7 @@ fun fileno()
     var fd = s.fileno()
     assert(fd is Number)
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 if __name__ == '__main__'

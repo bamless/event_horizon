@@ -56,4 +56,4 @@ except EventHorizonException e
     client.close()
 end
 
-uv.loop().run()
+uv.loop().runForever()

@@ -16,6 +16,8 @@ add_library(event_horizon SHARED
     idle.c
     pipe.h
     pipe.c
+    prepare.h
+    prepare.c
     ring_buffer.h
     ring_buffer.c
     stream.h

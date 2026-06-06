@@ -50,6 +50,8 @@ void closeCallback(uv_handle_t* handle) {
     LoopMetadata* loopMetadata = handle->loop->data;
     JStarVM* vm = loopMetadata->vm;
 
+    loopMetadata->openHandles--;
+
     if(!tryGetEventLoopAndHandle(vm, handleMetadata->handleId, loopMetadata->loopId)) return;
     int loopSlot = jsrTop(vm) - 1;
     int handleSlot = jsrTop(vm);
@@ -214,6 +216,10 @@ static void voidHandleCallback(uv_handle_t* handle, CallbackType cbType) {
 
 void idleCallback(uv_idle_t* idle) {
     voidHandleCallback((uv_handle_t*)idle, IDLE_CB);
+}
+
+void prepareCallback(uv_prepare_t* prepare) {
+    voidHandleCallback((uv_handle_t*)prepare, PREPARE_CB);
 }
 
 void timerCallback(uv_timer_t* timer) {

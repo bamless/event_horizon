@@ -7,8 +7,6 @@ import test for test, run
 import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.errors for EventHorizonException, StatusException
-import event_horizon.promise for Promise, all
-import event_horizon.timers for wait
 import event_horizon.tls for TLSStream
 import event_horizon.uv.errors for Errno
 
@@ -52,7 +50,7 @@ fun listenConnect()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(clientConnected and serverConnected)
 end
 
@@ -79,7 +77,7 @@ fun listenConnectVerified()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(connected)
 end
 
@@ -110,7 +108,7 @@ fun writeRead()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -146,7 +144,7 @@ fun largeWriteReadCrossesTLSStagingBoundaries()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -180,7 +178,7 @@ fun emptyWriteResolvesAndDoesNotBlockNextWrite()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(emptyResolved, "empty TLS write did not resolve")
     assert(nextResolved, "write after empty TLS write did not resolve")
     assert(received == "after empty", "write after empty TLS write was not delivered")
@@ -225,7 +223,7 @@ fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(queuedAfterWrite > 0, "large TLS write did not report queued plaintext")
     assert(queuedAfterResolve == 0, "TLS pending write queue did not drain")
     assert(serverRead == #large, "server did not read the full large write")
@@ -260,11 +258,11 @@ fun queuedTLSWritesPreserveOrder()
     fun client()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
-        yield all([c.write(first), c.write(second), c.write(third)])
+        yield evh.all(c.write(first), c.write(second), c.write(third))
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -295,7 +293,7 @@ fun readLine()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -324,7 +322,7 @@ fun readUntil()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -339,7 +337,7 @@ fun writeReadCountDelayed()
         yield s.listen(async(fun(client)
             try
                 yield client.write("01234")
-                yield wait(1000)
+                yield evh.sleep(1000)
                 yield client.write("56789")
             ensure
                 yield client.close()
@@ -367,7 +365,7 @@ fun writeReadCountDelayed()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -384,7 +382,7 @@ fun writeReadUntilDelayed()
                 yield client.write(
                     "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
                 )
-                yield wait(1000)
+                yield evh.sleep(1000)
                 yield client.write("t: test.com\r\n\r\n")
             ensure
                 yield client.close()
@@ -415,7 +413,7 @@ fun writeReadUntilDelayed()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -430,7 +428,7 @@ fun readUntilSeparatorSplitAcrossChunks()
         yield s.listen(async(fun(client)
             try
                 yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
-                yield wait(1000)
+                yield evh.sleep(1000)
                 yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
             ensure
                 yield client.close()
@@ -453,7 +451,7 @@ fun readUntilSeparatorSplitAcrossChunks()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -480,7 +478,7 @@ fun closeConnectedResolves()
         clientClosed = true
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(clientClosed, "client close did not resolve")
     assert(serverClosed, "server close did not resolve")
 end
@@ -504,8 +502,13 @@ fun closeWhileClosePendingRejects()
     fun client()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
-        var firstClose = c.close().then(fun(_)
-            firstCloseResolved = true
+        var firstClose = c.close()
+        firstClose.addDoneCallback(fun(done)
+            try
+                done.result()
+                firstCloseResolved = true
+            except Exception _
+            end
         end)
 
         try
@@ -518,7 +521,7 @@ fun closeWhileClosePendingRejects()
         yield firstClose
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(rejected, "second close did not reject")
     assert(firstCloseResolved, "first close did not resolve")
 end
@@ -545,14 +548,17 @@ fun closeCancelsPendingRead()
     fun client()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
-        var pendingRead = c.read().catch(fun(e)
-            readCanceled = e is StatusException and e.status() == Errno.ECANCELED
-        end)
+        var pendingRead = c.read()
         yield c.close()
-        yield pendingRead
+
+        try
+            yield pendingRead
+        except StatusException e
+            readCanceled = e.status() == Errno.ECANCELED
+        end
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(readCanceled, "pending TLS read was not canceled by close")
 end
 
@@ -581,8 +587,13 @@ fun shutdownWithPendingWriteRejects()
     fun client()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
-        var pendingWrite = c.write(large).then(fun(_)
-            writeResolved = true
+        var pendingWrite = c.write(large)
+        pendingWrite.addDoneCallback(fun(done)
+            try
+                done.result()
+                writeResolved = true
+            except Exception _
+            end
         end)
 
         try
@@ -596,7 +607,7 @@ fun shutdownWithPendingWriteRejects()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(rejected, "shutdown with pending write did not reject")
     assert(writeResolved, "pending write did not resolve after rejected shutdown")
 end
@@ -631,7 +642,7 @@ fun writeAfterShutdownRejects()
         end
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
     assert(rejected, "write after shutdown did not reject")
 end
 
@@ -657,7 +668,7 @@ fun sockNamePeerName()
         yield c.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 if __name__ == '__main__'

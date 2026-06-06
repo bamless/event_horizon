@@ -2,11 +2,10 @@
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.timers as timers
 
 @async
 fun printDelayed(val, ms)
-    yield timers.wait(ms)
+    yield evh.sleep(ms)
     print(val)
 end
 

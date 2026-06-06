@@ -29,6 +29,16 @@ fun getAddrInfo()
 end
 
 @test
+fun getAddrInfoFutureCanBeCreatedOutsideRun()
+    var fut = dns.getAddrInfo("localhost")
+    var res = evh.run(fut)
+    var addr, = res
+
+    assert(addr)
+    assert(addr[0] is String)
+end
+
+@test
 fun getAddrInfoFamily()
     var addr
 

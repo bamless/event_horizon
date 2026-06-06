@@ -1,0 +1,18 @@
+import event_horizon.uv as uv
+import event_horizon.uv.handle for Handle
+
+static native uvPrepare(loop)
+
+/// Raw libuv prepare handle.
+///
+/// start(callback) invokes callback once per loop iteration before polling for I/O.
+class Prepare is Handle
+    /// Construct a prepare handle on loop, or the global loop when omitted.
+    construct(loop=null)
+        loop = loop or uv.loop()
+        super(loop, uvPrepare(loop))
+    end
+
+    native start(callback)
+    native stop()
+end

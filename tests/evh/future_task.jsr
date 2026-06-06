@@ -1,0 +1,461 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run
+
+import event_horizon as evh
+import event_horizon for getEventLoop, getRunningEventLoop, sleep
+import event_horizon.async for Coroutine, async
+import event_horizon.errors for CancelledError, EventHorizonException, LoopExecutionException
+import event_horizon.future for Future
+import event_horizon.idle for IdleHandle
+import event_horizon.pipe for PipeStream
+import event_horizon.tcp for TCPStream
+import event_horizon.timer for TimerHandle
+import event_horizon.tls for TLSStream
+import event_horizon.udp for UDPSocket
+import event_horizon.uv.event_loop for EventLoop
+
+@test
+fun asyncCallIsLazy()
+    var called = false
+
+    @async
+    fun work()
+        if false
+            yield null
+        end
+
+        called = true
+        return 42
+    end
+
+    var coro = work()
+
+    assert(coro is Coroutine)
+    assert(!called, "async function body should not run until scheduled")
+    assert(evh.run(coro) == 42)
+    assert(called)
+end
+
+@test
+fun asyncPlainReturnIsLazyCoroutine()
+    var called = false
+
+    @async
+    fun work()
+        called = true
+        return 7
+    end
+
+    var coro = work()
+
+    assert(coro is Coroutine)
+    assert(!called, "async plain function body should not run until scheduled")
+    assert(evh.run(coro) == 7)
+    assert(called)
+end
+
+@test
+fun taskAwaitsFuture()
+    @async
+    fun work()
+        var loop = getRunningEventLoop()
+        var fut = Future(loop)
+        loop.callSoon(fun()
+            fut.setResult(12)
+        end)
+
+        return (yield fut) + 30
+    end
+
+    assert(evh.run(work()) == 42)
+end
+
+@test
+fun taskAwaitsNestedCoroutine()
+    @async
+    fun child()
+        var fut = getRunningEventLoop().createFuture()
+        fut.setResult(21)
+        return yield fut
+    end
+
+    @async
+    fun parent()
+        return (yield child()) * 2
+    end
+
+    assert(evh.run(parent()) == 42)
+end
+
+@test
+fun futureKnowsOwningLoop()
+    var loop = getEventLoop()
+    var fut = loop.createFuture()
+
+    assert(fut.loop() == loop)
+end
+
+@test
+fun allDefaultsToRunningLoop()
+    @async
+    fun work()
+        var fut = evh.all()
+        assert(fut.loop() == getRunningEventLoop())
+        return #(yield fut)
+    end
+
+    assert(evh.run(work()) == 0)
+end
+
+@test
+fun taskRejectsFutureFromDifferentLoop()
+    var otherLoop = EventLoop()
+    var caught = false
+
+    @async
+    fun work()
+        yield otherLoop.createFuture()
+    end
+
+    try
+        evh.run(work())
+    except EventHorizonException e
+        caught = e.err() == "Future attached to a different event loop"
+    end
+
+    otherLoop.close()
+    assert(caught)
+end
+
+@test
+fun taskReceivesFutureException()
+    var caught = false
+
+    @async
+    fun work()
+        try
+            var fut = getRunningEventLoop().createFuture()
+            fut.setException(Exception("boom"))
+            yield fut
+        except Exception e
+            caught = e.err() == "boom"
+        end
+    end
+
+    evh.run(work())
+    assert(caught)
+end
+
+@test
+fun taskCancellationIsThrownIntoCoroutine()
+    var cancelled = false
+
+    @async
+    fun work()
+        try
+            yield sleep(1000)
+        except CancelledError e
+            cancelled = true
+            raise e
+        end
+    end
+
+    var loop = getEventLoop()
+    var task = loop.createTask(work())
+    loop.callSoon(fun()
+        task.cancel()
+    end)
+
+    var caught = false
+    try
+        evh.run(task)
+    except CancelledError _
+        caught = true
+    end
+
+    assert(caught)
+    assert(cancelled)
+end
+
+@test
+fun highLevelHandleCloseReturnsFuture()
+    var idle = IdleHandle()
+    var closed = false
+
+    @async
+    fun work()
+        var closeFuture = idle.close()
+        assert(closeFuture is Future)
+        yield closeFuture
+        closed = true
+    end
+
+    evh.run(work())
+
+    assert(closed)
+end
+
+@test
+fun highLevelHandlesDefaultToRunningLoop()
+    var loop = EventLoop()
+
+    @async
+    fun work()
+        var runningLoop = getRunningEventLoop()
+        var handles = [
+            IdleHandle(),
+            TimerHandle(),
+            TCPStream(),
+            UDPSocket(),
+            PipeStream(),
+            TLSStream()
+        ]
+
+        for var handle in handles
+            assert(handle.handle().loop() == runningLoop)
+        end
+
+        for var handle in handles
+            yield handle.close()
+        end
+    end
+
+    loop.runUntilComplete(work())
+    loop.close()
+end
+
+@test
+fun runUntilCompleteRaisesIfFutureCannotComplete()
+    var loop = EventLoop()
+    var caught = false
+
+    try
+        loop.runUntilComplete(loop.createFuture())
+    except EventHorizonException e
+        caught = e.err() == "event loop stopped before Future completed"
+    end
+
+    loop.close()
+    assert(caught)
+end
+
+@test
+fun runUntilCompleteRaisesIfLoopStoppedBeforeCompletion()
+    var loop = EventLoop()
+    var fut = loop.createFuture()
+    var caught = false
+
+    loop.callSoon(fun()
+        loop.stop()
+    end)
+
+    try
+        loop.runUntilComplete(fut)
+    except EventHorizonException e
+        caught = e.err() == "event loop stopped before Future completed"
+    end
+
+    loop.close()
+    assert(caught)
+end
+
+@test
+fun runUntilCompleteCleansUpAfterLoopExecutionException()
+    var loop = EventLoop()
+    var cleanedUp = false
+    var caught = false
+
+    @async
+    fun work()
+        loop.callSoon(fun()
+            raise Exception("boom")
+        end)
+
+        try
+            yield sleep(1000)
+        ensure
+            cleanedUp = true
+        end
+    end
+
+    try
+        loop.runUntilComplete(work())
+    except LoopExecutionException e
+        caught = e.cause().err() == "boom"
+    end
+
+    assert(caught)
+    assert(cleanedUp)
+    loop.close()
+end
+
+@test
+fun futureAllAwaitsCoroutines()
+    @async
+    fun child(value)
+        yield sleep(1)
+        return value * 2
+    end
+
+    var results = evh.run(evh.all(child(3), child(4)))
+
+    assert(results[0] == 6)
+    assert(results[1] == 8)
+end
+
+@test
+fun futureAllFailsOnFirstException()
+    @async
+    fun child()
+        var fut = getRunningEventLoop().createFuture()
+        fut.setException(Exception("boom"))
+        yield fut
+    end
+
+    var caught = false
+    try
+        var fut = getEventLoop().createFuture()
+        fut.setResult(1)
+        evh.run(evh.all(child(), fut))
+    except Exception e
+        caught = e.err() == "boom"
+    end
+
+    assert(caught)
+end
+
+@test
+fun allFailureCancelsPendingSiblings()
+    var cancelled = false
+
+    @async
+    fun failing()
+        yield sleep(1)
+        raise Exception("boom")
+    end
+
+    @async
+    fun pending()
+        try
+            yield sleep(1000)
+        except CancelledError e
+            cancelled = true
+            raise e
+        end
+    end
+
+    var caught = false
+    try
+        evh.run(evh.all(failing(), pending()))
+    except Exception e
+        caught = e.err() == "boom"
+    end
+
+    assert(caught)
+    assert(cancelled)
+end
+
+@test
+fun raceReturnsFirstResultAndCancelsSiblings()
+    var cancelled = false
+
+    @async
+    fun fast()
+        return yield sleep(1, 42)
+    end
+
+    @async
+    fun slow()
+        try
+            return yield sleep(1000, 7)
+        except CancelledError e
+            cancelled = true
+            raise e
+        end
+    end
+
+    assert(evh.run(evh.race(fast(), slow())) == 42)
+    assert(cancelled)
+end
+
+@test
+fun racePropagatesFirstExceptionAndCancelsSiblings()
+    var cancelled = false
+
+    @async
+    fun failing()
+        yield sleep(1)
+        raise Exception("boom")
+    end
+
+    @async
+    fun slow()
+        try
+            yield sleep(1000)
+        except CancelledError e
+            cancelled = true
+            raise e
+        end
+    end
+
+    var caught = false
+    try
+        evh.run(evh.race(failing(), slow()))
+    except Exception e
+        caught = e.err() == "boom"
+    end
+
+    assert(caught)
+    assert(cancelled)
+end
+
+@test
+fun raceRejectsEmptyInput()
+    var caught = false
+
+    try
+        evh.run(evh.race())
+    except EventHorizonException e
+        caught = e.err() == "race requires at least one awaitable"
+    end
+
+    assert(caught)
+end
+
+@test
+fun waitAllReturnsOrderedOutcomes()
+    @async
+    fun ok()
+        return yield sleep(1, 3)
+    end
+
+    @async
+    fun failed()
+        yield sleep(1)
+        raise Exception("boom")
+    end
+
+    @async
+    fun cancelled()
+        var fut = getRunningEventLoop().createFuture()
+        fut.cancel()
+        yield fut
+    end
+
+    var outcomes = evh.run(evh.waitAll(ok(), failed(), cancelled()))
+
+    assert(outcomes[0] is evh.WaitOutcome)
+    assert(outcomes[0].state == evh.WaitOutcomeState.COMPLETED)
+    assert(outcomes[0].value == 3)
+    assert(outcomes[1].state == evh.WaitOutcomeState.FAILED)
+    assert(outcomes[1].value.err() == "boom")
+    assert(outcomes[2].state == evh.WaitOutcomeState.CANCELLED)
+    assert(outcomes[2].value is CancelledError)
+end
+
+if __name__ == '__main__'
+    run()
+end

@@ -48,7 +48,7 @@ fun handshake()
         c.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(handshakeDone, "Handshake callback never fired")
 end
 
@@ -105,7 +105,7 @@ fun handshakeWithCA()
         c.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(verified)
 end
 
@@ -127,7 +127,7 @@ fun handshakeBadCA()
         c.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(failStatus != null and failStatus == Errno.EPROTO, "Expected handshake failure")
 end
 
@@ -162,7 +162,7 @@ fun writeRead()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(received == "hello TLS", "Expected 'hello TLS', got: {0}" % received)
 end
 
@@ -205,7 +205,7 @@ fun largeWriteQueuesWithoutSynchronousEAGAIN()
         end
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(!didThrow, "large TLS write unexpectedly threw")
     assert(writeCallbackFired, "large TLS write callback did not fire")
     assert(serverRead == #large, "server did not read the full large write")
@@ -242,7 +242,7 @@ fun emptyWriteCompletesAndDoesNotBlockNextWrite()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(emptyWriteDone, "empty TLS write callback did not fire")
     assert(nextWriteDone, "write after empty TLS write did not complete")
     assert(received == "after empty", "write after empty TLS write was not delivered")
@@ -280,7 +280,7 @@ fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
         queuedAfterWrite = c.pendingWriteQueueSize()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(queuedAfterWrite > 0, "large TLS write did not report queued plaintext")
     assert(queuedAfterCallback == 0, "TLS pending write queue did not drain")
     assert(serverRead == #large, "server did not read the full large write")
@@ -324,7 +324,7 @@ fun closeWhileWriteInFlightDrainsAndCloses()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(closeCallbackFired, "close callback did not fire after in-flight write drained")
     assert(writeFailed, "Writes should fail when closed before flushing")
 end
@@ -371,7 +371,7 @@ fun closeWhileClosePendingFailsWithEALREADY()
         end
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(didThrow, "second close while TLS close was pending did not throw")
     assert(firstCloseCallbackFired, "first close callback did not fire")
     assert(!secondCloseCallbackFired, "second close callback should not be registered")
@@ -393,7 +393,7 @@ fun closeConnectedFiresCallback()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(closeCallbackFired, "close callback did not fire")
     assert(#c._callbacks == 0, "close callback leaked")
 end
@@ -424,7 +424,7 @@ fun closeCancelsActiveRead()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(readData == null, "close should cancel read with null data")
     assert(readStatus == Errno.ECANCELED, "expected UV_ECANCELED, got {0}" % readStatus)
     assert(closeCallbackFired, "close callback did not fire")
@@ -459,7 +459,7 @@ fun closeAfterShutdownCancelsActiveRead()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(readStatus == Errno.ECANCELED, "expected UV_ECANCELED, got {0}" % readStatus)
     assert(shutdownStatus == Errno.ECANCELED, "expected shutdown UV_ECANCELED, got {0}" % shutdownStatus)
     assert(closeCallbackFired, "close callback did not fire")
@@ -496,7 +496,7 @@ fun shutdownWithPendingWriteThrows()
         end
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(didThrow, "shutdown with pending TLS writes did not throw")
     assert(writeCallbackFired, "pending TLS write did not complete after rejected shutdown")
 end
@@ -532,7 +532,7 @@ fun writeAfterShutdownFailsSynchronously()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(didThrow, "write after shutdown did not throw")
     assert(!writeCallbackFired, "write callback fired after synchronous uv_write failure")
     assert(#c._callbacks == 0, "write callback leaked after synchronous uv_write failure")
@@ -548,7 +548,7 @@ fun sockName()
     assert(port == PORT)
 
     server.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -566,7 +566,7 @@ fun peerName()
         c.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(peerAddr == "127.0.0.1", "Unexpected peer address: {0}" % peerAddr)
 end
 
@@ -580,7 +580,7 @@ fun connectFail()
         c.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(failStatus != null and failStatus < 0)
 end
 
