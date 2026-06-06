@@ -170,6 +170,7 @@ class EventLoop
         fut.addDoneCallback(fun(_)
             self.stop()
         end)
+
         try
             this.runForever()
         except LoopExecutionException e
@@ -186,6 +187,7 @@ class EventLoop
         if !fut.isDone()
             raise EventHorizonException("event loop stopped before Future completed")
         end
+
         return fut.result()
     end
 

@@ -22,10 +22,13 @@ when data is available.
 
 Event Horizon uses J*'s generator protocol to simulate `async/await`. Marking a function with the
 `@async` decorator causes it to return a lazy coroutine object. Calling the function does not start
-execution; scheduling it as a `Task` does. Inside an async function, `yield`ing a `Future`, `Task`,
-or coroutine suspends the current task until the awaitable completes. If it completes with a value,
-execution resumes with that value; if it completes with an exception, the exception is re-raised
-and can be caught with `try/except`.
+execution - scheduling it as a `Task` does. A coroutine is scheduled when it is passed to `evh.run()`
+or `loop.runUntilComplete()`, passed to `evh.createTask()` or `loop.createTask()`, yielded (awaited)
+from a running task, or passed as an input to combinators such as `all()`, `race()`, and `waitAll()`.
+
+Inside an async function, `yield`ing a `Future`, `Task`, or coroutine suspends the current task until
+the awaitable completes. If it completes with a value, execution resumes with that value; if it
+completes with an exception, the exception is re-raised and can be caught with `try/except`.
 
 The event loop is started explicitly by passing the top-level coroutine, `Future`, or `Task` to
 `evh.run()`, which blocks until that awaitable has completed.
@@ -41,7 +44,7 @@ Tasks. Awaiting a Future from a different loop raises an error instead of transf
 
 ### Combining awaitables
 
-Event Horizon exposes a small set of focused combinators instead of one configurable catch-all:
+Event Horizon exposes a small set of focused combinators for working with compound awaitables:
 
 | Function | Description |
 |---|---|
