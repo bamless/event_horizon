@@ -1,0 +1,148 @@
+import event_horizon.async for Coroutine
+import event_horizon.errors for EventHorizonException, CancelledError
+
+class Future
+    construct(loop)
+        this._loop = loop
+        this._done = false
+        this._cancelled = false
+        this._result = null
+        this._exception = null
+        this._callbacks = []
+        this._cancelCallback = null
+    end
+
+    /// Return true when this Future has a result, exception, or cancellation.
+    fun isDone()
+        return this._done
+    end
+
+    /// Return true when this Future completed by cancellation.
+    fun isCancelled()
+        return this._cancelled
+    end
+
+    /// Return the EventLoop that owns this Future.
+    fun loop()
+        return this._loop
+    end
+
+    /// Complete this Future successfully with value.
+    ///
+    /// Raises EventHorizonException if the Future has already completed.
+    fun setResult(value=null)
+        if this._done
+            raise EventHorizonException("Future already done")
+        end
+        this._done = true
+        this._result = value
+        this._scheduleCallbacks()
+    end
+
+    /// Complete this Future with error.
+    ///
+    /// Calling result() on this Future will raise error. Raises
+    /// EventHorizonException if the Future has already completed.
+    fun setException(error)
+        if this._done
+            raise EventHorizonException("Future already done")
+        end
+        this._done = true
+        this._exception = error
+        this._scheduleCallbacks()
+    end
+
+    /// Cancel this Future.
+    ///
+    /// Returns true when this call cancelled the Future, or false when the Future
+    /// was already complete. Calling result() after cancellation raises
+    /// CancelledError.
+    fun cancel()
+        if this._done
+            return false
+        end
+
+        this._done = this._cancelled = true
+        this._exception = CancelledError()
+        this._scheduleCallbacks()
+
+        if this._cancelCallback
+            this._cancelCallback()
+        end
+
+        return true
+    end
+
+    /// Return this Future's result.
+    ///
+    /// Raises EventHorizonException if the Future is still pending. Re-raises the
+    /// stored exception if the Future failed or was cancelled.
+    fun result()
+        if !this._done
+            raise EventHorizonException("Future not done")
+        end
+
+        if this._exception
+            raise this._exception
+        end
+
+        return this._result
+    end
+
+    /// Register callback to run when this Future completes.
+    ///
+    /// callback receives this Future and can inspect it with result(),
+    /// isDone(), or isCancelled().
+    fun addDoneCallback(callback)
+        if this._done
+            var self = this
+            this._loop.callSoon(fun()
+                callback(self)
+            end)
+        else
+            this._callbacks.add(callback)
+        end
+    end
+
+    /// Set the callback invoked when this Future is cancelled.
+    ///
+    /// This is intended for operations that can release or cancel an underlying
+    /// resource when the Future no longer represents user-visible completion.
+    fun setCancelCallback(callback)
+        this._cancelCallback = callback
+    end
+
+    fun _scheduleCallbacks()
+        var callbacks = this._callbacks
+        this._callbacks = []
+
+        var self = this
+        for var callback in callbacks
+            this._loop.callSoon(fun()
+                callback(self)
+            end)
+        end
+    end
+end
+
+/// Wrap an 'awaitable' in a Future owned by loop.
+///
+/// The awaitable may be a Future, Task, or Coroutine.
+fun ensureFuture(value, loop)
+    if value is Coroutine
+        return loop.createTask(value)
+    end
+
+    if value is Future
+        if value.loop() != loop
+            raise EventHorizonException("Future attached to a different event loop")
+        end
+        return value
+    end
+
+    if value is Generator
+        raise EventHorizonException("cannot await plain generator - did you forget @async?")
+    end
+
+    raise EventHorizonException("cannot await a '{0}'" % type(value).getName())
+end

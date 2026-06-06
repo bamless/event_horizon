@@ -37,7 +37,7 @@ fun shutdown()
     end)
 
     assert(!shut, '`shutdown` called before next loop tick')
-    uv.loop().run()
+    uv.loop().runForever()
     assert(shut, '`shutdown` not called')
 end
 
@@ -52,7 +52,7 @@ fun shutdownFail()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -68,13 +68,13 @@ fun shutdownThrows()
     
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is NameException, "Chained exception is of wrong type: {0}" % type(e.cause()))
     end
 
-    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().runForever()` Did not propagate the exception")
 end
 
 @test
@@ -97,7 +97,7 @@ fun shutdownMultipleThrows()
     
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         var exceptions = e.exceptions()
@@ -106,7 +106,7 @@ fun shutdownMultipleThrows()
         assert(exceptions.find(|e| => e is TypeException), "Expected to find a `TypeException`")
     end
 
-    assert(didThrow, "`uv.loop().run()` Did not propagate the exception")
+    assert(didThrow, "`uv.loop().runForever()` Did not propagate the exception")
 end
 
 @test
@@ -143,7 +143,7 @@ fun write()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(#s._callbacks == 0)
     assert(received == data, "'{0}' != '{1}'" % (received, data))
@@ -197,7 +197,7 @@ fun twoWrite()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(#s._callbacks == 0)
     assert(received == data * 2, "'{0}' != '{1}'" % (received, data * 2))
@@ -234,7 +234,7 @@ fun writeFail()
     var didThrow = false
 
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException and e.cause().err() == "Handle is already closed", "Wrong exception type: {0}" % type(e.cause()).getName())
@@ -284,7 +284,7 @@ fun writeThrows()
     var didThrow = false
 
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except Exception e
         didThrow = true
     end
@@ -325,7 +325,7 @@ fun tryWrite()
         s.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(data.startsWith(received), "{0} does not start with {1}" % (data, received))
 end
 
@@ -346,7 +346,7 @@ fun tryWriteFail()
 
     assert(didThrow, "tryWrite did not throw")
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -383,7 +383,7 @@ fun read()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -428,7 +428,7 @@ fun read()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -459,13 +459,13 @@ fun readFail()
 
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException and e.cause().err() == 'Handle is already closed')
     end
 
-    assert(didThrow, '`uv.loop().run() did not throw')
+    assert(didThrow, '`uv.loop().runForever() did not throw')
 end
 
 @test
@@ -508,7 +508,7 @@ fun readStop()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(!s.isClosing())
 
@@ -517,11 +517,11 @@ fun readStop()
             raise StatusException(status)
         end
     end)
-    uv.loop().run()
+    uv.loop().runForever()
 
     s.close()
     accepted.close()
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(numCalled == 1, "read called more than one time")
 end
@@ -554,13 +554,13 @@ fun readThrows()
 
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is NameException)
     end
 
-    assert(didThrow, '`uv.loop().run() did not throw')
+    assert(didThrow, '`uv.loop().runForever() did not throw')
 end
 
 @test
@@ -587,7 +587,7 @@ fun listen()
         c.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -624,7 +624,7 @@ fun isReadableWritable()
         end)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -633,7 +633,7 @@ fun getWriteQueueSize()
     var sz = s.getWriteQueueSize()
     assert(sz is Number and sz >= 0)
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 if __name__ == '__main__'

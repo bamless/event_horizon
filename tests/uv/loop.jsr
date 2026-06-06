@@ -18,29 +18,58 @@ fun create()
 end
 
 @test
-fun run()
+fun runForever()
     var loop = event_loop.EventLoop()
-    loop.run()
+    loop.runForever()
 end
 
 @test
 fun globalLoopRun()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
 fun stop()
     var loop = event_loop.EventLoop()
     var tcp = TCP(loop)
+    var sawRunningLoop = false
+
     tcp.close(fun()
+        sawRunningLoop = loop.isRunning()
         loop.stop()
     end)
-    loop.run()
+
+    assert(!loop.isRunning(), "Loop should not be running before runForever()")
+    loop.runForever()
+    assert(sawRunningLoop, "Loop should report running while invoking callbacks")
+    assert(!loop.isRunning(), "Loop should not be running after runForever() returns")
 end
 
 @test
 fun notAlive()
-    assert(!uv.loop().alive(), "Loop should not be alive")
+    assert(!uv.loop()._alive(), "Loop should not be alive")
+end
+
+@test
+fun close()
+    var loop = event_loop.EventLoop()
+
+    assert(!loop.isClosed(), "Loop should start open")
+    loop.close()
+    assert(loop.isClosed(), "Loop should report closed after close()")
+
+    // once closed, repeated close calls are harmless, but running or
+    // scheduling native work on the loop is not.
+    loop.close()
+
+    var didThrow = false
+    try
+        loop.runForever()
+    except Exception e
+        didThrow = true
+    end
+
+    assert(didThrow, "Closed loop should not run")
 end
 
 @test
@@ -49,14 +78,14 @@ fun alive()
     
     tcp.connect('0.0.0.0', 8080, fun(status)
         tcp.close(fun()
-            assert(!uv.loop().alive(), "Loop should not be alive")
+            assert(!uv.loop()._alive(), "Loop should not be alive")
         end) 
-        assert(uv.loop().alive(), "Loop should be alive")
+        assert(uv.loop()._alive(), "Loop should be alive")
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
-    assert(!uv.loop().alive(), "Loop should not be alive")
+    assert(!uv.loop()._alive(), "Loop should not be alive")
 end
 
 @test
@@ -65,17 +94,17 @@ fun walk()
     var tcp2 = TCP()
 
     var count = 0
-    uv.loop().walk(fun(handle)
+    uv.loop()._walk(fun(handle)
         count += 1 
         handle.close()
     end)
 
-    assert(count == 2, "Worng number of handles in `EventLoop.walk()`: {0}" % count)
+    assert(count == 2, "Wrong number of handles in `EventLoop._walk()`: {0}" % count)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     count = 0
-    uv.loop().walk(fun(handle)
+    uv.loop()._walk(fun(handle)
         count += 1 
     end)
  

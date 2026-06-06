@@ -16,7 +16,7 @@ fun bind()
     var udp = UDP()    
     udp.bind('0.0.0.0', 8080)
     udp.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -34,7 +34,7 @@ fun bindFail()
     assert(didThrow, "second bind did not throw")
 
     udp.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -43,7 +43,7 @@ fun connect()
     udp.connect('127.0.0.1', 8080)
     udp.connect(null)
     udp.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -76,7 +76,7 @@ fun sendRecv()
         assert(data == send, "{0} != {1}" % (data, send))
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(recvCalled, "recv not called")
 end
@@ -103,7 +103,7 @@ fun trySend()
         assert(data == send)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(recvCalled, "recv not called")
 end
@@ -131,7 +131,7 @@ fun trySendConnected()
         assert(data == send)
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(recvCalled, "recv not called")
 end
@@ -150,7 +150,7 @@ fun sendFail()
             end
             udp.send(data, "127.0.0.1", 8080)
         end)
-        uv.loop().run()
+        uv.loop().runForever()
     except EventHorizonException e
         didThrow = true
         assert(e.err() == "Handle is already closed")
@@ -184,7 +184,7 @@ fun recvStartFail()
 
     var didThrow = false
     try
-        uv.loop().run()
+        uv.loop().runForever()
     except LoopExecutionException e
         didThrow = true
         assert(e.cause() is EventHorizonException)
@@ -222,11 +222,11 @@ fun recvStop()
         udp.recvStop()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     c.close()
     udp.close()
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(recv == 1, "recv called more than one time")
 end
@@ -240,7 +240,7 @@ fun sockName()
     assert(addr == "0.0.0.0" and port == 8080)
 
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -258,7 +258,7 @@ fun sockNameFail()
     assert(didThrow, "sockName did not throw")
 
     s.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -270,7 +270,7 @@ fun peerName()
     assert(addr == "127.0.0.1" and port == 8080)
 
     client.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -287,7 +287,7 @@ fun peerNameFail()
     assert(didThrow, "unconnetted socket did not throw on `peerName`")
     
     udp.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -296,7 +296,7 @@ fun sendQueueSize()
     var sz = u.sendQueueSize()
     assert(sz is Number)
     u.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -305,7 +305,7 @@ fun sendQueueCount()
     var sz = u.sendQueueCount()
     assert(sz is Number)
     u.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 if __name__ == '__main__'

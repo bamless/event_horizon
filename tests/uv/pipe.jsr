@@ -35,7 +35,7 @@ fun bindConnect()
         c.close()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
 
     assert(clientConnected)
     assert(connected)

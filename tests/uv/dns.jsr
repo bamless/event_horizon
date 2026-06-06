@@ -25,7 +25,7 @@ fun getAddrInfo()
         end
     end, host, "http")
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(called)
 end
 
@@ -45,7 +45,7 @@ fun getAddrInfoFamily()
         end
     end, host, "http", 0, consts.Family.AF_INET)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(called)
 end
 

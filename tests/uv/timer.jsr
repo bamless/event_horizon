@@ -18,7 +18,7 @@ fun start()
         t.stop()
         t.close()
     end)
-    uv.loop().run()
+    uv.loop().runForever()
     assert(called)
 end
 
@@ -34,7 +34,7 @@ fun repeat()
         end
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(called == 3)
 end
 
@@ -47,11 +47,11 @@ fun stop()
         t.stop()
     end)
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(called == 1)
 
     t.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -67,7 +67,7 @@ fun again()
     end)
     t.again()
 
-    uv.loop().run()
+    uv.loop().runForever()
     assert(called == 3)
 end
 
@@ -86,7 +86,7 @@ fun againFail()
     assert(didThrow)
 
     t.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -95,7 +95,7 @@ fun setGetRepeat()
     t.setRepeat(42)    
     assert(t.repeat() == 42)
     t.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end
 
 @test
@@ -105,5 +105,5 @@ fun dueIn()
     var dueIn = t.dueIn()
     assert(dueIn == 10)
     t.close()
-    uv.loop().run()
+    uv.loop().runForever()
 end

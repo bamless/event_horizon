@@ -10,7 +10,8 @@ import data_structures.stream_buffer
 import uv.loop
 import uv.handle
 import uv.idle
-import uv.microtask
+import uv.prepare
+import uv.call_soon
 import uv.stream
 import uv.tcp
 import uv.udp
@@ -19,11 +20,11 @@ import uv.dns
 import uv.pipe
 import uv.tls
 
-import evh.promise
+import evh.future_task
 import evh.tcp
 import evh.pipe
 import evh.udp
-import evh.timers
+import evh.sleep
 import evh.dns
 import evh.tls
 

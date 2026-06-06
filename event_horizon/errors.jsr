@@ -4,9 +4,13 @@ import event_horizon.uv.errors for strerror
 class EventHorizonException is Exception
 end
 
+/// Exception raised when a Future gets cancelled
+class CancelledError is EventHorizonException
+end
+
 /// Wrap a negative libuv status code.
 ///
-/// High-level APIs raise or reject with StatusException for ordinary network,
+/// High-level APIs raise StatusException for ordinary network,
 /// DNS, handle, timer, and stream failures.
 class StatusException is EventHorizonException
     /// Construct from a libuv status and optional cause.
@@ -40,17 +44,17 @@ class LoopExecutionException is EventHorizonException
         this._exceptions = exceptions if #exceptions > 1 else []
         var msg
         if #exceptions == 1
-            msg = "Exception raised during loop execution."  
+            msg = "Exception raised during loop execution."
         else
             msg = "Multiple exceptions raised during loop execution:"
         end
         super(msg, cause)
     end
-    
+
     /// Print this exception and all captured callback exceptions.
     fun printStacktrace()
         super()
-        
+
         var numExceptions = #this._exceptions
         if numExceptions > 1
             print("\n")

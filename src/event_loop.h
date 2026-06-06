@@ -16,6 +16,8 @@
 typedef struct LoopMetadata {
     JStarVM* vm;
     int loopId;
+    bool closed;
+    int openHandles;
     char readBuf[LOOP_READ_BUF_SIZE];
 } LoopMetadata;
 
@@ -30,6 +32,7 @@ typedef struct LoopMetadata {
 bool EventLoop_init(JStarVM* vm);
 bool EventLoop_run(JStarVM* vm);
 bool EventLoop_stop(JStarVM* vm);
+bool EventLoop_close(JStarVM* vm);
 bool EventLoop_alive(JStarVM* vm);
 bool EventLoop_walk(JStarVM* vm);
 

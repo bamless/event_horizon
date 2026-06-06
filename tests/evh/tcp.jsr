@@ -7,9 +7,7 @@ import test for test, run, skip
 import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.errors for EventHorizonException, StatusException
-import event_horizon.promise for Promise, all
 import event_horizon.tcp for TCPStream
-import event_horizon.timers for wait
 
 @test
 fun listenConnect()
@@ -35,7 +33,7 @@ fun listenConnect()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 
     assert(clientConnect and serverConnect)
 end
@@ -68,7 +66,7 @@ fun listenOnError()
     
     assert(!onErrorCalled)
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 
     assert(onErrorCalled)
 end
@@ -99,7 +97,7 @@ fun listenClose()
 
     assert(!closed)
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 
     assert(closed)
 end
@@ -171,43 +169,38 @@ fun writeRead()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 
     assert(data == "Hello, World!")
 end
 
 @test
-fun writeReadPromise()
+fun writeReadTask()
+    @async
     fun server()
         var server = TCPStream()
         server.bind("0.0.0.0", 8080)
 
-        return server.listen(fun(client)
-            return client.read().then(fun(data)
-                return client.write(data)
-            end).then(fun(_)
-                return client.close()
-            end).then(fun(_)
-                return server.close()
-            end)
-        end)
+        yield server.listen(async(fun(client)
+            var data = yield client.read()
+            yield client.write(data)
+            yield client.close()
+            yield server.close()
+        end))
     end
 
     var data
 
+    @async
     fun client()
         var client = TCPStream()
-        return client.connect("127.0.0.1", 8080).then(fun(_)
-            return client.write("Hello, World!")
-        end).then(fun(_)
-            return client.read()
-        end).then(fun(d)
-            data = d
-            return client.close()
-        end)
+        yield client.connect("127.0.0.1", 8080)
+        yield client.write("Hello, World!")
+        data = yield client.read()
+        yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 
     assert(data == "Hello, World!")
 end
@@ -248,7 +241,7 @@ fun writeReadCount()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -260,7 +253,7 @@ fun writeReadCountDelayed()
         
         yield server.listen(async(fun(client)
             yield client.write("01234")
-            yield wait(1000)
+            yield evh.sleep(1000)
             yield client.write("56789")
 
             yield client.close()
@@ -287,7 +280,7 @@ fun writeReadCountDelayed()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -328,7 +321,7 @@ fun writeReadUntil()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -342,7 +335,7 @@ fun writeReadUntilDelayed()
             yield client.write(
                 "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
             )
-            yield wait(1000)
+            yield evh.sleep(1000)
             yield client.write("t: test.com\r\n\r\n")
             yield client.close()
             yield server.close()
@@ -371,7 +364,7 @@ fun writeReadUntilDelayed()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -398,7 +391,7 @@ fun writeln()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -441,7 +434,7 @@ fun readLine()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -471,7 +464,7 @@ fun readUntilFail()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 @test
@@ -489,7 +482,7 @@ fun readUntilSeparatorSplitAcrossChunks()
 
         yield server.listen(async(fun(client)
             yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
-            yield wait(1000)
+            yield evh.sleep(1000)
             yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
             yield client.close()
             yield server.close()
@@ -510,7 +503,7 @@ fun readUntilSeparatorSplitAcrossChunks()
         yield client.close()
     end
 
-    evh.run(all([server(), client()]))
+    evh.run(evh.all(server(), client()))
 end
 
 if __name__ == '__main__'

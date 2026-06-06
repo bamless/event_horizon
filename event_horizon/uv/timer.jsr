@@ -6,7 +6,7 @@ static native uvTimer(loop)
 /// Raw libuv timer handle.
 ///
 /// start() invokes callback from the event loop. Native methods raise
-/// StatusException when libuv rejects the operation.
+/// StatusException when libuv fails the operation.
 class Timer is Handle
     /// Construct a timer handle on loop, or the global loop when omitted.
     construct(loop=null)

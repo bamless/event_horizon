@@ -41,4 +41,4 @@ except EventHorizonException e
     server.close()
 end
 
-uv.loop().run()
+uv.loop().runForever()

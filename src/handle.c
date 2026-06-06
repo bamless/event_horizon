@@ -54,6 +54,9 @@ bool Handle_init(JStarVM* vm) {
     HandleMetadata* metadata = handle->data;
     metadata->handleId = handleId;
 
+    LoopMetadata* loopMetadata = handle->loop->data;
+    loopMetadata->openHandles++;
+
     jsrPushNull(vm);
     return true;
 }

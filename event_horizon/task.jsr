@@ -1,0 +1,113 @@
+import event_horizon.async for Coroutine
+import event_horizon.future for Future, ensureFuture
+import event_horizon.errors for CancelledError, EventHorizonException
+
+class Task is Future
+    construct(coro, loop)
+        super(loop)
+        this._coro = coro
+        this._waitingOn = null
+        this._cancelRequested = false
+
+        var self = this
+        this._loop.callSoon(fun()
+            self._step(null, null)
+        end)
+    end
+
+    fun _step(arg=null, exc=null)
+        if this.isDone()
+            return
+        end
+
+        if this._cancelRequested and !exc
+            exc = CancelledError()
+            this._cancelRequested = false
+        end
+
+        if this._coro is Coroutine
+            if exc is CancelledError
+                super.cancel()
+                return
+            end
+
+            try
+                var started = this._coro.start()
+                if !(started is Generator)
+                    this.setResult(started)
+                    return
+                end
+
+                this._coro = started
+            except Exception e
+                this.setException(e)
+                return
+            end
+        end
+
+        var yielded
+
+        try
+            yielded = this._coro(arg) if !exc else this._coro.throw(exc)
+        except CancelledError e
+            super.cancel()
+            return
+        except Exception e
+            this.setException(e)
+            return
+        end
+
+        if this._coro.isDone()
+            this.setResult(yielded)
+            return
+        end
+
+        var self = this
+        var fut
+
+        try
+            fut = ensureFuture(yielded, this._loop)
+        except Exception e
+            this._loop.callSoon(fun()
+                self._step(null, e)
+            end)
+            return
+        end
+
+        this._waitingOn = fut
+
+        fut.addDoneCallback(fun(done)
+            self._waitingOn = null
+
+            try
+                var value = done.result()
+                self._loop.callSoon(fun()
+                    self._step(value, null)
+                end)
+            except Exception e
+                self._loop.callSoon(fun()
+                    self._step(null, e)
+                end)
+            end
+        end)
+    end
+
+    fun cancel()
+        if this.isDone()
+            return false
+        end
+
+        var self = this
+        this._cancelRequested = true
+
+        if this._waitingOn
+            this._waitingOn.cancel()
+        else
+            this._loop.callSoon(fun()
+                self._step(null, CancelledError())
+            end)
+        end
+
+        return true
+    end
+end

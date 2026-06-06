@@ -1,41 +1,29 @@
-import event_horizon.promise for Promise, asResolved
-
-static fun step(gen, arg, exc, resolve, reject, loop)
-    var value
-    try
-        value = gen(arg) if !exc else gen.throw(exc)
-    except Exception e
-        reject(e)
-        return
+/// Lazy coroutine returned by @async functions.
+class Coroutine
+    construct(fn, receiver, args)
+        this.fn = fn
+        this.receiver = receiver
+        this.args = args
     end
 
-    if gen.isDone()
-        resolve(value)
-    else
-        return asResolved(value, loop).then(fun(value)
-            step(gen, value, null, resolve, reject, loop)
-        end, fun(exc)
-            step(gen, null, exc, resolve, reject, loop)
-        end)
+    fun start()
+        return this.fn.bind(this.receiver)(...this.args)
+    end
+
+    fun __string__()
+        return "<Coroutine {0}()>" % this.fn.getName()
     end
 end
 
-/// Wrap fn so it always returns a Promise.
+/// Wrap fn so it returns a lazy coroutine object.
 ///
-/// If fn returns a Generator, yielded values are awaited via asResolved() and
-/// thrown promise rejections are injected back into the generator. If fn returns
-/// a non-generator value, the wrapper returns a fulfilled Promise for that
-/// value. Exceptions reject the returned Promise.
-fun async(fn, loop=null)
+/// Calling an async function does not execute it, instead it returns a lazy `Coroutine`
+/// object.
+/// A Coroutine is executed only when a loop creates a Task for it, either explicitly
+/// (e.g. `loop.createTask`, `event_horizon.run`, etc.), or implicitly by being `yield`ed
+/// (awaited) from another task.
+fun async(fn)
     return fun(...args)
-        var gen = fn.bind(this)(...args)
-
-        if !(gen is Generator)
-            return asResolved(gen, loop)
-        end
-
-        return Promise(fun(resolve, reject)
-            step(gen, null, null, resolve, reject, loop)
-        end, loop)
+        return Coroutine(fn, this, args)
     end
 end

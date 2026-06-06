@@ -10,6 +10,7 @@ typedef enum CallbackType {
     RECV_CB,
     CONNECT_CB,
     IDLE_CB,
+    PREPARE_CB,
     TIMER_CB,
     NUM_CB,
 } CallbackType;
@@ -32,6 +33,7 @@ void readCallback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
 void recvCallback(uv_udp_t* udp, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* sa,
                   unsigned int flags);
 void idleCallback(uv_idle_t* idle);
+void prepareCallback(uv_prepare_t* prepare);
 void timerCallback(uv_timer_t* timer);
 void walkCallback(uv_handle_t* handle, void* arg);
 void getAddrInfoCallback(uv_getaddrinfo_t* req, int status, struct addrinfo* res);

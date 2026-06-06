@@ -24,7 +24,7 @@ var HandleType = Enum(
 
 /// Raw libuv handle wrapper.
 ///
-/// Native methods raise StatusException when libuv rejects an immediate
+/// Native methods raise StatusException when libuv fails an immediate
 /// operation. Callback-taking methods pass a libuv status code to the callback
 /// when the operation completes.
 class Handle

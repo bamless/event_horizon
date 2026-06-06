@@ -1,0 +1,101 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run, skip
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.uv as uv
+import event_horizon.uv.event_loop for EventLoop
+
+@test
+fun getEventLoopReturnsDefaultLoop()
+    assert(evh.getEventLoop() == uv.loop())
+end
+
+@test
+fun getDefaultEventLoopReturnsDefaultLoop()
+    assert(evh.getDefaultEventLoop() == uv.loop())
+end
+
+@test
+fun getRunningEventLoopReturnsNullOutsideRun()
+    assert(evh.getRunningEventLoop() == null)
+end
+
+@test
+fun getRunningEventLoopReturnsActiveLoop()
+    var loop
+
+    @async
+    fun test()
+        if false
+            yield null
+        end
+
+        loop = evh.getRunningEventLoop()
+    end
+
+    evh.run(test())
+
+    assert(loop == uv.loop())
+end
+
+@test
+fun getEventLoopReturnsActiveLoop()
+    var activeLoop
+    var customLoop = EventLoop()
+
+    @async
+    fun test()
+        if false
+            yield null
+        end
+
+        activeLoop = evh.getEventLoop()
+    end
+
+    customLoop.runUntilComplete(test())
+    customLoop.close()
+
+    assert(activeLoop == customLoop)
+end
+
+@test
+fun sleepZeroYieldsOnce()
+    var called = false
+
+    @async
+    fun test()
+        yield evh.sleep(0)
+        called = true
+    end
+
+    assert(!called)
+
+    evh.run(test())
+
+    assert(called)
+end
+
+@test
+fun sleep()
+    var called = false
+
+    @async
+    fun test()
+        yield evh.sleep(20)
+        called = true
+    end
+
+    assert(!called)
+
+    evh.run(test())
+
+    assert(called)
+end
+
+if __name__ == '__main__'
+    run()
+end

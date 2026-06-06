@@ -9,38 +9,79 @@ when data is available.
 ## Features
 
 - **`async/await`**: coroutine-based concurrency via the `@async` decorator and `yield`
-- **Promises**: `Promise`, `all()`, `race()`, `asResolved()`, `asRejected()`
+- **Futures and Tasks**: explicit result containers and scheduled coroutines
 - **TCP**: `TCPStream` for clients and servers, with automatic DNS resolution
 - **TLS**: `TLSStream` for encrypted TCP connections (client and server), backed by [mbedTLS](https://github.com/Mbed-TLS/mbedtls)
 - **UDP**: `UDPSocket`, including multicast support
 - **Pipes**: `PipeStream` for cross-platform pipes (Unix domain sockets on Unix, named pipes on Windows)
-- **Timers**: `wait()`, `setTimeout()`, `setInterval()`, `nextTick()`
+- **Timers**: `sleep()` for task-friendly delays
 - **DNS**: asynchronous `getAddrInfo()`
 - **Raw libuv bindings**: `event_horizon.uv` for callback-style code
 
 ## How it works
 
 Event Horizon uses J*'s generator protocol to simulate `async/await`. Marking a function with the
-`@async` decorator causes it to return a `Promise` instead of a plain value. Inside such a
-function, `yield`ing a `Promise` suspends the coroutine until that promise settles: if it
-fulfills, execution resumes with the resolved value; if it rejects, the rejection is re-raised
-as an ordinary exception that can be caught with `try/except`.
+`@async` decorator causes it to return a lazy coroutine object. Calling the function does not start
+execution; scheduling it as a `Task` does. Inside an async function, `yield`ing a `Future`, `Task`,
+or coroutine suspends the current task until the awaitable completes. If it completes with a value,
+execution resumes with that value; if it completes with an exception, the exception is re-raised
+and can be caught with `try/except`.
 
-The event loop is started explicitly by passing the top-level `Promise` to `evh.run()`, which
-blocks until all pending asynchronous operations have completed.
+The event loop is started explicitly by passing the top-level coroutine, `Future`, or `Task` to
+`evh.run()`, which blocks until that awaitable has completed.
+
+For code that needs explicit loop control, `getEventLoop()` returns the currently running loop, or the
+default loop when no loop is running. `getRunningEventLoop()` returns the loop currently executing
+callbacks, or `null` outside a running loop. `getDefaultEventLoop()` always returns the process-wide
+default loop.
+
+Futures, Tasks, and handles are owned by exactly one event loop. High-level operations reuse the
+loop attached to their handle, while coroutine objects stay loop-neutral until they are scheduled as
+Tasks. Awaiting a Future from a different loop raises an error instead of transferring it implicitly.
+
+### Combining awaitables
+
+Event Horizon exposes a small set of focused combinators instead of one configurable catch-all:
+
+| Function | Description |
+|---|---|
+| `all(...awaitables)` | Complete with ordered results when every awaitable succeeds. If one raises or is cancelled, cancel unfinished siblings and raise that error. |
+| `race(...awaitables)` | Complete with the first awaitable to finish, whether it returns a value, raises, or is cancelled. Unfinished siblings are cancelled. |
+| `waitAll(...awaitables)` | Wait until every awaitable finishes and return ordered `WaitOutcome` records. Child errors and cancellations are reported as outcomes instead of raising from the returned Future. |
+
+`WaitOutcome` has public `state` and `value` fields. `state` is one of
+`WaitOutcomeState.COMPLETED`, `WaitOutcomeState.FAILED`, or `WaitOutcomeState.CANCELLED`.
+`value` is the returned value for fulfilled outcomes and the exception for rejected or cancelled
+outcomes.
+
+Generic event loop interface:
+
+| Method | Description |
+|---|---|
+| `runUntilComplete(awaitable)` | Block until a Future, Task, or coroutine completes, then return its result or raise its exception. |
+| `runForever()` | Run callbacks until `stop()` is called or the loop has no active handles left. |
+| `stop()` | Ask the loop to stop on the next suitable turn. |
+| `close()` | Close the loop; raises if there are still pending handles. |
+| `isRunning()` | Return whether this loop is currently running callbacks. |
+| `isClosed()` | Return whether this loop has been closed. |
+| `callSoon(callback)` | Schedule `callback` for the next loop turn and return a cancel function. |
+| `callLater(ms, callback)` | Schedule `callback` after `ms` milliseconds and return a cancel function. |
+| `createFuture()` | Create a pending Future owned by this loop. |
+| `createTask(coro)` | Schedule a coroutine on this loop and return a Task. |
+| `sleep(ms)` | Return a Future that completes after `ms` milliseconds. |
 
 ## Module reference
 
 | Module | Exports |
 |---|---|
-| `event_horizon` | `run()` |
-| `event_horizon.async` | `async` |
-| `event_horizon.promise` | `Promise`, `asResolved`, `asRejected`, `all`, `race` |
+| `event_horizon` | `run`, `all`, `race`, `waitAll`, `WaitOutcome`, `WaitOutcomeState`, `sleep`, `createTask`, `ensureFuture`, `getEventLoop`, `getRunningEventLoop`, `getDefaultEventLoop` |
+| `event_horizon.async` | `async`, `Coroutine` |
+| `event_horizon.future` | `Future`, `ensureFuture` |
+| `event_horizon.task` | `Task` |
 | `event_horizon.tcp` | `TCPStream` |
 | `event_horizon.tls` | `TLSStream` |
 | `event_horizon.udp` | `UDPSocket` |
 | `event_horizon.pipe` | `PipeStream` |
-| `event_horizon.timers` | `wait`, `waitOneTick`, `setTimeout`, `setInterval`, `nextTick` |
 | `event_horizon.dns` | `getAddrInfo` |
 | `event_horizon.uv` | Raw libuv bindings |
 
@@ -54,26 +95,23 @@ import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.tcp for TCPStream
 
-// The `@async` decorator turns this function into a coroutine that returns a Promise.
-// Inside it, `yield` suspends execution until the awaited Promise settles.
-@async
-fun handleClient(client)
+// The `@async` decorator turns this function into a lazy coroutine.
+// Inside it, `yield` suspends execution until the awaited Future completes.
+@async fun handleClient(client)
     var data
     while data = yield client.readLine()
         yield client.write(data)
     end
 end
 
-@async
-fun main()
+@async fun main()
     var server = TCPStream()
     server.bind("0.0.0.0", 8080)
-    // `listen` returns a Promise that resolves when the server stops accepting connections.
+    // `listen` returns a Future that completes when the server stops accepting connections.
     yield server.listen(handleClient)
 end
 
-// Start the event loop. Passing the Promise lets evh.run() attach an error handler
-// so any unhandled rejection prints a stack trace instead of silently disappearing.
+// Start the event loop and run the top-level coroutine to completion.
 evh.run(main())
 ```
 
@@ -82,6 +120,12 @@ evh.run(main())
 While `async/await` is the default and preferred way to write asynchronous code with Event Horizon,
 the `event_horizon.uv` module exposes thin, callback-based wrappers around libuv for cases where
 direct control over the event loop is needed.
+
+`event_horizon.uv.loop()` returns the default raw loop object. It implements the same generic loop
+interface described above, plus internal libuv-oriented helpers used by the raw wrappers and tests:
+`_alive()` reports whether libuv has active handles or requests, and `_walk(callback)` visits active
+handles with `callback(handle)`. Prefer the generic methods for application code; reach for these
+helpers only when writing low-level wrapper code or diagnostics.
 
 ## Installation
 
