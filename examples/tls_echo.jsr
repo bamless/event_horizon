@@ -42,6 +42,7 @@ static var DEFAULT_PORT = 19443
         var line
         while line = yield client.readLine()
             yield client.write(line)
+            print("Sent {0} bytes to {1}:{2}" % (#line, ...peer))
         end
     ensure
         yield client.close()

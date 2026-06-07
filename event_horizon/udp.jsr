@@ -9,10 +9,6 @@ import event_horizon.uv.udp as uv_udp
 import event_horizon.uv.udp for Flags, Membership
 
 /// High-level UDP socket.
-///
-/// Async methods return Future values and should be yielded. UDP send/receive
-/// failures complete with StatusException. Native configuration methods raise
-/// StatusException when libuv fails them.
 class UDPSocket is Handle
     /// Construct a UDP socket on loop, or the active/default loop when omitted.
     construct(loop=null)
@@ -36,7 +32,7 @@ class UDPSocket is Handle
     /// StatusException if resolution or sending fails.
     @async fun send(data, addr=null, port=null)
         if addr and getIPType(addr) == IPType.ERROR
-            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_DGRAM, 0, this._handle.loop())
+            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_DGRAM, 0)
             addr = result[0][0]
         end
 
@@ -73,7 +69,7 @@ class UDPSocket is Handle
     /// Async: receive one datagram and complete with (data, addr, port).
     ///
     /// Fails with StatusException for receive errors.
-    fun recv()
+    @async fun recv()
         var self = this
         var fut = this._handle.loop().createFuture()
 
@@ -95,7 +91,7 @@ class UDPSocket is Handle
             end
         end)
 
-        return fut
+        return yield fut
     end
 
     /// Return (address, port) for the local socket, or raise StatusException.

@@ -6,8 +6,9 @@ import test for test, run, skip
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.errors for EventHorizonException, StatusException
+import event_horizon.errors for CancelledError, EventHorizonException, StatusException
 import event_horizon.tcp for TCPStream
+import event_horizon.uv.errors for Errno
 
 @test
 fun listenConnect()
@@ -317,6 +318,100 @@ fun writeReadUntil()
         assert(!data4)
 
         assert(#client._buffer == 0)
+
+        yield client.close()
+    end
+
+    evh.run(evh.all(server(), client()))
+end
+
+@test
+fun concurrentReadFailsBeforeDrainingBufferedData()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+
+        yield server.listen(async(fun(client)
+            yield client.write("hello")
+            yield evh.sleep(100)
+            yield client.write(" world\n")
+
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var pendingLine = evh.getRunningEventLoop().createTask(client.readLine())
+
+        var attempts = 0
+        while #client._buffer == 0 and attempts < 20
+            attempts += 1
+            yield evh.sleep(10)
+        end
+        assert(#client._buffer > 0, "partial line was not buffered before concurrent read")
+
+        try
+            yield client.read()
+            assert(false, "concurrent read should have failed")
+        except StatusException e
+            assert(e.status() == Errno.EALREADY, "expected UV_EALREADY, got {0}" % e.status())
+        end
+
+        var line = yield pendingLine
+        assert(line == "hello world\n")
+
+        yield client.close()
+    end
+
+    evh.run(evh.all(server(), client()))
+end
+
+@test
+fun cancelledReadReleasesPendingReadState()
+    @async
+    fun server()
+        var server = TCPStream()
+        server.bind("0.0.0.0", 8080)
+
+        yield server.listen(async(fun(client)
+            yield client.write("hello")
+            yield evh.sleep(100)
+            yield client.write(" world\n")
+
+            yield client.close()
+            yield server.close()
+        end))
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        var pendingLine = evh.getRunningEventLoop().createTask(client.readLine())
+
+        var attempts = 0
+        while #client._buffer == 0 and attempts < 20
+            attempts += 1
+            yield evh.sleep(10)
+        end
+        assert(#client._buffer > 0, "partial line was not buffered before cancellation")
+
+        pendingLine.cancel()
+        var line = yield client.readLine()
+        assert(line == "hello world\n")
+
+        try
+            yield pendingLine
+            assert(false, "cancelled read should have failed")
+        except CancelledError _
+        end
 
         yield client.close()
     end

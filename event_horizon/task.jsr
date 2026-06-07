@@ -2,6 +2,11 @@ import event_horizon.async for Coroutine
 import event_horizon.future for Future, ensureFuture
 import event_horizon.errors for CancelledError, EventHorizonException
 
+/// Future subclass that drives a Coroutine on an EventLoop.
+///
+/// Creating a Task schedules the coroutine to start on the next loop turn. The
+/// Task completes with the coroutine's returned value, raised exception, or
+/// cancellation. Awaiting a Task behaves the same as awaiting any other Future.
 class Task is Future
     construct(coro, loop)
         super(loop)
@@ -104,6 +109,12 @@ class Task is Future
         end)
     end
 
+    /// Request cancellation of this Task.
+    ///
+    /// Returns true if cancellation was requested, or false if the Task was
+    /// already complete. Cancellation is delivered by throwing CancelledError
+    /// into the coroutine on its next step, giving ensure blocks a chance to
+    /// run cleanup before the Task finishes.
     fun cancel()
         if this.isDone()
             return false

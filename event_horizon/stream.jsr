@@ -3,17 +3,13 @@ import event_horizon.async for async
 import event_horizon.errors for EventHorizonException, StatusException
 import event_horizon.handle for Handle
 import event_horizon.uv.stream_buffer for StreamBuffer
+import event_horizon.uv.errors for Errno
 
 static var DEFAULT_HIGH_WATER_MARK = 65536
 
 /// High-level asynchronous byte stream.
-///
-/// Async methods return Future values and should be yielded. I/O failures are
-/// reported with StatusException unless a subclass overrides the error mapping,
-/// such as TLSStream producing TLSException for TLS protocol
-/// failures.
 class Stream is Handle
-    /// Construct from a raw event_horizon.uv stream handle.
+    /// Construct from a lower-level stream handle.
     @abstract(Stream) construct(handle, highWaterMark=null)
         super(handle)
         this._resolveListen = null
@@ -22,23 +18,24 @@ class Stream is Handle
         this._drainArmed = false
         this._drainWaiters = []
         this._queuedBytes = 0
+        this._pendingRead = null
     end
 
     /// Async: close the stream and complete when the handle is closed.
-    fun close()
+    @async fun close()
         if this._resolveListen
             this._resolveListen()
             this._resolveListen = null
         end
         this._rejectDrain(EventHorizonException("stream closed"))
-        return super()
+        return yield super()
     end
 
     /// Async: listen for incoming connections until the stream is closed.
     ///
     /// onConnect receives an accepted Stream. Accept/listen failures and
     /// exceptions raised by onConnect go to onError, or are printed by default.
-    fun listen(onConnect, onError=null, backlog=0)
+    @async fun listen(onConnect, onError=null, backlog=0)
         var self = this
         var loop = this._handle.loop()
         var fut = loop.createFuture()
@@ -81,18 +78,18 @@ class Stream is Handle
             end
         end, backlog)
 
-        fut.setCancelCallback(fun()
-            self.close()
-        end)
+        //fut.setCancelCallback(fun()
+        //    self.close()
+        //end)
 
-        return fut
+        return yield fut
     end
 
     /// Async: write data and complete when the queued write completes.
     ///
-    /// Fails with StatusException if libuv fails the write or the stream is
+    /// Fails with StatusException if the write fails or the stream is
     /// no longer writable.
-    fun write(data)
+    @async fun write(data)
         var dataLen = #data
         var fut = this._handle.loop().createFuture()
         this._queuedBytes += dataLen
@@ -130,7 +127,7 @@ class Stream is Handle
             this._drainArmed = true
         end
 
-        return fut
+        return yield fut
     end
 
     /// Async: write data followed by a newline.
@@ -152,17 +149,29 @@ class Stream is Handle
     /// positive count, completes when that many bytes are available, or with the
     /// remaining buffered bytes on EOF. Fails with StatusException on read
     /// errors.
-    fun read(count=0)
+    @async fun read(count=0)
         var loop = this._handle.loop()
+        var fut = loop.createFuture()
+
+        if this._pendingRead
+            fut.setException(this._makeError(Errno.EALREADY))
+            return yield fut
+        end
+
         var data = this._buffer.drainAll() if count == 0 else this._buffer.drainN(count)
         if data
-            var done = loop.createFuture()
-            done.setResult(data)
-            return done
+            fut.setResult(data)
+            return yield fut
         end
 
         var self = this
-        var fut = loop.createFuture()
+        this._pendingRead = fut
+
+        fut.addDoneCallback(fun(done)
+            if self._pendingRead == done
+                self._pendingRead = null
+            end
+        end)
 
         fut.setCancelCallback(fun()
             self._handle.readStop()
@@ -204,13 +213,12 @@ class Stream is Handle
             end
         end)
 
-        return fut
+        return yield fut
     end
 
     /// Async: read until EOF and return all chunks joined together.
     @async fun readAll()
-        var chunks = []
-        var chunk
+        var chunk, chunks = null, []
         while chunk = yield this.read()
             chunks.add(chunk)
         end
@@ -221,17 +229,29 @@ class Stream is Handle
     ///
     /// Completes with remaining buffered bytes on EOF. Fails with
     /// StatusException on read errors.
-    fun readUntil(separator)
+    @async fun readUntil(separator)
         var loop = this._handle.loop()
+        var fut = loop.createFuture()
+
+        if this._pendingRead
+            fut.setException(this._makeError(Errno.EALREADY))
+            return yield fut
+        end
+
         var data = this._buffer.drainUntilSep(separator)
         if data
-            var done = loop.createFuture()
-            done.setResult(data)
-            return done
+            fut.setResult(data)
+            return yield fut
         end
 
         var self = this
-        var fut = loop.createFuture()
+        this._pendingRead = fut
+
+        fut.addDoneCallback(fun(done)
+            if self._pendingRead == done
+                self._pendingRead = null
+            end
+        end)
 
         fut.setCancelCallback(fun()
             self._handle.readStop()
@@ -265,22 +285,21 @@ class Stream is Handle
             end
         end)
 
-        return fut
+        return yield fut
     end
 
     /// Async: read through the next newline.
-    fun readLine()
-        return this.readUntil("\n")
+    @async fun readLine()
+        return yield this.readUntil("\n")
     end
 
     /// Async: half-close the writable side and complete when shutdown completes.
     ///
-    /// Fails with StatusException when libuv fails the shutdown.
-    fun shutdown()
+    /// Fails with StatusException when the shutdown fails.
+    @async fun shutdown()
         var self = this
         var fut = this._handle.loop().createFuture()
-
-        self._handle.shutdown(fun(status)
+        this._handle.shutdown(fun(status)
             if fut.isDone()
                 return
             end
@@ -291,8 +310,7 @@ class Stream is Handle
                 fut.setResult()
             end
         end)
-
-        return fut
+        return yield fut
     end
 
     /// Return whether the stream is currently readable.
@@ -305,7 +323,7 @@ class Stream is Handle
         return this._handle.isWritable()
     end
 
-    /// Return the number of bytes currently queued in libuv for writing.
+    /// Return the number of bytes currently queued for writing.
     fun getWriteQueueSize()
         return this._handle.getWriteQueueSize()
     end
@@ -324,21 +342,20 @@ class Stream is Handle
         return this._drainArmed
     end
 
-     /// Async: complete when write-side backpressure clears.
-    fun drain()
+    /// Async: complete when write-side backpressure clears.
+    @async fun drain()
+        var loop = this._handle.loop()
+        var fut = loop.createFuture()
+
         if !this._drainArmed
-            var done = this._handle.loop().createFuture()
-            done.setResult()
-            return done
+            fut.setResult()
+            return yield fut
         end
 
-        var self = this
-        var fut = this._handle.loop().createFuture()
+        this._drainWaiters.add(fut)
+        this._maybeDrain()
 
-        self._drainWaiters.add(fut)
-        self._maybeDrain()
-
-        return fut
+        return yield fut
     end
 
     // Resolve pending drain waiters if backpressure has cleared.
@@ -373,7 +390,7 @@ class Stream is Handle
         end
     end
 
-    // Construct an error object from a libuv status code. Subclasses may
+    // Construct an error object from a transport status code. Subclasses may
     // override this to raise a richer exception type when the status code
     // alone does not carry enough diagnostic context.
     fun _makeError(status, handle=null)

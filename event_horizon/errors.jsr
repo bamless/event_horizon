@@ -8,18 +8,18 @@ end
 class CancelledError is EventHorizonException
 end
 
-/// Wrap a negative libuv status code.
+/// Wrap a negative operation status code.
 ///
 /// High-level APIs raise StatusException for ordinary network,
 /// DNS, handle, timer, and stream failures.
 class StatusException is EventHorizonException
-    /// Construct from a libuv status and optional cause.
+    /// Construct from a status code and optional cause.
     construct(status, exc=null)
         super(strerror(status), exc)
         this._status = status
     end
 
-    /// Return the underlying libuv status code.
+    /// Return the underlying operation status code.
     fun status()
         return this._status
     end

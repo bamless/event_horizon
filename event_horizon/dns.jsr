@@ -1,13 +1,14 @@
 import event_horizon for getEventLoop
+import event_horizon.async for async
 import event_horizon.errors for StatusException
 import event_horizon.uv.dns as uv_dns
 
-/// Async: resolve host/service names using libuv getaddrinfo.
+/// Async: resolve host/service names through the event loop.
 ///
-/// Completes with the address tuples returned by the uv layer. Fails with
-/// StatusException for DNS and libuv resolver failures.
-fun getAddrInfo(node, service=null, flags=0, family=0, sockType=0, protocol=0, loop=null)
-    loop = loop or getEventLoop()
+/// Completes with address tuples. Fails with StatusException for DNS and
+/// resolver failures.
+@async fun getAddrInfo(node, service=null, flags=0, family=0, sockType=0, protocol=0)
+    var loop = getEventLoop()
     var fut = loop.createFuture()
 
     uv_dns.getAddrInfo(fun(res, status)
@@ -22,5 +23,5 @@ fun getAddrInfo(node, service=null, flags=0, family=0, sockType=0, protocol=0, l
         end
     end, node, service, flags, family, sockType, protocol, loop)
 
-    return fut
+    return yield fut
 end

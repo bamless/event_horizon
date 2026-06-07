@@ -27,7 +27,7 @@ class TLSStream is Stream
     end
 
     /// Async: resolve addr if needed, connect TCP, then complete TLS handshake.
-///
+    ///
     /// Raises StatusException for DNS/connect failures and TLSException
     /// for TLS handshake/protocol failures when mbedTLS supplies details.
     @async fun connect(addr, port)
@@ -35,7 +35,7 @@ class TLSStream is Stream
 
         // Resolve hostnames that are not already IP addresses
         if getIPType(addr) == IPType.ERROR
-            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_STREAM, 0, this._handle.loop())
+            var result = yield getAddrInfo(addr, ##port, 0, 0, SockType.SOCK_STREAM, 0)
             addr = result[0][0]
         end
 
@@ -45,7 +45,6 @@ class TLSStream is Stream
 
         var self = this
         var fut = this._handle.loop().createFuture()
-
         this._handle.connect(addr, port, serverName, fun(status)
             if fut.isDone()
                 return
@@ -57,13 +56,12 @@ class TLSStream is Stream
                 fut.setResult()
             end
         end)
-
         return yield fut
     end
 
     /// Bind the underlying TCP stream for use as a TLS server.
     ///
-    /// Raises StatusException if the address is invalid or libuv cannot bind.
+    /// Raises StatusException if the address is invalid or binding fails.
     fun bind(addr, port, ipv6Only=false)
         this._handle.bind(addr, port, ipv6Only)
     end
@@ -78,16 +76,14 @@ class TLSStream is Stream
         return this._handle.peerName()
     end
 
-    /// Bytes of plaintext accepted by TLS but not yet encrypted into libuv's
-    /// write queue. `getWriteQueueSize()` still reports libuv ciphertext bytes.
-    /// Return plaintext bytes queued inside TLS but not yet encrypted.
+    /// Return plaintext bytes accepted by TLS but not yet encrypted for writing.
     fun pendingWriteQueueSize()
         return this._handle.pendingWriteQueueSize()
     end
 
     // Upgrade a UV_EPROTO failure to TLSException when the TLS layer has a
     // detailed mbedTLS error string available. UV_EPROTO is the sentinel we
-    // always use when squashing mbedTLS errors into a libuv status code, so
+    // always use when squashing mbedTLS errors into a transport status code, so
     // checking both conditions guards against misclassifying plain network
     // errors that happen to arrive while lastTlsErr is set.
     fun _makeError(status, handle=null)

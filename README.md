@@ -42,6 +42,24 @@ Futures, Tasks, and handles are owned by exactly one event loop. High-level oper
 loop attached to their handle, while coroutine objects stay loop-neutral until they are scheduled as
 Tasks. Awaiting a Future from a different loop raises an error instead of transferring it implicitly.
 
+### Futures and Tasks
+
+A `Future` is an explicit placeholder for a value that will be available later. It starts pending,
+then completes once with either a result, an exception, or a cancellation. Code that exposes callback
+or handle-based I/O usually creates a Future with `loop.createFuture()`, completes it with
+`setResult()` or `setException()`, and returns it to async callers. Awaiting a failed or cancelled
+Future raises the stored exception in the awaiting task.
+
+A `Task` is a Future that runs a coroutine. Creating a Task schedules the coroutine on its owning
+event loop; the Task completes when the coroutine returns, raises, or is cancelled. Use
+`evh.createTask()` from async code for explicit background work, or `loop.createTask()` when you are
+already threading a specific loop through lower-level code.
+
+Cancelling a Future marks it as cancelled and causes future `result()` calls or awaits to raise
+`CancelledError`. Cancelling a Task requests cancellation by throwing `CancelledError` into the
+running coroutine on its next step. The coroutine can use `ensure` blocks for cleanup before the Task
+finishes as cancelled, or catch the cancellation and return a value if it intentionally handles it.
+
 ### Combining awaitables
 
 Event Horizon exposes a small set of focused combinators for working with compound awaitables:
@@ -49,7 +67,7 @@ Event Horizon exposes a small set of focused combinators for working with compou
 | Function | Description |
 |---|---|
 | `all(...awaitables)` | Complete with ordered results when every awaitable succeeds. If one raises or is cancelled, cancel unfinished siblings and raise that error. |
-| `race(...awaitables)` | Complete with the first awaitable to finish, whether it returns a value, raises, or is cancelled. Unfinished siblings are cancelled. |
+| `race(...awaitables)` | Complete with the first awaitable to return a value or raise an exception. A cancelled awaitable withdraws from the race; if every awaitable is cancelled, the race raises `CancelledError`. Unfinished siblings are cancelled after a winner is found. |
 | `waitAll(...awaitables)` | Wait until every awaitable finishes and return ordered `WaitOutcome` records. Child errors and cancellations are reported as outcomes instead of raising from the returned Future. |
 
 `WaitOutcome` has public `state` and `value` fields. `state` is one of

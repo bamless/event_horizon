@@ -1,31 +1,25 @@
+import event_horizon.async for async
 import event_horizon.utils.abc for abstract
 
-/// High-level wrapper around a libuv handle.
-///
-/// Methods that call native libuv setters/getters raise StatusException when
-/// libuv fails the operation. close() is async: yield it to wait until the
-/// native handle has actually closed.
+/// High-level wrapper around an event-loop handle.
 class Handle
-    /// Construct from a raw event_horizon.uv handle.
+    /// Construct from a lower-level handle owned by an event loop.
     @abstract(Handle) construct(handle)
         this._handle = handle
     end
 
-    /// Async: close the handle and complete when libuv runs the close callback.
-    fun close()
-        var self = this
+    /// Async: close the handle and complete when the event loop observes closure.
+    @async fun close()
         var fut = this._handle.loop().createFuture()
-
-        self._handle.close(fun()
+        this._handle.close(fun()
             if !fut.isDone()
                 fut.setResult()
             end
         end)
-
-        return fut
+        return yield fut
     end
     
-    /// Return whether libuv currently considers the handle active.
+    /// Return whether the handle is currently active.
     fun isActive()
         return this._handle.isActive()
     end
@@ -55,7 +49,7 @@ class Handle
         this._handle.setRecvBufferSize(size)
     end
 
-    /// Return the underlying event_horizon.uv handle.
+    /// Return the lower-level handle backing this wrapper.
     fun handle()
         return this._handle
     end

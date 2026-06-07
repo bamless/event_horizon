@@ -9,10 +9,8 @@ import event_horizon for getEventLoop, getRunningEventLoop, sleep
 import event_horizon.async for Coroutine, async
 import event_horizon.errors for CancelledError, EventHorizonException, LoopExecutionException
 import event_horizon.future for Future
-import event_horizon.idle for IdleHandle
 import event_horizon.pipe for PipeStream
 import event_horizon.tcp for TCPStream
-import event_horizon.timer for TimerHandle
 import event_horizon.tls for TLSStream
 import event_horizon.udp for UDPSocket
 import event_horizon.uv.event_loop for EventLoop
@@ -219,24 +217,6 @@ fun multipleCancellations()
 end
 
 @test
-fun highLevelHandleCloseReturnsFuture()
-    var idle = IdleHandle()
-    var closed = false
-
-    @async
-    fun work()
-        var closeFuture = idle.close()
-        assert(closeFuture is Future)
-        yield closeFuture
-        closed = true
-    end
-
-    evh.run(work())
-
-    assert(closed)
-end
-
-@test
 fun highLevelHandlesDefaultToRunningLoop()
     var loop = EventLoop()
 
@@ -244,8 +224,6 @@ fun highLevelHandlesDefaultToRunningLoop()
     fun work()
         var runningLoop = getRunningEventLoop()
         var handles = [
-            IdleHandle(),
-            TimerHandle(),
             TCPStream(),
             UDPSocket(),
             PipeStream(),

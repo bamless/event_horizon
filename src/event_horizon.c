@@ -1,4 +1,7 @@
 #include <jstar/jstar.h>
+#ifndef _WIN32
+    #include <signal.h>
+#endif
 
 #include "consts.h"
 #include "dns.h"
@@ -124,5 +127,14 @@ static JStarNativeReg registry[] = {
 // clang-format on
 
 JSTAR_API JStarNativeReg* jsrOpenModule(void) {
+#ifndef _WIN32
+    // Remote peers may close while a stream write is being queued. Ignore
+    // SIGPIPE so libuv can report EPIPE/ECONNRESET through normal callbacks.
+    struct sigaction sa = {0};
+    sa.sa_handler = SIG_IGN;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGPIPE, &sa, NULL);
+#endif
+
     return registry;
 }
