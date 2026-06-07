@@ -87,12 +87,12 @@ class Stream is Handle
     /// no longer writable.
     @async fun write(data)
         var dataLen = #data
-        var fut = this._handle.loop().createFuture()
         this._queuedBytes += dataLen
+        var fut = this._handle.loop().createFuture()
 
-        var self = this
         try
-            self._handle.write(data, fun(status)
+            var self = this
+            this._handle.write(data, fun(status)
                 self._queuedBytes -= dataLen
 
                 if fut.isDone()
