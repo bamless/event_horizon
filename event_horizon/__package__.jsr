@@ -39,15 +39,6 @@ fun createTask(coro)
     return loop.createTask(coro)
 end
 
-/// Wrap an awaitable in a Future owned by loop.
-///
-/// When loop is omitted, the current running loop is used, falling back to the
-/// default loop outside a running event loop.
-fun ensureFuture(value, loop=null)
-    loop = loop or getEventLoop()
-    return future.ensureFuture(value, loop)
-end
-
 /// Return a Future that completes when every awaitable succeeds.
 ///
 /// The result is ordered to match the input awaitables. If one awaitable raises
