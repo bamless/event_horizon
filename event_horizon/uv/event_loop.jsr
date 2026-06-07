@@ -1,8 +1,7 @@
 import event_horizon.data_structures.registry for Registry
 import event_horizon.async for Coroutine
 import event_horizon.errors for EventHorizonException, LoopExecutionException
-import event_horizon.future as future
-import event_horizon.future for Future
+import event_horizon.future for Future, ensureFuture
 import event_horizon.task for Task
 import event_horizon.uv.prepare for Prepare
 import event_horizon.uv.timer for Timer
@@ -163,7 +162,7 @@ class EventLoop
     /// Exceptions stored on the completed awaitable are re-raised here.
     fun runUntilComplete(awaitable)
         this._stopWhenDrained = false
-        var fut = future.ensureFuture(awaitable, this)
+        var fut = ensureFuture(awaitable, this)
 
         var self = this
         fut.addDoneCallback(fun(_)
