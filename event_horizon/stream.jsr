@@ -78,10 +78,6 @@ class Stream is Handle
             end
         end, backlog)
 
-        //fut.setCancelCallback(fun()
-        //    self.close()
-        //end)
-
         return yield fut
     end
 
