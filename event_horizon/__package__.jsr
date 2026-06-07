@@ -117,6 +117,10 @@ end
 /// The first returned value or raised exception is propagated.
 /// All unfinished siblings are cancelled.
 fun race(...awaitables)
+    if #awaitables == 0
+        raise EventHorizonException("race requires at least one awaitable")
+    end
+
     var loop = getEventLoop()
     var fut = loop.createFuture()
     var children = []
@@ -132,11 +136,6 @@ fun race(...awaitables)
     fut.setCancelCallback(fun()
         cancelPending()
     end)
-
-    if #awaitables == 0
-        fut.setException(EventHorizonException("race requires at least one awaitable"))
-        return fut
-    end
 
     var numActive = #awaitables
     for var awaitable in awaitables
