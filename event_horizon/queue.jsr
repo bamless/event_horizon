@@ -1,0 +1,128 @@
+import event_horizon for getEventLoop
+import event_horizon.async for async
+import event_horizon.data_structures.deque for Deque
+
+class QueueClosed is Exception end
+
+class Queue
+    construct(maxSize=0, loop=null)
+        this._loop = loop or getEventLoop()
+        this._maxSize = maxSize
+        this._queue = Deque()
+        this._writers = Deque()
+        this._readers = Deque()
+        this._closed = false
+    end
+
+    @async fun put(item)
+        while this.isFull()
+            if this.isClosed()
+                raise QueueClosed()
+            end
+
+            var writer = this._loop.createFuture()
+            this._writers.pushBack(writer)
+
+            try
+                yield writer
+            except Exception e
+                var wasWoken = writer.isDone() and !writer.isCancelled()
+                writer.cancel(e)
+
+                // The writer errored before we could put the item and was not
+                // cancelled, make use of the free slot in the queue by waking
+                // up the next writer, if any
+                if wasWoken and !this.isFull()
+                    this._wakeup(this._writers)
+                end
+
+                raise e
+            end
+        end
+        var put = this.putNoWait(item)
+        assert(put, "Queue should not be full")
+    end
+
+    fun putNoWait(item)
+        if this.isClosed()
+            raise QueueClosed()
+        end
+        if this.isFull()
+            return false
+        end
+        this._queue.pushBack(item)
+        this._wakeup(this._readers)
+        return true
+    end
+
+    @async fun get()
+        while this.isEmpty()
+            if this.isClosed() and this.isEmpty()
+                raise QueueClosed()
+            end
+
+            var reader = this._loop.createFuture()
+            this._readers.pushBack(reader)
+
+            try
+                yield reader
+            except Exception e
+                var wasWoken = reader.isDone() and !reader.isCancelled()
+                reader.cancel(e)
+
+                // The reader errored before we could get an item and was not
+                // cancelled, give the next in line a chance to read instead
+                if wasWoken and !this.isEmpty()
+                    this._wakeup(this._readers)
+                end
+
+                raise e
+            end
+        end
+        var item, received = this.getNoWait()
+        assert(received, "Queue should not be empty")
+        return item
+    end
+
+    fun getNoWait()
+        if this.isEmpty()
+            return null, false
+        end
+        var item = this._queue.popFront()
+        this._wakeup(this._writers)
+        return item, true
+    end
+
+    fun isFull()
+        if this._maxSize == 0
+            return false
+        end
+        return #this._queue == this._maxSize
+    end
+
+    fun isEmpty()
+        return #this._queue == 0
+    end
+
+    fun isClosed()
+        return this._closed
+    end
+
+    fun close()
+        this._closed = true
+    end
+
+    fun __len__()
+        return #this._queue
+    end
+
+    fun _wakeup(waiters)
+        while #waiters != 0
+            var waiter = waiters.popFront()
+            if !waiter.isDone()
+                waiter.setResult()
+                break
+            end
+        end
+    end
+end
