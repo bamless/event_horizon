@@ -45,14 +45,17 @@ end
 @async fun runServer(host, port)
     var server = TCPListener()
 
-    server.bind(host, port)
-    server.listen()
-
     try
+        server.bind(host, port)
+        server.listen()
+        print("TCP echo server listening on {0}:{1}" % (host, port))
+
         for ;;
             var client = yield server.accept()
             evh.createTask(handleClient(client))
         end
+    except ProgramInterrupt _
+        print("Closing server...")
     ensure
         yield server.close()
     end

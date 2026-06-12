@@ -61,6 +61,8 @@ end
             var client = yield server.accept()
             evh.createTask(handleClient(client))
         end
+    except ProgramInterrupt _
+        print("Closing server...")
     ensure
         yield server.close()
     end
