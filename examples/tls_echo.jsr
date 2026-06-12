@@ -59,7 +59,7 @@ end
 
         for ;;
             var client = yield server.accept()
-            evh.getEventLoop().createTask(handleClient(client))
+            evh.createTask(handleClient(client))
         end
     ensure
         yield server.close()
