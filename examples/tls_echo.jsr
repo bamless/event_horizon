@@ -16,8 +16,6 @@
 // Default host: 127.0.0.1
 // Default port: 19443
 
-importPaths.insert(0, './')
-
 import io
 import sys
 

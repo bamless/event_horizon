@@ -1,0 +1,124 @@
+#!/usr/bin/env jstar
+
+// Minimal TLS chat server.
+//
+// The server uses self-signed certificates and does not validate or clean
+// user input, so this is purely demonstration only.
+//
+// Usage:
+//   tls_chat_server.jsr [host] [port]
+//
+// TLS clients can connect with:
+//   openssl s_client -connect 127.0.0.1:19444 -quiet
+//   ncat --ssl 127.0.0.1 19444
+
+import io
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.tls for TLSListener
+import event_horizon.errors for StatusException
+
+static var CERT = "tests/certs/cert.pem"
+static var KEY  = "tests/certs/key.pem"
+
+static var DEFAULT_HOST = "127.0.0.1"
+static var DEFAULT_PORT = 19444
+
+var clients = {}
+
+@async fun broadcast(sender, message)
+    for var username in clients
+        var client = clients[username]
+        if client != sender
+            try
+                yield client.write(message)
+            except StatusException e
+                io.stderr.writeln("broadcast failed for {0}: {1}" % (username, e.err()))
+            end
+        end
+    end
+end
+
+@async fun handleClient(client)
+    var username = null
+
+    try
+        yield client.write("username: ")
+        var requestedUsername = (yield client.readLine()).strip()
+
+        if requestedUsername == ""
+            yield client.write("invalid username")
+            return
+        end
+
+        if clients.contains(requestedUsername)
+            yield client.write("username already taken\n")
+            return
+        end
+
+        username = requestedUsername
+        clients[username] = client
+
+        print("{0} joined" % username)
+        yield client.write("users connected: {0}\n" % clients.join(", "))
+        yield broadcast(client, "* {0} joined\n" % username)
+
+        var line
+        while line = yield client.readLine()
+            if line.strip() != ""
+                yield broadcast(client, "{0}: {1}" % (username, line))
+            end
+        end
+    except StatusException e
+        io.stderr.writeln("Error in client {0}: {1}" % (username, e.err()))
+    ensure
+        yield client.close()
+        if username
+            print("{0} left" % username)
+            clients.delete(username)
+            yield broadcast(client, "* {0} left\n" % username)
+        end
+    end
+end
+
+@async fun runServer(host, port)
+    var server = TLSListener({"cert": CERT, "key": KEY})
+
+    var tasks = {}
+    try
+        server.bind(host, port)
+        server.listen()
+        print("TLS chat server listening on {0}:{1}" % (host, port))
+
+        for ;;
+            var client = yield server.accept()
+            var clientTask
+            clientTask = evh.createTask(async(fun()
+                try
+                    tasks[clientTask] = true
+                    yield handleClient(client)
+                ensure
+                    tasks.delete(clientTask)
+                end
+            end)())
+        end
+    except ProgramInterrupt _
+        print("Closing server...")
+    ensure
+        for var task in tasks
+            task.cancel()
+        end
+        yield server.close()
+    end
+end
+
+@async fun main()
+    var host = argv[0] if #argv >= 1 else DEFAULT_HOST
+    var port = std.int(argv[1]) if #argv >= 2 else DEFAULT_PORT
+    yield runServer(host, port)
+end
+
+if __name__ == "__main__"
+    evh.run(main())
+end
