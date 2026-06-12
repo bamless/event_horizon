@@ -13,6 +13,7 @@ class Task is Future
         this._coro = coro
         this._waitingOn = null
         this._cancelRequested = false
+        this._throwException = null
         this._cancelling = false
 
         var self = this
@@ -51,9 +52,12 @@ class Task is Future
             return
         end
 
-        // Override any pending result from a cancelled _waitingOn future: once
-        // cancellation is requested we never deliver the result to the coroutine.
-        if this._cancelRequested
+        // External exceptions and cancellations must win over any pending
+        // result from _waitingOn.
+        if this._throwException
+            exc = this._throwException
+            this._throwException = null
+        elif this._cancelRequested
             this._cancelRequested = false
             exc = CancelledError()
         end
@@ -128,6 +132,38 @@ class Task is Future
         else
             this._loop.callSoon(fun()
                 self._step(null, CancelledError())
+            end)
+        end
+
+        return true
+    end
+
+    /// Throw an exception into this Task's coroutine on its next step.
+    ///
+    /// This is separate from cancel(): cancellation is a specific cooperative
+    /// protocol using CancelledError, while throw() is for external exceptions
+    /// that should appear at the currently suspended yield point.
+    fun throw(exc)
+        if this.isDone()
+            return false
+        end
+
+        if !(exc is Exception)
+            raise EventHorizonException("Task.throw expects an exception")
+        end
+
+        if this._waitingOn is Task and this._waitingOn.throw(exc)
+            return true
+        end
+
+        var self = this
+        this._throwException = exc
+
+        if this._waitingOn
+            this._waitingOn.cancel()
+        else
+            this._loop.callSoon(fun()
+                self._step(null, exc)
             end)
         end
 

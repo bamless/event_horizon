@@ -1,6 +1,7 @@
 #include "event_loop.h"
 
 #include <jstar/jstar.h>
+#include <signal.h>
 #include <string.h>
 
 #include "callbacks.h"
@@ -16,11 +17,37 @@ static JStarSymbol* sym_unref;
 static JStarSymbol* sym_g_addException;
 static JStarSymbol* sym_g_clearExceptions;
 static JStarSymbol* sym_g_getExceptions;
+static JStarSymbol* sym_g_raiseProgramInterrupt;
 
 // class EventLoop
 #define G_ADD_EXCEPTION    "_addException"
 #define G_CLEAR_EXCEPTIONS "_clearExceptions"
 #define G_GET_EXCEPTIONS   "_getExceptions"
+#define G_RAISE_INTERRUPT  "_raiseProgramInterrupt"
+
+static void sigintCallback(uv_signal_t* signal, int signum) {
+    (void)signum;
+
+    LoopMetadata* metadata = signal->loop->data;
+    JStarVM* vm = metadata->vm;
+
+    if(!jsrGetGlobalCached(vm, "event_horizon.uv.event_loop", G_RAISE_INTERRUPT,
+                           sym_g_raiseProgramInterrupt) ||
+       !jsrCall(vm, 0)) {
+        EventLoop_addException(vm, -1);
+        jsrPop(vm);
+    } else {
+        jsrPop(vm);
+    }
+
+    uv_stop(signal->loop);
+}
+
+static void closeRunSignalHandle(uv_loop_t* loop, uv_signal_t* signal) {
+    uv_signal_stop(signal);
+    uv_close((uv_handle_t*)signal, NULL);
+    uv_run(loop, UV_RUN_NOWAIT);
+}
 
 static uv_loop_t* getUVLoopUserdata(JStarVM* vm, int eventLoopSlot) {
     if(!jsrGetFieldCached(vm, eventLoopSlot, M_LOOP_LOOP, sym_loop)) return NULL;
@@ -55,7 +82,25 @@ bool EventLoop_run(JStarVM* vm) {
     uv_loop_t* loop = EventLoop_getUVLoop(vm, 0);
     if(!loop) return false;
 
+    uv_signal_t sigint;
+    int sigintRes = uv_signal_init(loop, &sigint);
+    if(sigintRes < 0) {
+        StatusException_raise(vm, sigintRes);
+        return false;
+    }
+
+    sigintRes = uv_signal_start(&sigint, sigintCallback, SIGINT);
+    if(sigintRes < 0) {
+        closeRunSignalHandle(loop, &sigint);
+        StatusException_raise(vm, sigintRes);
+        return false;
+    }
+
+    uv_unref((uv_handle_t*)&sigint);
+
     int res = uv_run(loop, mode);
+    closeRunSignalHandle(loop, &sigint);
+
     if(res < 0) {
         StatusException_raise(vm, res);
         return false;
@@ -168,6 +213,7 @@ bool EventLoop_init(JStarVM* vm) {
         sym_g_addException = jsrNewSymbol(vm);
         sym_g_clearExceptions = jsrNewSymbol(vm);
         sym_g_getExceptions = jsrNewSymbol(vm);
+        sym_g_raiseProgramInterrupt = jsrNewSymbol(vm);
     }
 
     // Instantiate the libuv loop

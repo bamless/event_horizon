@@ -179,6 +179,68 @@ fun taskCancellationIsThrownIntoCoroutine()
 end
 
 @test
+fun taskThrowIsThrownIntoCoroutine()
+    var interrupted = false
+
+    @async
+    fun work()
+        try
+            yield sleep(1000)
+        except ProgramInterrupt _
+            interrupted = true
+            return "handled"
+        end
+    end
+
+    var loop = getEventLoop()
+    var task = loop.createTask(work())
+    loop.callSoon(fun()
+        task.throw(ProgramInterrupt())
+    end)
+
+    assert(evh.run(task) == "handled")
+    assert(interrupted)
+end
+
+@test
+fun taskThrowDescendsIntoAwaitedTask()
+    var childInterrupted = false
+    var parentInterrupted = false
+    var loop = getEventLoop()
+    var childSuspended = loop.createFuture()
+
+    @async
+    fun child()
+        childSuspended.setResult()
+        try
+            yield sleep(1000)
+        except ProgramInterrupt _
+            childInterrupted = true
+            return "child handled"
+        end
+    end
+
+    @async
+    fun parent()
+        try
+            return yield child()
+        except ProgramInterrupt _
+            parentInterrupted = true
+            return "parent handled"
+        end
+    end
+
+    var task = loop.createTask(parent())
+    childSuspended.addDoneCallback(fun(_)
+        task.throw(ProgramInterrupt())
+    end)
+
+    assert(evh.run(task) == "child handled")
+    assert(childInterrupted)
+    assert(!parentInterrupted)
+end
+
+@test
 fun multipleCancellations()
     var firstCancelled = false
     var secondCancelled = false

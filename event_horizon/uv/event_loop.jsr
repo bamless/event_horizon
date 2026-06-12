@@ -173,13 +173,20 @@ class EventLoop
             this.runForever()
         except LoopExecutionException e
             if !fut.isDone()
-                try
-                    fut.cancel()
+                if e.cause() is ProgramInterrupt and fut is Task
+                    fut.throw(e.cause())
                     this.runForever()
-                except Exception _
+                else
+                    try
+                        fut.cancel()
+                        this.runForever()
+                    except Exception _
+                    end
+                    raise e
                 end
+            else
+                raise e
             end
-            raise e
         end
 
         if !fut.isDone()
@@ -190,7 +197,7 @@ class EventLoop
     end
 
     // Called when the main future is done. If all tasks have already finished,
-    // stop immediately; otherwise set the flag so the last task's done callback
+    // stop immediately, otherwise set the flag so the last task's done callback
     // calls stop().
     fun _drainAndStop()
         if this._pendingTaskCount == 0
@@ -206,6 +213,7 @@ class EventLoop
         end
 
         var previous = _enterRunningEventLoop(this)
+
         var wasRunning = this._running
         this._running = true
 
@@ -294,4 +302,10 @@ end
 // Returns a copy of the exceptions raised during event loop execution.
 fun _getExceptions()
     return List(exceptions)
+end
+
+// Called by the native SIGINT watcher so Ctrl-C is recorded through the same
+// callback-exception path as other libuv callback failures.
+fun _raiseProgramInterrupt()
+    raise ProgramInterrupt()
 end
