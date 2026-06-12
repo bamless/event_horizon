@@ -18,7 +18,7 @@ import sys
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.tcp for TCPStream
+import event_horizon.tcp for TCPStream, TCPListener
 
 static var DEFAULT_HOST = "127.0.0.1"
 static var DEFAULT_PORT = 8080
@@ -43,11 +43,16 @@ static var DEFAULT_PORT = 8080
 end
 
 @async fun runServer(host, port)
-    var server = TCPStream()
+    var server = TCPListener()
+
+    server.bind(host, port)
+    server.listen()
+
     try
-        server.bind(host, port)
-        print("TCP echo server listening on {0}:{1}" % (host, port))
-        yield server.listen(handleClient)
+        for ;;
+            var client = yield server.accept()
+            evh.getEventLoop().createTask(handleClient(client))
+        end
     ensure
         yield server.close()
     end

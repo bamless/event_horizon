@@ -1,0 +1,249 @@
+#!/usr/bin/env jstar
+importPaths.insert(0, './')
+importPaths.insert(0, './tests')
+
+import test for test, run
+
+import event_horizon as evh
+import event_horizon.async for async
+import event_horizon.errors for CancelledError
+import event_horizon.queue for Queue, QueueClosed
+
+@test
+fun putNoWaitGetNoWaitFifo()
+    var q = Queue()
+
+    assert(q.putNoWait("first"))
+    assert(q.putNoWait("second"))
+    assert(#q == 2)
+
+    var item, received = q.getNoWait()
+    assert(received)
+    assert(item == "first")
+
+    item, received = q.getNoWait()
+    assert(received)
+    assert(item == "second")
+
+    item, received = q.getNoWait()
+    assert(!received)
+    assert(!item)
+end
+
+@test
+fun putNoWaitReturnsFalseWhenFull()
+    var q = Queue(1)
+
+    assert(q.putNoWait("first"))
+    assert(!q.putNoWait("second"))
+    assert(q.isFull())
+    assert(#q == 1)
+end
+
+@test
+fun getWaitsForPut()
+    var received = null
+
+    @async
+    fun consumer(q)
+        received = yield q.get()
+    end
+
+    @async
+    fun producer(q)
+        yield evh.sleep(0)
+        yield q.put("value")
+    end
+
+    @async
+    fun main()
+        var q = Queue()
+        yield evh.all(consumer(q), producer(q))
+    end
+
+    evh.run(main())
+    assert(received == "value")
+end
+
+@test
+fun putWaitsForSpace()
+    var writerDone = false
+    var first = null
+    var second = null
+
+    @async
+    fun writer(q)
+        yield q.put("second")
+        writerDone = true
+    end
+
+    @async
+    fun reader(q)
+        yield evh.sleep(0)
+        assert(!writerDone)
+
+        first = yield q.get()
+        yield evh.sleep(0)
+        assert(writerDone)
+
+        second = yield q.get()
+    end
+
+    @async
+    fun main()
+        var q = Queue(1)
+        q.putNoWait("first")
+        yield evh.all(writer(q), reader(q))
+    end
+
+    evh.run(main())
+    assert(first == "first")
+    assert(second == "second")
+end
+
+@test
+fun closeRejectsNewPut()
+    var q = Queue()
+    q.close()
+
+    var closed = false
+    try
+        q.putNoWait("item")
+    except QueueClosed _
+        closed = true
+    end
+
+    assert(closed)
+end
+
+@test
+fun gracefulCloseDrainsQueuedItemsThenRaises()
+    @async
+    fun main()
+        var q = Queue()
+        q.putNoWait("first")
+        q.close()
+
+        assert((yield q.get()) == "first")
+
+        try
+            yield q.get()
+            assert(false, "get() on closed empty queue should fail")
+        except QueueClosed _
+        end
+    end
+
+    evh.run(main())
+end
+
+@test
+fun closeWakesPendingReaderOnEmptyQueue()
+    var closed = false
+
+    @async
+    fun reader(q)
+        try
+            yield q.get()
+        except QueueClosed _
+            closed = true
+        end
+    end
+
+    @async
+    fun closer(q)
+        yield evh.sleep(0)
+        q.close()
+    end
+
+    @async
+    fun main()
+        var q = Queue()
+        yield evh.all(reader(q), closer(q))
+    end
+
+    evh.run(main())
+    assert(closed)
+end
+
+@test
+fun closeWakesBlockedWriter()
+    var closed = false
+
+    @async
+    fun writer(q)
+        try
+            yield q.put("blocked")
+        except QueueClosed _
+            closed = true
+        end
+    end
+
+    @async
+    fun closer(q)
+        yield evh.sleep(0)
+        q.close()
+    end
+
+    @async
+    fun main()
+        var q = Queue(1)
+        q.putNoWait("first")
+        yield evh.all(writer(q), closer(q))
+    end
+
+    evh.run(main())
+    assert(closed)
+end
+
+@test
+fun cancelledGetDoesNotConsumeNextItem()
+    @async
+    fun main()
+        var q = Queue()
+        var pendingGet = evh.createTask(q.get())
+        yield evh.sleep(0)
+
+        pendingGet.cancel()
+        try
+            yield pendingGet
+            assert(false, "cancelled get should fail")
+        except CancelledError _
+        end
+
+        q.putNoWait("value")
+        assert((yield q.get()) == "value")
+    end
+
+    evh.run(main())
+end
+
+@test
+fun cancelledPutDoesNotEnqueueAfterSpaceFrees()
+    @async
+    fun main()
+        var q = Queue(1)
+        q.putNoWait("first")
+
+        var pendingPut = evh.createTask(q.put("second"))
+        yield evh.sleep(0)
+
+        pendingPut.cancel()
+        try
+            yield pendingPut
+            assert(false, "cancelled put should fail")
+        except CancelledError _
+        end
+
+        assert((yield q.get()) == "first")
+
+        var item, received = q.getNoWait()
+        assert(!received)
+        assert(!item)
+    end
+
+    evh.run(main())
+end
+
+if __name__ == '__main__'
+    run()
+end

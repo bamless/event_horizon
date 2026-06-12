@@ -1,0 +1,73 @@
+import event_horizon.utils.abc for abstract, abstractMethod
+import event_horizon.errors for EventHorizonException, StatusException
+import event_horizon.handle for Handle
+import event_horizon.async for async
+import event_horizon.queue for Queue
+
+/// Base class for high-level server listeners.
+///
+/// listen() starts accepting connections and queues them internally. accept()
+/// waits for the next queued connection and returns the stream wrapper created
+/// by the subclass. Binding and listener-specific configuration are defined by
+/// each concrete listener.
+class Listener is Handle
+    @abstract(Listener) construct(handle)
+        super(handle)
+        this._acceptQueue = Queue()
+        this._listening = false
+    end
+
+    /// Start accepting incoming connections.
+    ///
+    /// Call accept() to receive each connection. onError handles transport
+    /// errors reported by the underlying listener; by default they are printed.
+    fun listen(onError=null, backlog=0)
+        if this.isClosing()
+            raise EventHorizonException("listener closed")
+        end
+
+        if this._listening
+            raise EventHorizonException("listener already listening")
+        end
+
+        this._listening = true
+        var errHandler = onError or (|e| => e.printStacktrace())
+
+        var self = this
+        this._handle.listen(fun(client, status)
+            if self.isClosing()
+                return
+            end
+            if status < 0
+                errHandler(self._makeError(status, client))
+            else
+                self._acceptQueue.putNoWait(self._makeStream(client))
+            end
+        end, backlog)
+    end
+
+    /// Async: wait for and return the next accepted stream.
+    @async fun accept()
+        if this.isClosing()
+            raise EventHorizonException("listener closed")
+        end
+        if !this._listening
+            raise EventHorizonException("listener is not listening")
+        end
+        return yield this._acceptQueue.get()
+    end
+
+    // Construct an error object from a transport status code. Subclasses may
+    // override this to raise a richer exception type when the status code
+    // alone does not carry enough diagnostic context.
+    fun _makeError(status, handle=null)
+        return StatusException(status)
+    end
+
+    // Factory method called when the raw listener accepts a new connection.
+    //
+    // Returns a correctly set-up subclass-specific stream wrapper, such as
+    // TCPStream, PipeStream, or TLSStream.
+    @abstractMethod
+    fun _makeStream(client) end
+end

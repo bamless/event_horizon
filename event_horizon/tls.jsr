@@ -3,6 +3,7 @@ import event_horizon.async for async
 import event_horizon.dns for getAddrInfo
 import event_horizon.errors for StatusException, TLSException
 import event_horizon.stream for Stream
+import event_horizon.listener for Listener
 import event_horizon.utils.ip for getIPType, IPType
 import event_horizon.uv.consts for SockType
 import event_horizon.uv.errors for Errno
@@ -59,13 +60,6 @@ class TLSStream is Stream
         return yield fut
     end
 
-    /// Bind the underlying TCP stream for use as a TLS server.
-    ///
-    /// Raises StatusException if the address is invalid or binding fails.
-    fun bind(addr, port, ipv6Only=false)
-        this._handle.bind(addr, port, ipv6Only)
-    end
-
     /// Return (address, port) for the local socket, or raise StatusException.
     fun sockName()
         return this._handle.sockName()
@@ -94,10 +88,45 @@ class TLSStream is Stream
                 return TLSException(tlsMsg)
             end
         end
-        return super(status)
+        return StatusException(status)
+    end
+end
+
+/// TLS server listener over TCP.
+///
+/// options must include "cert" and "key" paths for the server certificate and
+/// private key. Bind the listener to an address and port, call listen(), then
+/// repeatedly `yield accept()` to receive TLSStream clients whose server-side
+/// handshakes have already completed.
+class TLSListener is Listener
+    /// Construct a TLS listener on loop, or the active/default loop when omitted.
+    construct(options=null, loop=null)
+        var opts = options or {}
+        loop = loop or getEventLoop()
+        super(uv_tls.TLS(opts, loop, true))
+        this._options = opts
     end
 
-    fun _accept(client)
-        return TLSStream(this._options, this._highWaterMark, this._handle.loop(), client)
+    /// Bind the listener to a local address and port.
+    ///
+    /// Raises StatusException if the address is invalid or binding fails.
+    fun bind(addr, port, ipv6Only=false)
+        this._handle.bind(addr, port, ipv6Only)
+    end
+
+    // Preserve the detailed mbedTLS error captured on a rejected accepted
+    // handle. Listener.listen() receives that raw handle on handshake failure.
+    fun _makeError(status, handle=null)
+        if status == Errno.EPROTO and handle
+            var tlsMsg = handle.tlsError()
+            if tlsMsg
+                return TLSException(tlsMsg)
+            end
+        end
+        return StatusException(status)
+    end
+
+    fun _makeStream(client)
+        return TLSStream(this._options, null, this._handle.loop(), client)
     end
 end

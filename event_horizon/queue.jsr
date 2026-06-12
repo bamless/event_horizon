@@ -2,9 +2,20 @@ import event_horizon for getEventLoop
 import event_horizon.async for async
 import event_horizon.data_structures.deque for Deque
 
+/// Raised when operations cannot proceed because a Queue has been closed.
 class QueueClosed is Exception end
 
+/// Asynchronous FIFO queue.
+///
+/// Queue coordinates producers and consumers on one event loop. put() waits
+/// while a bounded queue is full, and get() waits while the queue is empty.
+/// The NoWait variants return immediately and report whether they succeeded.
+///
+/// maxSize == 0 means unbounded. close() prevents new items from being added,
+/// wakes blocked producers, and lets consumers drain already queued items.
+/// Once the queue is closed and empty, get() raises QueueClosed.
 class Queue
+    /// Construct a queue owned by loop, or the active/default loop when omitted.
     construct(maxSize=0, loop=null)
         this._loop = loop or getEventLoop()
         this._maxSize = maxSize
@@ -14,6 +25,9 @@ class Queue
         this._closed = false
     end
 
+    /// Async: enqueue item, waiting while the queue is full.
+    ///
+    /// Raises QueueClosed if the queue is closed before item can be enqueued.
     @async fun put(item)
         while this.isFull()
             if this.isClosed()
@@ -43,6 +57,10 @@ class Queue
         assert(put, "Queue should not be full")
     end
 
+    /// Try to enqueue item without waiting.
+    ///
+    /// Returns false if the queue is full. Raises QueueClosed if the queue has
+    /// been closed.
     fun putNoWait(item)
         if this.isClosed()
             raise QueueClosed()
@@ -55,6 +73,9 @@ class Queue
         return true
     end
 
+    /// Async: dequeue and return the next item, waiting while the queue is empty.
+    ///
+    /// Raises QueueClosed once the queue is closed and no queued items remain.
     @async fun get()
         while this.isEmpty()
             if this.isClosed() and this.isEmpty()
@@ -84,6 +105,10 @@ class Queue
         return item
     end
 
+    /// Try to dequeue without waiting.
+    ///
+    /// Returns (item, true) when an item was available, or (null, false) when
+    /// the queue was empty.
     fun getNoWait()
         if this.isEmpty()
             return null, false
@@ -93,6 +118,7 @@ class Queue
         return item, true
     end
 
+    /// Return true if a bounded queue has reached maxSize.
     fun isFull()
         if this._maxSize == 0
             return false
@@ -100,18 +126,37 @@ class Queue
         return #this._queue == this._maxSize
     end
 
+    /// Return true if there are no queued items.
     fun isEmpty()
         return #this._queue == 0
     end
 
+    /// Return true after close() has been called.
     fun isClosed()
         return this._closed
     end
 
-    fun close()
+    /// Close the queue.
+    ///
+    /// Blocked producers always fail with QueueClosed. With immediate == false,
+    /// queued items remain available and blocked consumers are only failed when
+    /// there is nothing left to drain. With immediate == true, all currently
+    /// blocked consumers fail immediately.
+    fun close(immediate=false)
+        if this._closed
+            return
+        end
+
         this._closed = true
+
+        this._failWaiters(this._writers)
+
+        if immediate or this.isEmpty()
+            this._failWaiters(this._readers)
+        end
     end
 
+    /// Return the number of queued items.
     fun __len__()
         return #this._queue
     end
@@ -122,6 +167,14 @@ class Queue
             if !waiter.isDone()
                 waiter.setResult()
                 break
+            end
+        end
+    end
+
+    fun _failWaiters(waiters)
+        for var waiter in waiters
+            if !waiter.isDone()
+                waiter.setException(QueueClosed())
             end
         end
     end

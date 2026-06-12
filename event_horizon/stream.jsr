@@ -12,7 +12,6 @@ class Stream is Handle
     /// Construct from a lower-level stream handle.
     @abstract(Stream) construct(handle, highWaterMark=null)
         super(handle)
-        this._resolveListen = null
         this._buffer = StreamBuffer()
         this._highWaterMark = highWaterMark or DEFAULT_HIGH_WATER_MARK
         this._drainArmed = false
@@ -21,78 +20,18 @@ class Stream is Handle
         this._pendingRead = null
     end
 
-    /// Async: close the stream and complete when the handle is closed.
-    @async fun close()
-        if this._resolveListen
-            this._resolveListen()
-            this._resolveListen = null
-        end
-        this._rejectDrain(EventHorizonException("stream closed"))
-        return yield super()
-    end
-
-    /// Async: listen for incoming connections until the stream is closed.
-    ///
-    /// onConnect receives an accepted Stream. Accept/listen failures and
-    /// exceptions raised by onConnect go to onError, or are printed by default.
-    @async fun listen(onConnect, onError=null, backlog=0)
-        var self = this
-        var loop = this._handle.loop()
-        var fut = loop.createFuture()
-        var errHandler = onError or (|e| => e.printStacktrace())
-        var closing = false
-        var activeTasks = 0
-
-        fun finishListen()
-            if closing and activeTasks == 0 and !fut.isDone()
-                fut.setResult()
-            end
-        end
-
-        this._resolveListen = fun()
-            closing = true
-            finishListen()
-        end
-
-        this._handle.listen(fun(client, status)
-            try
-                if status < 0
-                    errHandler(self._makeError(status, client))
-                    return
-                end
-
-                activeTasks += 1
-                var task = loop.createTask(onConnect(self._accept(client)))
-                task.addDoneCallback(fun(done)
-                    try
-                        done.result()
-                    except Exception e
-                        errHandler(e)
-                    end
-
-                    activeTasks -= 1
-                    finishListen()
-                end)
-            except Exception e
-                errHandler(e)
-            end
-        end, backlog)
-
-        return yield fut
-    end
-
     /// Async: write data and complete when the queued write completes.
     ///
     /// Fails with StatusException if the write fails or the stream is
     /// no longer writable.
     @async fun write(data)
         var dataLen = #data
-        this._queuedBytes += dataLen
         var fut = this._handle.loop().createFuture()
+        this._queuedBytes += dataLen
 
+        var self = this
         try
-            var self = this
-            this._handle.write(data, fun(status)
+            self._handle.write(data, fun(status)
                 self._queuedBytes -= dataLen
 
                 if fut.isDone()
@@ -392,11 +331,4 @@ class Stream is Handle
     fun _makeError(status, handle=null)
         return StatusException(status)
     end
-
-    // Factory method called during `Stream.listen` for accepting new connections.
-    //
-    // Returns a correctly set-up handle to the subclass-specific wrapper (i.e TCPStream,
-    // PipeStream, etc.).
-    @abstractMethod
-    fun _accept(client) end
 end

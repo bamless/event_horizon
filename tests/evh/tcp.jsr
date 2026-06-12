@@ -7,7 +7,7 @@ import test for test, run, skip
 import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.errors for CancelledError, EventHorizonException, StatusException
-import event_horizon.tcp for TCPStream
+import event_horizon.tcp for TCPStream, TCPListener
 import event_horizon.uv.errors for Errno
 
 @test
@@ -16,14 +16,14 @@ fun listenConnect()
 
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            serverConnect = true
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        serverConnect = true
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -40,51 +40,18 @@ fun listenConnect()
 end
 
 @test
-fun listenOnError()
-    var onErrorCalled = false
-
-    @async
-    fun server()
-        var server = TCPStream()
-        server.bind("0.0.0.0", 8080)
-        
-        yield server.listen(async(fun(client)
-            yield client.close()
-            yield server.close()
-            raise NameException()
-        end), fun(exc)
-            onErrorCalled = true
-            assert(exc is NameException)
-        end)
-    end
-
-    @async
-    fun client()
-        var client = TCPStream()
-        yield client.connect("127.0.0.1", 8080)
-        yield client.close()
-    end
-    
-    assert(!onErrorCalled)
-
-    evh.run(evh.all(server(), client()))
-
-    assert(onErrorCalled)
-end
-
-@test
 fun listenClose()
     var closed = false
 
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.close()
+        yield server.close()
 
         closed = true
     end
@@ -145,18 +112,18 @@ end
 fun writeRead()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            try
-                var data = yield client.read()
-                yield client.write(data)
-            ensure
-                yield client.close()
-                yield server.close()
-            end
-        end))
+        server.listen()
+        var client = yield server.accept()
+        try
+            var data = yield client.read()
+            yield client.write(data)
+        ensure
+            yield client.close()
+            yield server.close()
+        end
     end
 
     var data
@@ -179,15 +146,15 @@ end
 fun writeReadTask()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
 
-        yield server.listen(async(fun(client)
-            var data = yield client.read()
-            yield client.write(data)
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        var data = yield client.read()
+        yield client.write(data)
+        yield client.close()
+        yield server.close()
     end
 
     var data
@@ -210,14 +177,14 @@ end
 fun writeReadCount()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.write("0123456789")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("0123456789")
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -249,17 +216,17 @@ end
 fun writeReadCountDelayed()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.write("01234")
-            yield evh.sleep(1000)
-            yield client.write("56789")
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("01234")
+        yield evh.sleep(1000)
+        yield client.write("56789")
 
-            yield client.close()
-            yield server.close()
-        end))
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -288,16 +255,16 @@ end
 fun writeReadUntil()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.write(
-                "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n"
-            )
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write(
+            "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n"
+        )
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -329,17 +296,17 @@ end
 fun concurrentReadFailsBeforeDrainingBufferedData()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
 
-        yield server.listen(async(fun(client)
-            yield client.write("hello")
-            yield evh.sleep(100)
-            yield client.write(" world\n")
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("hello")
+        yield evh.sleep(100)
+        yield client.write(" world\n")
 
-            yield client.close()
-            yield server.close()
-        end))
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -347,7 +314,7 @@ fun concurrentReadFailsBeforeDrainingBufferedData()
         var client = TCPStream()
         yield client.connect("127.0.0.1", 8080)
 
-        var pendingLine = evh.getRunningEventLoop().createTask(client.readLine())
+        var pendingLine = evh.createTask(client.readLine())
 
         var attempts = 0
         while #client._buffer == 0 and attempts < 20
@@ -376,17 +343,17 @@ end
 fun cancelledReadReleasesPendingReadState()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
 
-        yield server.listen(async(fun(client)
-            yield client.write("hello")
-            yield evh.sleep(100)
-            yield client.write(" world\n")
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("hello")
+        yield evh.sleep(100)
+        yield client.write(" world\n")
 
-            yield client.close()
-            yield server.close()
-        end))
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -394,7 +361,7 @@ fun cancelledReadReleasesPendingReadState()
         var client = TCPStream()
         yield client.connect("127.0.0.1", 8080)
 
-        var pendingLine = evh.getRunningEventLoop().createTask(client.readLine())
+        var pendingLine = evh.createTask(client.readLine())
 
         var attempts = 0
         while #client._buffer == 0 and attempts < 20
@@ -423,18 +390,18 @@ end
 fun writeReadUntilDelayed()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.write(
-                "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
-            )
-            yield evh.sleep(1000)
-            yield client.write("t: test.com\r\n\r\n")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write(
+            "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
+        )
+        yield evh.sleep(1000)
+        yield client.write("t: test.com\r\n\r\n")
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -466,14 +433,14 @@ end
 fun writeln()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.write(yield client.readLine())
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write(yield client.readLine())
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -493,15 +460,15 @@ end
 fun readLine()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.write("line1\nline")
-            yield client.write("2\nline3\n")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("line1\nline")
+        yield client.write("2\nline3\n")
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -536,14 +503,14 @@ end
 fun readUntilFail()
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
         
-        yield server.listen(async(fun(client)
-            yield client.write("line1")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("line1")
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -572,16 +539,16 @@ fun readUntilSeparatorSplitAcrossChunks()
     // readUntil because neither chunk contained the complete "\r\n\r\n".
     @async
     fun server()
-        var server = TCPStream()
+        var server = TCPListener()
         server.bind("0.0.0.0", 8080)
 
-        yield server.listen(async(fun(client)
-            yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
-            yield evh.sleep(1000)
-            yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
+        yield evh.sleep(1000)
+        yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+        yield client.close()
+        yield server.close()
     end
 
     @async

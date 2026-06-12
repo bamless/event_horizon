@@ -7,7 +7,7 @@ import test for test, run
 import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.errors for EventHorizonException, StatusException
-import event_horizon.tls for TLSStream
+import event_horizon.tls for TLSStream, TLSListener
 import event_horizon.uv.errors for Errno
 
 static var CERT = "tests/certs/cert.pem"
@@ -33,13 +33,13 @@ fun listenConnect()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            serverConnected = true
-            yield client.close()
-            yield s.close()
-        end))
+        s.listen()
+        var client = yield s.accept()
+        serverConnected = true
+        yield client.close()
+        yield s.close()
     end
 
     @async
@@ -61,12 +61,12 @@ fun listenConnectVerified()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            yield client.close()
-            yield s.close()
-        end))
+        s.listen()
+        var client = yield s.accept()
+        yield client.close()
+        yield s.close()
     end
 
     @async
@@ -85,17 +85,17 @@ end
 fun writeRead()
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                var data = yield client.read()
-                yield client.write(data)
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            var data = yield client.read()
+            yield client.write(data)
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -120,18 +120,18 @@ fun largeWriteReadCrossesTLSStagingBoundaries()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                var data = yield client.read(#payload)
-                assert(data == payload, "server saw corrupted large payload")
-                yield client.write(data)
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            var data = yield client.read(#payload)
+            assert(data == payload, "server saw corrupted large payload")
+            yield client.write(data)
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -155,16 +155,16 @@ fun emptyWriteResolvesAndDoesNotBlockNextWrite()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                received = yield client.read()
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            received = yield client.read()
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -194,22 +194,22 @@ fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                while serverRead < #large
-                    var data = yield client.read()
-                    if !data
-                        break
-                    end
-                    serverRead += #data
+        s.listen()
+        var client = yield s.accept()
+        try
+            while serverRead < #large
+                var data = yield client.read()
+                if !data
+                    break
                 end
-            ensure
-                yield client.close()
-                yield s.close()
+                serverRead += #data
             end
-        end))
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -217,7 +217,7 @@ fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
 
-        var pendingWrite = evh.getRunningEventLoop().createTask(c.write(large))
+        var pendingWrite = evh.createTask(c.write(large))
         yield evh.sleep(0) // Give 'pendingWrite' time to be scheduled
 
         queuedAfterWrite = c.pendingWriteQueueSize()
@@ -245,17 +245,17 @@ fun queuedTLSWritesPreserveOrder()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                var data = yield client.read(#expected)
-                assert(data == expected, "queued TLS writes arrived out of order")
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            var data = yield client.read(#expected)
+            assert(data == expected, "queued TLS writes arrived out of order")
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -273,17 +273,17 @@ end
 fun readLine()
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                yield client.writeln("line one")
-                yield client.writeln("line two")
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            yield client.writeln("line one")
+            yield client.writeln("line two")
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -305,16 +305,16 @@ fun readUntil()
     // Verify that StreamBuffer separator logic works correctly over TLS chunks
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                yield client.write("part1|part2|part3")
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            yield client.write("part1|part2|part3")
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -336,18 +336,18 @@ fun writeReadCountDelayed()
     // read(N) spanning multiple tlsRawReadCallback invocations.
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                yield client.write("01234")
-                yield evh.sleep(1000)
-                yield client.write("56789")
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            yield client.write("01234")
+            yield evh.sleep(1000)
+            yield client.write("56789")
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -379,20 +379,20 @@ fun writeReadUntilDelayed()
     // accumulate across multiple network reads before the separator is found.
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                yield client.write(
-                    "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
-                )
-                yield evh.sleep(1000)
-                yield client.write("t: test.com\r\n\r\n")
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            yield client.write(
+                "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
+            )
+            yield evh.sleep(1000)
+            yield client.write("t: test.com\r\n\r\n")
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -427,18 +427,18 @@ fun readUntilSeparatorSplitAcrossChunks()
     // StreamBuffer must search across the join point, not per-chunk.
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
-                yield evh.sleep(1000)
-                yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            yield client.write("GET /test HTTP/1.1\r\nHost: test.com\r\n\r")
+            yield evh.sleep(1000)
+            yield client.write("\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n")
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
@@ -465,13 +465,13 @@ fun closeConnectedResolves()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            yield client.close()
-            serverClosed = true
-            yield s.close()
-        end))
+        s.listen()
+        var client = yield s.accept()
+        yield client.close()
+        serverClosed = true
+        yield s.close()
     end
 
     @async
@@ -494,19 +494,19 @@ fun closeWhileClosePendingRejects()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            yield client.close()
-            yield s.close()
-        end))
+        s.listen()
+        var client = yield s.accept()
+        yield client.close()
+        yield s.close()
     end
 
     @async
     fun client()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
-        var firstClose = evh.getRunningEventLoop().createTask(c.close())
+        var firstClose = evh.createTask(c.close())
         firstClose.addDoneCallback(fun(done)
             try
                 done.result()
@@ -536,23 +536,23 @@ fun closeCancelsPendingRead()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                yield client.read()
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            yield client.read()
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
     fun client()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
-        var pendingRead = evh.getRunningEventLoop().createTask(c.read())
+        var pendingRead = evh.createTask(c.read())
         yield c.close()
 
         try
@@ -575,23 +575,23 @@ fun shutdownWithPendingWriteRejects()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            try
-                yield client.read(#large)
-            ensure
-                yield client.close()
-                yield s.close()
-            end
-        end))
+        s.listen()
+        var client = yield s.accept()
+        try
+            yield client.read(#large)
+        ensure
+            yield client.close()
+            yield s.close()
+        end
     end
 
     @async
     fun client()
         var c = TLSStream(CLIENT_OPTS)
         yield c.connect("127.0.0.1", PORT)
-        var pendingWrite = evh.getRunningEventLoop().createTask(c.write(large))
+        var pendingWrite = evh.createTask(c.write(large))
         pendingWrite.addDoneCallback(fun(done)
             try
                 done.result()
@@ -622,12 +622,12 @@ fun writeAfterShutdownRejects()
 
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            yield client.close()
-            yield s.close()
-        end))
+        s.listen()
+        var client = yield s.accept()
+        yield client.close()
+        yield s.close()
     end
 
     @async
@@ -654,12 +654,12 @@ end
 fun sockNamePeerName()
     @async
     fun server()
-        var s = TLSStream(SERVER_OPTS)
+        var s = TLSListener(SERVER_OPTS)
         s.bind("0.0.0.0", PORT)
-        yield s.listen(async(fun(client)
-            yield client.close()
-            yield s.close()
-        end))
+        s.listen()
+        var client = yield s.accept()
+        yield client.close()
+        yield s.close()
     end
 
     @async

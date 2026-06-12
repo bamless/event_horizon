@@ -10,10 +10,13 @@ when data is available.
 
 - **`async/await`**: coroutine-based concurrency via the `@async` decorator and `yield`
 - **Futures and Tasks**: explicit result containers and scheduled coroutines
-- **TCP**: `TCPStream` for clients and servers, with automatic DNS resolution
-- **TLS**: `TLSStream` for encrypted TCP connections (client and server), backed by [mbedTLS](https://github.com/Mbed-TLS/mbedtls)
+- **TCP**: `TCPStream` for clients and accepted connections, `TCPListener` for
+  servers, with automatic DNS resolution
+- **Pipes**: `PipeStream` for cross-platform pipe connections and
+  `PipeListener` for pipe servers
+- **TLS**: `TLSStream` for encrypted TCP connections and `TLSListener` for
+  servers, backed by [mbedTLS](https://github.com/Mbed-TLS/mbedtls)
 - **UDP**: `UDPSocket`, including multicast support
-- **Pipes**: `PipeStream` for cross-platform pipes (Unix domain sockets on Unix, named pipes on Windows)
 - **Timers**: `sleep()` for task-friendly delays
 - **DNS**: asynchronous `getAddrInfo()`
 - **Raw libuv bindings**: `event_horizon.uv` for callback-style code
@@ -99,10 +102,10 @@ Generic event loop interface:
 | `event_horizon.async` | `async`, `Coroutine` |
 | `event_horizon.future` | `Future`, `ensureFuture` |
 | `event_horizon.task` | `Task` |
-| `event_horizon.tcp` | `TCPStream` |
-| `event_horizon.tls` | `TLSStream` |
+| `event_horizon.tcp` | `TCPStream`, `TCPListener` |
+| `event_horizon.pipe` | `PipeStream`, `PipeListener` |
+| `event_horizon.tls` | `TLSStream`, `TLSListener` |
 | `event_horizon.udp` | `UDPSocket` |
-| `event_horizon.pipe` | `PipeStream` |
 | `event_horizon.dns` | `getAddrInfo` |
 | `event_horizon.uv` | Raw libuv bindings |
 
@@ -114,22 +117,30 @@ The following snippet implements a TCP echo server. Error handling is omitted fo
 ```jstar
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.tcp for TCPStream
+import event_horizon.tcp for TCPListener
 
 // The `@async` decorator turns this function into a lazy coroutine.
 // Inside it, `yield` suspends execution until the awaited Future completes.
 @async fun handleClient(client)
-    var data
-    while data = yield client.readLine()
-        yield client.write(data)
+    try
+        var data
+        while data = yield client.readLine()
+            yield client.write(data)
+        end
+    ensure
+        yield client.close()
     end
 end
 
 @async fun main()
-    var server = TCPStream()
+    var server = TCPListener()
     server.bind("0.0.0.0", 8080)
-    // `listen` returns a Future that completes when the server stops accepting connections.
-    yield server.listen(handleClient)
+    server.listen()
+
+    for ;;
+        var client = yield server.accept()
+        evh.createTask(handleClient(client))
+    end
 end
 
 // Start the event loop and run the top-level coroutine to completion.

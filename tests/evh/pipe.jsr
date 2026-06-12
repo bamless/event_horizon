@@ -7,7 +7,7 @@ import test for test, run, skip
 import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.errors for EventHorizonException
-import event_horizon.pipe for PipeStream
+import event_horizon.pipe for PipeStream, PipeListener
 
 static var TEST_PIPE = "TEST_PIPE"
 
@@ -17,14 +17,14 @@ fun listenConnect()
 
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            serverConnect = true
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        serverConnect = true
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -41,51 +41,18 @@ fun listenConnect()
 end
 
 @test
-fun listenOnError()
-    var onErrorCalled = false
-
-    @async
-    fun server()
-        var server = PipeStream()
-        server.bind(TEST_PIPE)
-        
-        yield server.listen(async(fun(client)
-            yield client.close()
-            yield server.close()
-            raise NameException()
-        end), fun(exc)
-            onErrorCalled = true
-            assert(exc is NameException)
-        end)
-    end
-
-    @async
-    fun client()
-        var client = PipeStream()
-        yield client.connect(TEST_PIPE)
-        yield client.close()
-    end
-    
-    assert(!onErrorCalled)
-
-    evh.run(evh.all(server(), client()))
-
-    assert(onErrorCalled)
-end
-
-@test
 fun listenClose()
     var closed = false
 
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.close()
+        yield server.close()
 
         closed = true
     end
@@ -108,18 +75,18 @@ end
 fun writeRead()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            try
-                var data = yield client.read()
-                yield client.write(data)
-            ensure
-                yield client.close()
-                yield server.close()
-            end
-        end))
+        server.listen()
+        var client = yield server.accept()
+        try
+            var data = yield client.read()
+            yield client.write(data)
+        ensure
+            yield client.close()
+            yield server.close()
+        end
     end
 
     var data
@@ -142,15 +109,15 @@ end
 fun writeReadTask()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
 
-        yield server.listen(async(fun(client)
-            var data = yield client.read()
-            yield client.write(data)
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        var data = yield client.read()
+        yield client.write(data)
+        yield client.close()
+        yield server.close()
     end
 
     var data
@@ -173,14 +140,14 @@ end
 fun writeReadCount()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.write("0123456789")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("0123456789")
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -212,17 +179,17 @@ end
 fun writeReadCountDelayed()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.write("01234")
-            yield evh.sleep(1000)
-            yield client.write("56789")
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("01234")
+        yield evh.sleep(1000)
+        yield client.write("56789")
 
-            yield client.close()
-            yield server.close()
-        end))
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -251,16 +218,16 @@ end
 fun writeReadUntil()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.write(
-                "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n"
-            )
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write(
+            "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n"
+        )
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -292,18 +259,18 @@ end
 fun writeReadUntilDelayed()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.write(
-                "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
-            )
-            yield evh.sleep(1000)
-            yield client.write("t: test.com\r\n\r\n")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write(
+            "GET /test HTTP/1.1\r\nHost: test.com\r\n\r\nGET /test2 HTTP/1.1\r\nHos"
+        )
+        yield evh.sleep(1000)
+        yield client.write("t: test.com\r\n\r\n")
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -335,14 +302,14 @@ end
 fun writeln()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.write(yield client.readLine())
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write(yield client.readLine())
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -362,15 +329,15 @@ end
 fun readLine()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.write("line1\nline")
-            yield client.write("2\nline3\n")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("line1\nline")
+        yield client.write("2\nline3\n")
+        yield client.close()
+        yield server.close()
     end
 
     @async
@@ -405,14 +372,14 @@ end
 fun readUntilFail()
     @async
     fun server()
-        var server = PipeStream()
+        var server = PipeListener()
         server.bind(TEST_PIPE)
         
-        yield server.listen(async(fun(client)
-            yield client.write("line1")
-            yield client.close()
-            yield server.close()
-        end))
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("line1")
+        yield client.close()
+        yield server.close()
     end
 
     @async

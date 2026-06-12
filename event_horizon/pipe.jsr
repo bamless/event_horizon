@@ -2,6 +2,7 @@ import event_horizon for getEventLoop
 import event_horizon.async for async
 import event_horizon.errors for StatusException
 import event_horizon.stream for Stream
+import event_horizon.listener for Listener
 import event_horizon.uv.pipe as uv_pipe
 
 /// High-level named pipe stream.
@@ -13,11 +14,6 @@ class PipeStream is Stream
     construct(ipc=false, highWaterMark=null, loop=null, _pipe=null)
         loop = loop or getEventLoop()
         super(_pipe or uv_pipe.Pipe(ipc, loop), highWaterMark)
-    end
-
-    /// Bind this pipe to name, or raise StatusException.
-    fun bind(name)
-        this._handle.bind(name)
     end
 
     /// Async: connect to a named pipe.
@@ -54,7 +50,27 @@ class PipeStream is Stream
         return this._handle.peerName()
     end
 
-    fun _accept(client)
-        return PipeStream(false, this._highWaterMark, this._handle.loop(), client)
+end
+
+/// Named pipe server listener.
+///
+/// Bind the listener to a pipe name, call listen(), then repeatedly
+/// `yield accept()` to receive PipeStream clients.
+class PipeListener is Listener
+    /// Construct a pipe listener.
+    ///
+    /// ipc enables libuv IPC mode. loop defaults to the active/default loop.
+    construct(ipc=false, loop=null)
+        loop = loop or getEventLoop()
+        super(uv_pipe.Pipe(ipc, loop))
+    end
+
+    /// Bind the listener to pipe name, or raise StatusException.
+    fun bind(name)
+        this._handle.bind(name)
+    end
+
+    fun _makeStream(client)
+        return PipeStream(false, null, this._handle.loop(), client)
     end
 end

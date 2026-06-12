@@ -23,7 +23,7 @@ import sys
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.tls for TLSStream
+import event_horizon.tls for TLSStream, TLSListener
 
 static var CERT = "tests/certs/cert.pem"
 static var KEY  = "tests/certs/key.pem"
@@ -51,11 +51,16 @@ static var DEFAULT_PORT = 19443
 end
 
 @async fun runServer(host, port)
-    var server = TLSStream({"cert": CERT, "key": KEY})
+    var server = TLSListener({"cert": CERT, "key": KEY})
     try
         server.bind(host, port)
+        server.listen()
         print("TLS echo server listening on {0}:{1}" % (host, port))
-        yield server.listen(handleClient)
+
+        for ;;
+            var client = yield server.accept()
+            evh.getEventLoop().createTask(handleClient(client))
+        end
     ensure
         yield server.close()
     end

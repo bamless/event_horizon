@@ -21,6 +21,7 @@ import uv.pipe
 import uv.tls
 
 import evh.future_task
+import evh.queue
 import evh.tcp
 import evh.pipe
 import evh.udp

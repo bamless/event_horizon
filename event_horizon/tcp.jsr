@@ -3,6 +3,7 @@ import event_horizon.async for async
 import event_horizon.dns for getAddrInfo
 import event_horizon.errors for StatusException
 import event_horizon.stream for Stream
+import event_horizon.listener for Listener
 import event_horizon.utils.ip for getIPType, IPType
 import event_horizon.uv.consts for SockType
 import event_horizon.uv.tcp as uv_tcp
@@ -44,13 +45,6 @@ class TCPStream is Stream
         return yield fut
     end
 
-    /// Bind the stream to a local address and port.
-    ///
-    /// Raises StatusException if the address is invalid or binding fails.
-    fun bind(addr, port, ipv6Only=false)
-        this._handle.bind(addr, port, ipv6Only)
-    end
-
     /// Return (address, port) for the local socket, or raise StatusException.
     fun sockName()
         return this._handle.sockName()
@@ -60,8 +54,27 @@ class TCPStream is Stream
     fun peerName()
         return this._handle.peerName()
     end
+end
 
-    fun _accept(client)
-        return TCPStream(this._highWaterMark, this._handle.loop(), client)
+/// TCP server listener.
+///
+/// Bind the listener to an address and port, call listen(), then repeatedly
+/// `yield accept()` to receive TCPStream clients.
+class TCPListener is Listener
+    /// Construct a TCP listener on loop, or the active/default loop when omitted.
+    construct(loop=null)
+        loop = loop or getEventLoop()
+        super(uv_tcp.TCP(loop))
+    end
+
+    /// Bind the listener to a local address and port.
+    ///
+    /// Raises StatusException if the address is invalid or binding fails.
+    fun bind(addr, port, ipv6Only=false)
+        this._handle.bind(addr, port, ipv6Only)
+    end
+
+    fun _makeStream(client)
+        return TCPStream(null, this._handle.loop(), client)
     end
 end
