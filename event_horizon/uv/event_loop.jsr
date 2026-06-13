@@ -34,7 +34,6 @@ class EventLoop
     construct()
         this._id = eventLoops.ref(this)
         this._closed = false
-        this._running = false
         this._handles = Registry()
         this._readyQueue = []
         this._drainBuffer = []
@@ -59,11 +58,6 @@ class EventLoop
 
     /// Close the loop. Raises if libuv still has pending handles.
     native close()
-
-    /// Return whether this loop is currently running callbacks.
-    fun isRunning()
-        return this._running
-    end
 
     /// Return whether close() has successfully closed this loop.
     fun isClosed()
@@ -214,13 +208,9 @@ class EventLoop
 
         var previous = _enterRunningEventLoop(this)
 
-        var wasRunning = this._running
-        this._running = true
-
         try
             return this._run(mode)
         ensure
-            this._running = wasRunning
             _leaveRunningEventLoop(previous)
         end
     end

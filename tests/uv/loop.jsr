@@ -32,17 +32,15 @@ end
 fun stop()
     var loop = event_loop.EventLoop()
     var tcp = TCP(loop)
-    var sawRunningLoop = false
+    var closed = false
 
     tcp.close(fun()
-        sawRunningLoop = loop.isRunning()
+        closed = true
         loop.stop()
     end)
 
-    assert(!loop.isRunning(), "Loop should not be running before runForever()")
     loop.runForever()
-    assert(sawRunningLoop, "Loop should report running while invoking callbacks")
-    assert(!loop.isRunning(), "Loop should not be running after runForever() returns")
+    assert(closed, "Loop should have closed stream")
 end
 
 @test
