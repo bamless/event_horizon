@@ -38,25 +38,8 @@ add_library(event_horizon SHARED
 
 set_target_properties(event_horizon PROPERTIES C_VISIBILITY_PRESET hidden)
 set_target_properties(event_horizon PROPERTIES OUTPUT_NAME "__package__")
-
 target_link_libraries(event_horizon PUBLIC jstar::jstar libuv libmbedtls)
 target_compile_definitions(event_horizon PRIVATE jstar_EXPORTS)
-target_compile_options(event_horizon
-    PRIVATE
-        $<$<C_COMPILER_ID:MSVC>:/W3>
-        $<$<C_COMPILER_ID:Clang>:-Wall -Wextra>
-        $<$<C_COMPILER_ID:GNU>:-Wall -Wextra>
-)
-
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    target_link_options(event_horizon PRIVATE
-        $<$<CONFIG:Release>:-s>
-    )
-endif()
-
-if(LTO)
-    set_target_properties(event_horizon PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
 
 # Copy the built shared librarty to the `event_horizon/uv` folder
 add_custom_command(TARGET event_horizon POST_BUILD
