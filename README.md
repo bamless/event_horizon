@@ -164,7 +164,7 @@ helpers only when writing low-level wrapper code or diagnostics.
 ### Prerequisites
 
 - [J*](https://github.com/bamless/jstar) ≥ 1.0
-- [CMake](https://cmake.org) ≥ 3.10
+- [CMake](https://cmake.org) ≥ 3.21
 - [libuv](https://libuv.org) ≥ 1.0 (or use the bundled build described below)
 - [mbedTLS](https://github.com/Mbed-TLS/mbedtls) ≥ 3.0 (or use the bundled build described below)
 
