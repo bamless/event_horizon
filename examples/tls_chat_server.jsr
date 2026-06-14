@@ -40,6 +40,23 @@ var clients = {}
     end
 end
 
+@async fun userJoin(username, client)
+    clients[username] = client
+    print("{0} joined" % username)
+    yield evh.all(
+        client.write("users connected: {0}\n" % clients.join(", ")),
+        broadcast(client, "* {0} joined\n" % username)
+    )
+end
+
+@async fun userLeave(username)
+    if username and clients[username]
+        print("{0} left" % username)
+        yield broadcast(clients[username], "* {0} left\n" % username)
+        clients.delete(username)
+    end
+end
+
 @async fun handleClient(client)
     var username = null
 
@@ -58,11 +75,7 @@ end
         end
 
         username = requestedUsername
-        clients[username] = client
-
-        print("{0} joined" % username)
-        yield client.write("users connected: {0}\n" % clients.join(", "))
-        yield broadcast(client, "* {0} joined\n" % username)
+        yield userJoin(username, client)
 
         var line
         while line = yield client.readLine()
@@ -73,12 +86,8 @@ end
     except StatusException e
         io.stderr.writeln("Error in client {0}: {1}" % (username, e.err()))
     ensure
+        yield userLeave(username)
         yield client.close()
-        if username
-            print("{0} left" % username)
-            clients.delete(username)
-            yield broadcast(client, "* {0} left\n" % username)
-        end
     end
 end
 
@@ -93,15 +102,9 @@ end
 
         for ;;
             var client = yield server.accept()
-            var clientTask
-            clientTask = evh.createTask(async(fun()
-                try
-                    tasks[clientTask] = true
-                    yield handleClient(client)
-                ensure
-                    tasks.delete(clientTask)
-                end
-            end)())
+            var clientTask = evh.createTask(handleClient(client))
+            tasks[clientTask] = true
+            clientTask.addDoneCallback(|_| => tasks.delete(clientTask))
         end
     except ProgramInterrupt _
         print("Closing server...")
