@@ -32,7 +32,7 @@ class TLS is Stream
     /// callback(client, status) runs after accept and server-side handshake.
     /// On handshake failure, the accepted client is closed automatically if the
     /// callback leaves it open.
-    fun listen(callback, backlog=0)
+    fun listen(callback, backlog=null)
         super(fun(client, status)
             // Kick off the server-side handshake; The callback fires when done.
             // On failure, auto-close the accepted handle if the user callback

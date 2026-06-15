@@ -12,7 +12,7 @@ class Stream is Handle
     end
     
     /// Start listening and invoke callback(client, status) through subclasses.
-    fun listen(callback, backlog=0)
+    fun listen(callback, backlog=null)
         var stream = this
         this._rawListen(fun(status)
             if status < 0
@@ -21,7 +21,7 @@ class Stream is Handle
             end
             var c = stream._accept()
             callback(c, status)
-        end, backlog)
+        end, backlog or 128)
     end
 
     /// Write data and invoke callback(status) when the write is accepted/done.

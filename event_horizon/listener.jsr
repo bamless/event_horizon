@@ -21,7 +21,7 @@ class Listener is Handle
     ///
     /// Call accept() to receive each connection. onError handles transport
     /// errors reported by the underlying listener; by default they are printed.
-    fun listen(onError=null, backlog=0)
+    fun listen(onError=null, backlog=null)
         if this.isClosing()
             raise EventHorizonException("listener closed")
         end
