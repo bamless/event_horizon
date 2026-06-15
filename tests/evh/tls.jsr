@@ -187,10 +187,11 @@ end
 @test
 fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
     var block = repeatedBlock("p", 4096)
-    var large = repeatedBlock(block, 256)
+    var large = repeatedBlock(block, 4096)
     var queuedAfterWrite = null
     var queuedAfterResolve = null
     var serverRead = 0
+    var startReading = evh.getEventLoop().createFuture()
 
     @async
     fun server()
@@ -199,6 +200,7 @@ fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
         s.listen()
         var client = yield s.accept()
         try
+            yield startReading
             while serverRead < #large
                 var data = yield client.read()
                 if !data
@@ -218,9 +220,10 @@ fun pendingWriteQueueSizeTracksUnencryptedPlaintext()
         yield c.connect("127.0.0.1", PORT)
 
         var pendingWrite = evh.createTask(c.write(large))
-        yield evh.sleep(0) // Give 'pendingWrite' time to be scheduled
-
+        yield evh.sleep(0) // Give 'pendingWrite' time to enter the native write path.
         queuedAfterWrite = c.pendingWriteQueueSize()
+
+        startReading.setResult()
         yield pendingWrite
         queuedAfterResolve = c.pendingWriteQueueSize()
 

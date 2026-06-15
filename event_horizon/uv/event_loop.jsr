@@ -232,22 +232,26 @@ class EventLoop
         drainer.start(fun()
             drainer.stop()
 
-            // Drain iteratively. Callbacks added by running callbacks are picked
-            // up by the while-loop rather than scheduling a second prepare turn.
-            while #self._readyQueue > 0
-                self._drainBuffer, self._readyQueue = self._readyQueue, self._drainBuffer
-                for var callback in self._drainBuffer
-                    try
-                        callback()
-                    except Exception e
-                        _addException(e)
-                    end
+            // Drain only the callbacks that were ready at the start of this
+            // loop turn. Callbacks scheduled by those callbacks are left for a
+            // later turn, which gives timers, I/O, and signals a chance to run
+            // even when tasks keep rescheduling each other.
+            self._drainBuffer, self._readyQueue = self._readyQueue, self._drainBuffer
+            for var callback in self._drainBuffer
+                try
+                    callback()
+                except Exception e
+                    _addException(e)
                 end
-                self._drainBuffer.clear()
             end
 
+            self._drainBuffer.clear()
             self._readyDrainer = null
             drainer.close()
+
+            if #self._readyQueue > 0
+                self._armReadyDrainer()
+            end
         end)
     end
 
