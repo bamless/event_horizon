@@ -45,6 +45,7 @@ end
 @async fun runServer(host, port)
     var server = TCPListener()
 
+    var tasks = {}
     try
         server.bind(host, port)
         server.listen()
@@ -52,11 +53,16 @@ end
 
         for ;;
             var client = yield server.accept()
-            evh.createTask(handleClient(client))
+            var task = evh.createTask(handleClient(client))
+            tasks[task] = true
+            task.addDoneCallback(tasks.delete)
         end
     except ProgramInterrupt _
         print("Closing server...")
     ensure
+        for var task in tasks
+            task.cancel()
+        end
         yield server.close()
     end
 end
