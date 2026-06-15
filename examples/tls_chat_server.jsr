@@ -58,7 +58,7 @@ end
 end
 
 @async fun handleClient(client)
-    var username = null
+    var username
 
     try
         yield client.write("username: ")
@@ -104,7 +104,7 @@ end
             var client = yield server.accept()
             var clientTask = evh.createTask(handleClient(client))
             tasks[clientTask] = true
-            clientTask.addDoneCallback(|_| => tasks.delete(clientTask))
+            clientTask.addDoneCallback(tasks.delete)
         end
     except ProgramInterrupt _
         print("Closing server...")
