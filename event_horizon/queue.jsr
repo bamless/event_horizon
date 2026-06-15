@@ -13,6 +13,7 @@ class QueueClosed is Exception end
 ///
 /// maxSize == 0 means unbounded. close() prevents new items from being added,
 /// wakes blocked producers, and lets consumers drain already queued items.
+/// If `immediate` is passed to close(), it also immediately fails any readers.
 /// Once the queue is closed and empty, get() raises QueueClosed.
 class Queue
     /// Construct a queue owned by loop, or the active/default loop when omitted.
@@ -148,7 +149,6 @@ class Queue
         end
 
         this._closed = true
-
         this._failWaiters(this._writers)
 
         if immediate or this.isEmpty()
