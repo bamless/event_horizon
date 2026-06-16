@@ -8,6 +8,31 @@ end
 class CancelledError is EventHorizonException
 end
 
+/// Wrap a negative operation status code.
+///
+/// High-level APIs raise StatusException for ordinary network,
+/// DNS, handle, timer, and stream failures.
+class StatusException is EventHorizonException
+    /// Construct from a status code and optional cause.
+    construct(status, exc=null)
+        super(strerror(status), exc)
+        this._status = status
+    end
+
+    /// Return the underlying operation status code.
+    fun status()
+        return this._status
+    end
+end
+
+/// Raised when mbedTLS reports a protocol-level TLS error.
+///
+/// Examples include handshake failures, certificate verification failures, bad
+/// records, and alerts received from the peer. The message is the mbedTLS error
+/// string when available.
+class TLSException is EventHorizonException
+end
+
 /// Raised when a delimited read exceeds its configured byte limit.
 ///
 /// `limit()` returns the caller-supplied maximum. `bufferedSize()` returns the
@@ -16,9 +41,7 @@ end
 /// arrive in chunks.
 class DelimitedReadLimitExceeded is EventHorizonException
     construct(limit, bufferedSize)
-        super(
-            "Delimited read exceeded limit of {0} bytes before finding separator" % limit
-        )
+        super("Delimited read exceeded limit of {0} bytes before finding separator" % limit)
         this._limit = limit
         this._bufferedSize = bufferedSize
     end
@@ -48,31 +71,6 @@ class DelimitedReadIncomplete is EventHorizonException
     fun partial()
         return this._partial
     end
-end
-
-/// Wrap a negative operation status code.
-///
-/// High-level APIs raise StatusException for ordinary network,
-/// DNS, handle, timer, and stream failures.
-class StatusException is EventHorizonException
-    /// Construct from a status code and optional cause.
-    construct(status, exc=null)
-        super(strerror(status), exc)
-        this._status = status
-    end
-
-    /// Return the underlying operation status code.
-    fun status()
-        return this._status
-    end
-end
-
-/// Raised when mbedTLS reports a protocol-level TLS error.
-///
-/// Examples include handshake failures, certificate verification failures, bad
-/// records, and alerts received from the peer. The message is the mbedTLS error
-/// string when available.
-class TLSException is EventHorizonException
 end
 
 /// Raised after the event loop finishes when callbacks failed during the run.
