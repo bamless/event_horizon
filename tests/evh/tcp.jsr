@@ -6,7 +6,8 @@ import test for test, run, skip
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.errors for CancelledError, EventHorizonException, StatusException
+import event_horizon.errors for CancelledError, DelimitedReadIncomplete, DelimitedReadLimitExceeded,
+                                EventHorizonException, StatusException
 import event_horizon.tcp for TCPStream, TCPListener
 import event_horizon.uv.errors for Errno
 
@@ -500,7 +501,7 @@ fun readLine()
 end
 
 @test
-fun readUntilFail()
+fun readUntilIncomplete()
     @async
     fun server()
         var server = TCPListener()
@@ -518,8 +519,12 @@ fun readUntilFail()
         var client = TCPStream()
         yield client.connect("127.0.0.1", 8080)
 
-        var partial = yield client.readLine()
-        assert(!partial.endsWith("\n"))
+        try
+            yield client.readLine()
+            assert(false, "incomplete readUntil should have failed")
+        except DelimitedReadIncomplete e
+            assert(e.partial() == "line1")
+        end
 
         assert(#client._buffer == 0)
 
@@ -530,13 +535,45 @@ fun readUntilFail()
 end
 
 @test
+fun readUntilMaxSizeExceeded()
+    @async
+    fun server()
+        var server = TCPListener()
+        server.bind("0.0.0.0", 8080)
+
+        server.listen()
+        var client = yield server.accept()
+        yield client.write("line1")
+        yield client.close()
+        yield server.close()
+    end
+
+    @async
+    fun client()
+        var client = TCPStream()
+        yield client.connect("127.0.0.1", 8080)
+
+        try
+            yield client.readUntil("\n", 4)
+            assert(false, "oversized readUntil should have failed")
+        except DelimitedReadLimitExceeded e
+            assert(e.limit() == 4)
+            assert(e.bufferedSize() > e.limit())
+            assert(#client._buffer == e.bufferedSize())
+        end
+
+        var buffered = yield client.read()
+        assert(buffered == "line1")
+        assert(#client._buffer == 0)
+
+        yield client.close()
+    end
+
+    evh.run(evh.all(server(), client()))
+end
+
+@test
 fun readUntilSeparatorSplitAcrossChunks()
-    // Regression test for _drainUntilSep missing separators that straddle a
-    // chunk boundary. The first write ends with "\r\n\r" (three of the four
-    // separator bytes) and the second write, sent after a delay to force a
-    // separate TCP segment, starts with "\n" (the final byte). The old code
-    // searched each chunk in isolation and would hang forever on the first
-    // readUntil because neither chunk contained the complete "\r\n\r\n".
     @async
     fun server()
         var server = TCPListener()

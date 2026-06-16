@@ -8,6 +8,48 @@ end
 class CancelledError is EventHorizonException
 end
 
+/// Raised when a delimited read exceeds its configured byte limit.
+///
+/// `limit()` returns the caller-supplied maximum. `bufferedSize()` returns the
+/// number of bytes buffered when the stream crossed that limit; it may be
+/// larger than both the limit and the oversized delimited record because reads
+/// arrive in chunks.
+class DelimitedReadLimitExceeded is EventHorizonException
+    construct(limit, bufferedSize)
+        super(
+            "Delimited read exceeded limit of {0} bytes before finding separator" % limit
+        )
+        this._limit = limit
+        this._bufferedSize = bufferedSize
+    end
+
+    /// Return the configured maximum byte count.
+    fun limit()
+        return this._limit
+    end
+
+    /// Return accumulated bytes when the configured maximum was exceeded.
+    fun bufferedSize()
+        return this._bufferedSize
+    end
+end
+
+/// Raised when EOF is reached before a delimited read finds its separator.
+///
+/// `partial()` returns the remaining bytes read before EOF. This data did not
+/// include the requested separator.
+class DelimitedReadIncomplete is EventHorizonException
+    construct(partial)
+        super("Delimited read reached EOF before finding separator")
+        this._partial = partial
+    end
+
+    /// Return bytes read before EOF.
+    fun partial()
+        return this._partial
+    end
+end
+
 /// Wrap a negative operation status code.
 ///
 /// High-level APIs raise StatusException for ordinary network,

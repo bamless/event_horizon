@@ -6,7 +6,7 @@ import test for test, run, skip
 
 import event_horizon as evh
 import event_horizon.async for async
-import event_horizon.errors for EventHorizonException
+import event_horizon.errors for DelimitedReadIncomplete, EventHorizonException
 import event_horizon.pipe for PipeStream, PipeListener
 
 static var TEST_PIPE = "TEST_PIPE"
@@ -369,7 +369,7 @@ fun readLine()
 end
 
 @test
-fun readUntilFail()
+fun readUntilIncomplete()
     @async
     fun server()
         var server = PipeListener()
@@ -387,8 +387,12 @@ fun readUntilFail()
         var client = PipeStream()
         yield client.connect(TEST_PIPE)
 
-        var partial = yield client.readLine()
-        assert(!partial.endsWith("\n"))
+        try
+            yield client.readLine()
+            assert(false, "incomplete readUntil should have failed")
+        except DelimitedReadIncomplete e
+            assert(e.partial() == "line1")
+        end
 
         assert(#client._buffer == 0)
 

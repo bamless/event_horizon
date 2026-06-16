@@ -9,7 +9,7 @@ class StreamBuffer
 
     native pushBack(data)
     native drainN(n)
-    native drainUntilSep(sep)
+    native findSepEnd(sep)
     native drainAll()
     native __len__()
     native _init()

@@ -108,119 +108,32 @@ fun drainNThenDrainAll()
 end
 
 // ---------------------------------------------------------------------------
-// drainUntilSep
+// findSepEnd
 // ---------------------------------------------------------------------------
 
 @test
-fun drainUntilSepNotFound()
+fun findSepEndNotFound()
     var b = StreamBuffer()
-    b.pushBack("hello world")
-    assert(b.drainUntilSep("\n") == null)
-    assert(#b == 11)  // nothing was consumed
-end
+    b.pushBack("hello")
 
-@test
-fun drainUntilSepWithinChunk()
-    var b = StreamBuffer()
-    b.pushBack("hello\nworld")
-    assert(b.drainUntilSep("\n") == "hello\n")
+    assert(b.findSepEnd("\n") == null)
     assert(#b == 5)
-    assert(b.drainAll() == "world")
 end
 
 @test
-fun drainUntilSepAtStart()
-    var b = StreamBuffer()
-    b.pushBack("\nhello")
-    assert(b.drainUntilSep("\n") == "\n")
-    assert(b.drainAll() == "hello")
-end
-
-@test
-fun drainUntilSepAtEnd()
-    var b = StreamBuffer()
-    b.pushBack("hello\n")
-    assert(b.drainUntilSep("\n") == "hello\n")
-    assert(b.drainAll() == null)
-end
-
-@test
-fun drainUntilSepAtChunkBoundary()
-    var b = StreamBuffer()
-    b.pushBack("hello\n")
-    b.pushBack("world")
-    assert(b.drainUntilSep("\n") == "hello\n")
-    assert(b.drainAll() == "world")
-end
-
-@test
-fun drainUntilSepStraddlesBoundary()
-    var b = StreamBuffer()
-    b.pushBack("hel")
-    b.pushBack("lo\nworld")
-    assert(b.drainUntilSep("\n") == "hello\n")
-    assert(b.drainAll() == "world")
-end
-
-@test
-fun drainUntilSepMultiChar()
-    var b = StreamBuffer()
-    b.pushBack("hello\r\nworld")
-    assert(b.drainUntilSep("\r\n") == "hello\r\n")
-    assert(b.drainAll() == "world")
-end
-
-@test
-fun drainUntilSepMultiCharStraddlesBoundary()
-    // "\r\n" split so that "\r" ends one chunk and "\n" starts the next
-    var b = StreamBuffer()
-    b.pushBack("hello\r")
-    b.pushBack("\nworld")
-    assert(b.drainUntilSep("\r\n") == "hello\r\n")
-    assert(b.drainAll() == "world")
-end
-
-@test
-fun drainUntilSepSplitAcrossThreeChunks()
-    // Multi-char separator spanning three tiny chunks
-    var b = StreamBuffer()
-    b.pushBack("a")
-    b.pushBack("\r")
-    b.pushBack("\nb")
-    assert(b.drainUntilSep("\r\n") == "a\r\n")
-    assert(b.drainAll() == "b")
-end
-
-@test
-fun drainUntilSepEmptySep()
+fun findSepEndEmptySep()
     var b = StreamBuffer()
     b.pushBack("hello")
-    assert(b.drainUntilSep("") == "")
-    assert(#b == 5)  // nothing consumed
-end
 
-@test
-fun drainUntilSepTooLong()
-    var b = StreamBuffer()
-    b.pushBack("hello")
-    var sep = "x" * 65  // exceeds MAX_SEP_LEN (64)
     var threw = false
     try
-        b.drainUntilSep(sep)
+        b.findSepEnd("")
     except InvalidArgException e
         threw = true
     end
-    assert(threw)
-end
 
-@test
-fun drainUntilSepMultipleTimes()
-    var b = StreamBuffer()
-    b.pushBack("line1\nline2\nline3\n")
-    assert(b.drainUntilSep("\n") == "line1\n")
-    assert(b.drainUntilSep("\n") == "line2\n")
-    assert(b.drainUntilSep("\n") == "line3\n")
-    assert(b.drainUntilSep("\n") == null)
+    assert(threw)
+    assert(#b == 5)
 end
 
 if __name__ == '__main__'

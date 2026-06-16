@@ -1,9 +1,10 @@
 import event_horizon.utils.abc for abstract, abstractMethod
 import event_horizon.async for async
-import event_horizon.errors for EventHorizonException, StatusException
 import event_horizon.handle for Handle
 import event_horizon.uv.stream_buffer for StreamBuffer
 import event_horizon.uv.errors for Errno
+import event_horizon.errors for DelimitedReadIncomplete, DelimitedReadLimitExceeded,
+                                EventHorizonException, StatusException
 
 static var DEFAULT_HIGH_WATER_MARK = 65536
 
@@ -162,20 +163,37 @@ class Stream is Handle
 
     /// Async: read through separator and include it in the returned data.
     ///
-    /// Completes with remaining buffered bytes on EOF. Fails with
-    /// StatusException on read errors.
-    @async fun readUntil(separator)
+    /// With maxSize == 0, reads without a size limit. With a positive maxSize,
+    /// raises DelimitedReadLimitExceeded if more than maxSize bytes are
+    /// accumulated before the separator is found. EOF with buffered bytes
+    /// before the separator raises DelimitedReadIncomplete containing those
+    /// bytes. Clean EOF with no buffered bytes returns null. Transport read
+    /// errors still raise StatusException.
+    @async fun readUntil(separator, maxSize=0)
         var loop = this._handle.loop()
         var fut = loop.createFuture()
+
+        if maxSize < 0
+            raise InvalidArgException("maxSize must be non-negative")
+        end
 
         if this._pendingRead
             fut.setException(this._makeError(Errno.EALREADY))
             return yield fut
         end
 
-        var data = this._buffer.drainUntilSep(separator)
-        if data
-            fut.setResult(data)
+        var sepEnd = this._buffer.findSepEnd(separator)
+        if sepEnd
+            if maxSize > 0 and sepEnd > maxSize
+                fut.setException(DelimitedReadLimitExceeded(maxSize, #this._buffer))
+            else
+                fut.setResult(this._buffer.drainN(sepEnd))
+            end
+            return yield fut
+        end
+
+        if maxSize > 0 and #this._buffer > maxSize
+            fut.setException(DelimitedReadLimitExceeded(maxSize, #this._buffer))
             return yield fut
         end
 
@@ -204,18 +222,32 @@ class Stream is Handle
             if !data  // EOF
                 self._handle.readStop()
                 if !fut.isDone()
-                    fut.setResult(self._buffer.drainAll())
+                    var partial = self._buffer.drainAll()
+                    if partial
+                        fut.setException(DelimitedReadIncomplete(partial))
+                    else
+                        fut.setResult(null)
+                    end
                 end
                 return
             end
 
             self._buffer.pushBack(data)
-            var dataChunk = self._buffer.drainUntilSep(separator)
+            var sepEnd = self._buffer.findSepEnd(separator)
 
-            if dataChunk
+            if sepEnd
                 self._handle.readStop()
                 if !fut.isDone()
-                    fut.setResult(dataChunk)
+                    if maxSize > 0 and sepEnd > maxSize
+                        fut.setException(DelimitedReadLimitExceeded(maxSize, #self._buffer))
+                    else
+                        fut.setResult(self._buffer.drainN(sepEnd))
+                    end
+                end
+            elif maxSize > 0 and #self._buffer > maxSize
+                self._handle.readStop()
+                if !fut.isDone()
+                    fut.setException(DelimitedReadLimitExceeded(maxSize, #self._buffer))
                 end
             end
         end)
