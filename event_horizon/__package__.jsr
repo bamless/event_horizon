@@ -4,7 +4,7 @@ import event_horizon.async for async
 import event_horizon.errors for CancelledError, EventHorizonException
 import event_horizon.future as future
 
-var VERSION = (0, 3, 0)
+var VERSION = (0, 3, 1)
 
 /// Return the running event loop, or the default loop if none is running.
 fun getEventLoop()

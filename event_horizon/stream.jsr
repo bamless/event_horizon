@@ -114,27 +114,26 @@ class Stream is Handle
         end)
 
         self._handle.readStart(fun(data, status)
-            if status < 0
+            if fut.isDone()
                 self._handle.readStop()
-                if !fut.isDone()
-                    fut.setException(self._makeError(status))
-                end
                 return
             end
 
-            if count == 0
+            if status < 0
                 self._handle.readStop()
-                if !fut.isDone()
-                    fut.setResult(data)
-                end
+                fut.setException(self._makeError(status))
+                return
+            end
+
+            if count == 0  // Resolve next chunk immediately if user requested arbitrary chunk
+                self._handle.readStop()
+                fut.setResult(data)
                 return
             end
 
             if !data  // EOF
                 self._handle.readStop()
-                if !fut.isDone()
-                    fut.setResult(self._buffer.drainAll())
-                end
+                fut.setResult(self._buffer.drainAll())
                 return
             end
 
@@ -143,9 +142,7 @@ class Stream is Handle
 
             if dataChunk
                 self._handle.readStop()
-                if !fut.isDone()
-                    fut.setResult(dataChunk)
-                end
+                fut.setResult(dataChunk)
             end
         end)
 
@@ -182,18 +179,7 @@ class Stream is Handle
             return yield fut
         end
 
-        var sepEnd = this._buffer.findSepEnd(separator)
-        if sepEnd
-            if maxSize > 0 and sepEnd > maxSize
-                fut.setException(DelimitedReadLimitExceeded(maxSize, #this._buffer))
-            else
-                fut.setResult(this._buffer.drainN(sepEnd))
-            end
-            return yield fut
-        end
-
-        if maxSize > 0 and #this._buffer > maxSize
-            fut.setException(DelimitedReadLimitExceeded(maxSize, #this._buffer))
+        if this._tryCompleteDelimitedRead(fut, separator, maxSize)
             return yield fut
         end
 
@@ -211,44 +197,31 @@ class Stream is Handle
         end)
 
         self._handle.readStart(fun(data, status)
+            if fut.isDone()
+                self._handle.readStop()
+                return
+            end
+
             if status < 0
                 self._handle.readStop()
-                if !fut.isDone()
-                    fut.setException(self._makeError(status))
-                end
+                fut.setException(self._makeError(status))
                 return
             end
 
             if !data  // EOF
                 self._handle.readStop()
-                if !fut.isDone()
-                    var partial = self._buffer.drainAll()
-                    if partial
-                        fut.setException(DelimitedReadIncomplete(partial))
-                    else
-                        fut.setResult(null)
-                    end
+                var partial = self._buffer.drainAll()
+                if partial
+                    fut.setException(DelimitedReadIncomplete(partial))
+                else
+                    fut.setResult(null)
                 end
                 return
             end
 
             self._buffer.pushBack(data)
-            var sepEnd = self._buffer.findSepEnd(separator)
-
-            if sepEnd
+            if self._tryCompleteDelimitedRead(fut, separator, maxSize)
                 self._handle.readStop()
-                if !fut.isDone()
-                    if maxSize > 0 and sepEnd > maxSize
-                        fut.setException(DelimitedReadLimitExceeded(maxSize, #self._buffer))
-                    else
-                        fut.setResult(self._buffer.drainN(sepEnd))
-                    end
-                end
-            elif maxSize > 0 and #self._buffer > maxSize
-                self._handle.readStop()
-                if !fut.isDone()
-                    fut.setException(DelimitedReadLimitExceeded(maxSize, #self._buffer))
-                end
             end
         end)
 
@@ -270,7 +243,6 @@ class Stream is Handle
             if fut.isDone()
                 return
             end
-
             if status < 0
                 fut.setException(self._makeError(status))
             else
@@ -355,6 +327,30 @@ class Stream is Handle
                 end
             end
         end
+    end
+
+    // Complete a delimited read from already-buffered bytes when possible.
+    fun _tryCompleteDelimitedRead(fut, separator, maxSize)
+        if fut.isDone()
+            return true
+        end
+
+        var sepEnd = this._buffer.findSepEnd(separator)
+        if sepEnd
+            if maxSize > 0 and sepEnd > maxSize
+                fut.setException(DelimitedReadLimitExceeded(maxSize, #this._buffer))
+            else
+                fut.setResult(this._buffer.drainN(sepEnd))
+            end
+            return true
+        end
+
+        if maxSize > 0 and #this._buffer > maxSize
+            fut.setException(DelimitedReadLimitExceeded(maxSize, #this._buffer))
+            return true
+        end
+
+        return false
     end
 
     // Construct an error object from a transport status code. Subclasses may
