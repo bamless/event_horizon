@@ -375,14 +375,6 @@ static void pumpWrites(uv_tls_t* tls) {
 }
 
 static void pumpReads(uv_tls_t* tls) {
-    // TODO: below we use a loop with a fixed `TLS_PLAIN_READ_CHUNK` to get
-    // data out of the possibly non-contigous ring buffer. This costs us an
-    // extra copy into a staging buffer - profile to evaluate wether using a
-    // memory-mapped contiguous ring wins us back some performance.
-
-    // Deliver all available plaintext while the user read callback remains
-    // installed. Callbacks may close the handle or stop reading, so re-check
-    // state on every iteration.
     unsigned char plain[TLS_PLAIN_READ_CHUNK];
     while(canReadPlaintext(tls) && hasReadCallback(tls)) {
         size_t cipherBefore = ringBufLen(&tls->cipherIn);

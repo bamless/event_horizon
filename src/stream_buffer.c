@@ -3,9 +3,6 @@
 #include <stddef.h>
 #include <string.h>
 
-// Separator length is bounded at compile time in order to allow static arrays for the boundary
-// window buffer.
-// Separators longer than this will be rejected with an InvalidArgException.
 #define MAX_SEP_LEN 64
 
 #define M_STATE  "_state"
