@@ -8,6 +8,7 @@
 #include <mbedtls/x509_crt.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <uv.h>
@@ -84,6 +85,7 @@ typedef struct uv_tls_s {
     int handshakeCbId;
     int shutdownCbId;
     int lastTlsErr;
+    uint32_t certVerifyFlags;
     int fatalStatus;
 
     bool rawReadActive;
@@ -438,14 +440,14 @@ static void tlsPump(uv_tls_t* tls) {
                 tls->handshakeCbId = -1;
             }
         } else if(ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-            // TODO: A cert verification failure arrives here as the generic
-            // MBEDTLS_ERR_X509_CERT_VERIFY_FAILED, which mbedtls_strerror later
-            // renders as "unknown error code" in tlsError(). The real reason is
-            // only available right now, via mbedtls_ssl_get_verify_result(&ssl)
-            // (a bitmask formatted by mbedtls_x509_crt_verify_info). When ret is
-            // MBEDTLS_ERR_X509_CERT_VERIFY_FAILED we should capture that detail
-            // here (e.g. the verify flags) so tlsError() can report it.
             tls->lastTlsErr = ret;
+            // For cert verification failures, capture the verify-result bitmask
+            // immediately. mbedtls_strerror() renders MBEDTLS_ERR_X509_CERT_VERIFY_FAILED
+            // as "unknown error code"; mbedtls_x509_crt_verify_info() on these
+            // flags produces the real reason (expired, name mismatch, etc.).
+            if(ret == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED) {
+                tls->certVerifyFlags = mbedtls_ssl_get_verify_result(&tls->ssl);
+            }
             stopOnFatalStatus(tls, UV_EPROTO);
             reportFatalStatus(tls, UV_EPROTO);
             return;
@@ -825,9 +827,16 @@ bool TLS_tlsError(JStarVM* vm) {
         return true;
     }
 
-    char buf[256];
-    mbedtls_strerror(tls->lastTlsErr, buf, sizeof(buf));
+    char buf[512];
+    uint32_t flags = tls->certVerifyFlags;
+    if(tls->lastTlsErr == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED && flags != 0 &&
+       flags != UINT32_MAX) {
+        mbedtls_x509_crt_verify_info(buf, sizeof(buf), "", flags);
+    } else {
+        mbedtls_strerror(tls->lastTlsErr, buf, sizeof(buf));
+    }
     tls->lastTlsErr = 0;
+    tls->certVerifyFlags = 0;
     jsrPushString(vm, buf);
     return true;
 }

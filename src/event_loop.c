@@ -185,6 +185,11 @@ static void closeLibuvLoop(void* data) {
     uv_loop_t* loop = data;
     LoopMetadata* metadata = loop->data;
     if(!metadata->closed) {
+        // TODO: this could print a warning when a user exits from an async
+        // program with `sys.exit`. This happens because, even if there are no
+        // open handles, at least one `Prepare` handle (for handling `callSoon`
+        // loop calls) is probably open at that point
+
         // If handles are still open their uv_handle_t memory may already have
         // been freed by the GC (handle userdatas are collected before the loop
         // userdata because they are allocated later). uv_loop_close walks the

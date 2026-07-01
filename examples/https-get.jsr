@@ -23,6 +23,8 @@ import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.tls for TLSStream
 
+static var DEFAULT_HTTPS_PORT = 443
+
 // Default system CA bundle paths (first existing file wins at startup)
 static var DEFAULT_CA_PATHS = [
     "/etc/ssl/certs/ca-certificates.crt", // Debian / Ubuntu / Fedora
@@ -47,7 +49,7 @@ end
 // `path`        - request path, e.g. "/" or "/index.html"
 // `ca`          - CA bundle path, or null to skip certificate verification
 // `printHeader` - if true, prints the response status line + headers to stdout
-@async fun get(host, path, ca, printHeader)
+@async fun get(host, port, path, ca, printHeader)
     var opts = {}
     if ca
         opts["ca"] = ca
@@ -55,7 +57,7 @@ end
 
     var s = TLSStream(opts)
     try
-        yield s.connect(host, 443)
+        yield s.connect(host, port)
 
         // HTTP/1.0 keeps things simple: no chunked encoding, connection closes
         // after the response so readAll() terminates naturally.
@@ -76,6 +78,34 @@ end
     end
 end
 
+// Parses a URL and returns a scheme, host, port and path
+fun parseUrl(url)
+    // Parse scheme, host, path from the URL
+    var scheme, rest = re.match(url, "^(https?)://(.*)$")
+    var host, path = re.match(rest, "^([^/:?#]*)(/?.*)$")
+
+    var port = DEFAULT_HTTPS_PORT
+    if path.startsWith(":")
+        port, path = re.match(path, ":(%d+)(.*)")
+        try
+            port = Number(port)
+        except Exception e
+            io.stderr.writeln("Invalid port: '{0}'" % port)
+        end
+    end
+
+    if host == null or host == ""
+        io.stderr.writeln("Cannot parse hostname from: {0}" % url)
+        sys.exit(1)
+    end
+
+    if path == ""
+        path = "/"
+    end
+
+    return scheme, host, port, path
+end
+
 @async fun main()
     if #argv < 2
         io.stderr.writeln("Usage: https-get.jsr <url> <output-file> [ca-bundle|none]")
@@ -83,30 +113,15 @@ end
         sys.exit(1)
     end
 
-    var url  = argv[0]
-    var out  = argv[1]
+    var url   = argv[0]
+    var out   = argv[1]
     var caArg = argv[2] if #argv >= 3 else null
 
-    // Parse scheme, host, path from the URL
-    var scheme, rest = re.match(url, "^(https?)://(.*)$")
-    if scheme == null
-        // No scheme - treat as bare hostname, default to https
-        scheme = "https"
-        rest = url
-    end
-
-    if scheme != "https"
+    var scheme, host, port, path = parseUrl(url)
+    print(scheme, host, port, path)
+    if scheme and scheme != "https"
         io.stderr.writeln("Error: only https:// URLs are supported (got '{0}')" % scheme)
         sys.exit(1)
-    end
-
-    var host, path = re.match(rest, "^([^/:?#]*)(/?.*)$")
-    if host == null or host == ""
-        io.stderr.writeln("Cannot parse hostname from: {0}" % url)
-        sys.exit(1)
-    end
-    if path == ""
-        path = "/"
     end
 
     // Determine the CA bundle to use for certificate verification
@@ -124,11 +139,12 @@ end
         end
     end
 
-    var body = yield get(host, path, ca, true)
+    var body = yield get(host, port, path, ca, true)
 
     with io.File(out, "w") f
         f.write(body)
     end
+
     print("Wrote {0} bytes to {1}" % (#body, out))
 end
 

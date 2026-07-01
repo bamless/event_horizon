@@ -20,14 +20,16 @@ import event_horizon as evh
 import event_horizon.async for async
 import event_horizon.tcp for TCPStream
 
+static var DEFAULT_HTTP_PORT = 80
+
 // Perform an HTTP GET and return the response body as a string.
 // `host`        - hostname (used for the Host header)
 // `path`        - request path, e.g. "/" or "/index.html"
 // `printHeader` - if true, prints the response status line + headers to stdout
-@async fun get(host, path, printHeader)
+@async fun get(host, port, path, printHeader)
     var s = TCPStream()
     try
-        yield s.connect(host, 80)
+        yield s.connect(host, port)
 
         // HTTP/1.0 keeps things simple: no chunked encoding, connection closes
         // after the response so readAll() terminates naturally.
@@ -48,6 +50,34 @@ import event_horizon.tcp for TCPStream
     end
 end
 
+// Parses a URL and returns a scheme, host, port and path
+fun parseUrl(url)
+    // Parse scheme, host, path from the URL
+    var scheme, rest = re.match(url, "^(http?)://(.*)$")
+    var host, path = re.match(rest, "^([^/:?#]*)(/?.*)$")
+
+    var port = DEFAULT_HTTP_PORT
+    if path.startsWith(":")
+        port, path = re.match(path, ":(%d+)(/?.*)")
+        try
+            port = Number(port)
+        except InvalidArgException e
+            io.stderr.writeln("Invalid port: '{0}'" % port)
+        end
+    end
+
+    if host == null or host == ""
+        io.stderr.writeln("Cannot parse hostname from: {0}" % url)
+        sys.exit(1)
+    end
+
+    if path == ""
+        path = "/"
+    end
+
+    return scheme, host, port, path
+end
+
 @async fun main()
     if #argv < 2
         io.stderr.writeln("Usage: http-get.jsr <url> <output-file>")
@@ -58,33 +88,18 @@ end
     var url = argv[0]
     var out = argv[1]
 
-    // Parse scheme, host, path from the URL
-    var scheme, rest = re.match(url, "^(https?)://(.*)$")
-    if scheme == null
-        // No scheme - treat as bare hostname, default to http
-        scheme = "http"
-        rest = url
-    end
-
-    if scheme != "http"
+    var scheme, host, port, path = parseUrl(url)
+    if scheme and scheme != "http"
         io.stderr.writeln("Error: only http:// URLs are supported (got '{0}')" % scheme)
         sys.exit(1)
     end
 
-    var host, path = re.match(rest, "^([^/:?#]*)(/?.*)$")
-    if host == null or host == ""
-        io.stderr.writeln("Cannot parse hostname from: {0}" % url)
-        sys.exit(1)
-    end
-    if path == ""
-        path = "/"
-    end
-
-    var body = yield get(host, path, true)
+    var body = yield get(host, port, path, true)
 
     with io.File(out, "w") f
         f.write(body)
     end
+
     print("Wrote {0} bytes to {1}" % (#body, out))
 end
 
